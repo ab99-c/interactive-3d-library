@@ -43,8 +43,9 @@ button { font: inherit; }
 .book-hotspot:hover span, .book-hotspot:focus-visible span { opacity: 1; }
 .inspect-button { padding: 10px 13px; font-size: 9px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
 .inspect-button span { margin-left: 12px; font-size: 14px; }
-.return-button { padding: 10px 13px; color: #d8b47c; font-size: 9px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
-.return-button span { margin-left: 12px; font-size: 14px; }
+.return-button, .page-turn-button { padding: 10px 13px; color: #d8b47c; font-size: 9px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; border: 1px solid rgba(201,148,82,.55); background: rgba(15,10,6,.78); cursor: pointer; transition: transform .16s ease-out, background .18s ease-out, color .18s ease-out; }
+.page-turn-button:hover { border-color: #c99452; background: rgba(201,148,82,.16); color: #f4ead5; transform: translateY(-2px); }
+.return-button span, .page-turn-button span { margin-left: 12px; font-size: 14px; }
 .return-button:disabled { cursor: not-allowed; opacity: .35; border-color: rgba(244,234,213,.14); color: rgba(244,234,213,.38); }
 .return-button:not(:disabled):hover { border-color: #c99452; background: rgba(201,148,82,.16); }
 .inspect-button:active, .return-button:not(:disabled):active, .help-button:active, .enter-button:active { transform: scale(.97); }
@@ -60,5 +61,5 @@ button { font: inherit; }
 .corner-note { left: 30px; bottom: 77px; color: rgba(244,234,213,.35); text-align: left; font-size: 9px; line-height: 1.8; letter-spacing: .08em; }
 .corner-note span { font-size: 7px; letter-spacing: .1em; }
 @keyframes card-in { from { opacity: 0; transform: translateY(-38%) translateX(-12px); } to { opacity: 1; transform: translateY(-45%) translateX(0); } }
-@media (max-width: 720px) { .welcome-card { left: 22px; right: 22px; top: auto; bottom: 84px; width: auto; transform: none; padding: 21px; } .welcome-card h1 { font-size: 43px; } .hud-topline { left: 18px; right: 18px; top: 17px; } .hud-bottom { left: 18px; right: 18px; bottom: 17px; } .controls { display: none; } .corner-note { display: none; } .mobile-controls { display: block; } .hud-actions { gap: 6px; } .hud-actions .inspect-button, .hud-actions .return-button { padding: 9px 8px; font-size: 8px; } .hud-actions .help-button { padding: 9px 8px; font-size: 8px; } }
+@media (max-width: 720px) { .welcome-card { left: 22px; right: 22px; top: auto; bottom: 84px; width: auto; transform: none; padding: 21px; } .welcome-card h1 { font-size: 43px; } .hud-topline { left: 18px; right: 18px; top: 17px; } .hud-bottom { left: 18px; right: 18px; bottom: 17px; } .controls { display: none; } .corner-note { display: none; } .mobile-controls { display: block; } .hud-actions { gap: 6px; } .hud-actions .inspect-button, .hud-actions .return-button, .hud-actions .page-turn-button { padding: 9px 8px; font-size: 8px; } .hud-actions .help-button { padding: 9px 8px; font-size: 8px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

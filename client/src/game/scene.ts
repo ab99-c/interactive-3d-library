@@ -23,7 +23,7 @@ import "@babylonjs/core/Shaders/shadowMap.fragment";
 
 export type BookInfo = { id: string; title: string; category: string; description: string; spineTitle: string; volume: string };
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
-export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[]; setTouchMove: (x: number, y: number) => void };
+export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; turnActivePage: () => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[]; setTouchMove: (x: number, y: number) => void };
 
 const BOOK_FORMATS = [
   { name: "Pocket", width: 0.17, height: 0.43, depth: 0.12 },
@@ -193,7 +193,8 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       readingTexture.update(); readingPageMaterial.diffuseTexture = readingTexture;
       const openLeftPage = box(scene, `book-open-left-${shelfIndex}-${row}-${i}`, { width: bookWidth * 0.48, height: bookHeight * 0.9, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.07), readingPageMaterial, false);
       const openRightPage = box(scene, `book-open-right-${shelfIndex}-${row}-${i}`, { width: bookWidth * 0.48, height: bookHeight * 0.9, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.075), readingPageMaterial, false);
-      [openLeftPage, openRightPage].forEach((page) => { page.parent = root; page.isVisible = false; page.isPickable = false; });
+      const turningPage = box(scene, `book-turning-page-${shelfIndex}-${row}-${i}`, { width: bookWidth * 0.48, height: bookHeight * 0.9, depth: 0.014 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.09), readingPageMaterial, false);
+      [openLeftPage, openRightPage, turningPage].forEach((page) => { page.parent = root; page.isVisible = false; page.isPickable = false; });
       const titlePlate = MeshBuilder.CreatePlane(`book-title-${row}-${i}`, { width: Math.max(bookWidth * 0.9, 0.20), height: bookHeight * 0.86, sideOrientation: Mesh.DOUBLESIDE }, scene);
       titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.046);
       titlePlate.material = createTitleMaterial(scene, bookInfo, titleMaterials);
@@ -213,10 +214,10 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const frameLeft = box(scene, `book-frame-left-${row}-${i}`, { width: 0.018, height: bookHeight * 0.76, depth: 0.022 }, new Vector3(bookPosition.x - bookWidth * 0.38, bookPosition.y, frontZ), brass, false);
       const frameRight = box(scene, `book-frame-right-${row}-${i}`, { width: 0.018, height: bookHeight * 0.76, depth: 0.022 }, new Vector3(bookPosition.x + bookWidth * 0.38, bookPosition.y, frontZ), brass, false);
       [frameTop, frameBottom, frameLeft, frameRight].forEach((frame) => { frame.parent = root; });
-      const bookParts = [book, roundedSpine, spineStrip, pages, coverTop, coverBottom, frontCover, openLeftPage, openRightPage, titlePlate, spineLabel, spineBand, bindingBandTop, bindingBandMid, bindingBandBottom, frameTop, frameBottom, frameLeft, frameRight];
+      const bookParts = [book, roundedSpine, spineStrip, pages, coverTop, coverBottom, frontCover, openLeftPage, openRightPage, turningPage, titlePlate, spineLabel, spineBand, bindingBandTop, bindingBandMid, bindingBandBottom, frameTop, frameBottom, frameLeft, frameRight];
       bookParts.forEach((target) => {
         target.rotation.y = bookLean;
-        target.metadata = { book: bookInfo, format: format.name, bookParts, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, readingPage: target === openLeftPage || target === openRightPage, closedCover: target === frontCover || target === titlePlate || target === spineLabel || target === spineBand || target === frameTop || target === frameBottom || target === frameLeft || target === frameRight };
+        target.metadata = { book: bookInfo, format: format.name, bookParts, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, readingPage: target === openLeftPage || target === openRightPage, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate || target === spineLabel || target === spineBand || target === frameTop || target === frameBottom || target === frameLeft || target === frameRight };
         // Only the main volume is pickable; decorative binding parts move with it but do not create duplicate hits.
         target.isPickable = target === book;
       });
@@ -378,6 +379,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   let activeBookId: string | null = null;
   let activePullObserver: any = null;
   let activeOpenObserver: any = null;
+  let activeTurnObserver: any = null;
   let audioContext: AudioContext | null = null;
   const emitBookState = () => window.dispatchEvent(new CustomEvent("library:book-state", { detail: { active: Boolean(activeBookParts), bookId: activeBookId } }));
   const getAudioContext = () => {
@@ -411,6 +413,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     if (activeOpenObserver) {
       scene.onBeforeRenderObservable.remove(activeOpenObserver);
       activeOpenObserver = null;
+    }
+    if (activeTurnObserver) {
+      scene.onBeforeRenderObservable.remove(activeTurnObserver);
+      activeTurnObserver = null;
     }
     if (!activeBookParts) return false;
     activeBookParts.forEach((part) => {
@@ -447,6 +453,35 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         activeOpenObserver = null;
       }
     });
+  };
+
+  const turnActivePage = () => {
+    if (!activeBookParts || activeOpenObserver || activeTurnObserver) return false;
+    const turningPage = activeBookParts.find((part) => part.metadata?.turningPage);
+    const rightPage = activeBookParts.find((part) => part.metadata?.readingPage && part.name.includes("open-right"));
+    const leftPage = activeBookParts.find((part) => part.metadata?.readingPage && part.name.includes("open-left"));
+    if (!turningPage || !rightPage || !leftPage) return false;
+    const start = rightPage.position.clone();
+    const end = leftPage.position.clone();
+    const startedAt = performance.now();
+    turningPage.position = start.clone();
+    turningPage.rotation.y = 0;
+    turningPage.isVisible = true;
+    activeTurnObserver = scene.onBeforeRenderObservable.add(() => {
+      const progress = Math.min((performance.now() - startedAt) / 620, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      turningPage.position = Vector3.Lerp(start, end, eased);
+      turningPage.rotation.y = -Math.PI * eased;
+      if (progress >= 1 && activeTurnObserver) {
+        turningPage.position = end.clone();
+        turningPage.rotation.y = 0;
+        turningPage.isVisible = false;
+        scene.onBeforeRenderObservable.remove(activeTurnObserver);
+        activeTurnObserver = null;
+        playBookSound("pull");
+      }
+    });
+    return true;
   };
 
   const pullBookOut = (parts: any[]) => {
@@ -605,5 +640,5 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
 
   const dispose = () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
   const setTouchMove = (x: number, y: number) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, y)); };
-  return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, hasActiveBook, getBookScreenRects, setTouchMove };
+  return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, turnActivePage, hasActiveBook, getBookScreenRects, setTouchMove };
 }

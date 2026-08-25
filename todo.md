@@ -206,3 +206,10 @@
 - [x] Add a physical pull-to-player motion followed by a cover-opening and two-page spread animation.
 - [x] Connect the opened physical book to the Arabic HUD and preserve explicit return behavior.
 - [x] Verify desktop and mobile interaction, then save a checkpoint.
+
+## Arabic two-page reading and RTL page turning
+
+- [x] Inspect the opened-book geometry and current active-book state.
+- [x] Add a stable two-page spread and a visible right-to-left page-turn animation.
+- [x] Add Arabic page-turn controls and preserve close/return behavior.
+- [x] Verify the interaction on desktop and mobile, then save a checkpoint.
