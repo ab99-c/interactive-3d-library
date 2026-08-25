@@ -136,7 +136,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
     box(scene, "shelf-marker", { width: 0.7, height: 0.28, depth: 0.05 }, new Vector3(0, 4.25, -0.62), olive, false),
   ];
   parts.forEach((part) => { part.parent = root; shadow.addShadowCaster(part); });
-  const bookColors = [COLORS.brass, new Color3(0.34, 0.12, 0.09), COLORS.olive, new Color3(0.08, 0.14, 0.2), COLORS.ivory];
+  const bookColors = [new Color3(0.25, 0.055, 0.035), new Color3(0.12, 0.045, 0.025), new Color3(0.22, 0.08, 0.045), new Color3(0.06, 0.09, 0.075), new Color3(0.16, 0.07, 0.045)];
   [0.72, 1.72, 2.72, 3.72].forEach((y, row) => {
     for (let i = 0; i < 8; i += 1) {
       const format = BOOK_FORMATS[(shelfIndex + row + i) % BOOK_FORMATS.length];
@@ -164,7 +164,13 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       spineLabel.parent = root;
       const spineBand = box(scene, `book-band-${row}-${i}`, { width: bookWidth * 0.9, height: 0.035, depth: 0.03 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.32, bookPosition.z + bookDepth * 0.5 + 0.035), brass, false);
       spineBand.parent = root;
-      const bookParts = [book, pages, coverTop, coverBottom, titlePlate, spineLabel, spineBand];
+      const frontZ = bookPosition.z + bookDepth * 0.5 + 0.038;
+      const frameTop = box(scene, `book-frame-top-${row}-${i}`, { width: bookWidth * 0.78, height: 0.018, depth: 0.022 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.38, frontZ), brass, false);
+      const frameBottom = box(scene, `book-frame-bottom-${row}-${i}`, { width: bookWidth * 0.78, height: 0.018, depth: 0.022 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.38, frontZ), brass, false);
+      const frameLeft = box(scene, `book-frame-left-${row}-${i}`, { width: 0.018, height: bookHeight * 0.76, depth: 0.022 }, new Vector3(bookPosition.x - bookWidth * 0.38, bookPosition.y, frontZ), brass, false);
+      const frameRight = box(scene, `book-frame-right-${row}-${i}`, { width: 0.018, height: bookHeight * 0.76, depth: 0.022 }, new Vector3(bookPosition.x + bookWidth * 0.38, bookPosition.y, frontZ), brass, false);
+      [frameTop, frameBottom, frameLeft, frameRight].forEach((frame) => { frame.parent = root; });
+      const bookParts = [book, pages, coverTop, coverBottom, titlePlate, spineLabel, spineBand, frameTop, frameBottom, frameLeft, frameRight];
       bookParts.forEach((target) => {
         target.rotation.y = bookLean;
         target.metadata = { book: bookInfo, format: format.name, bookParts, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookPulled: false };

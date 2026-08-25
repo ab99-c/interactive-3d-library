@@ -122,3 +122,10 @@
 - [x] Restore WASD and arrow-key movement without requiring a canvas click.
 - [x] Preserve passive mouse-look, book clicks, mobile joystick, and room bounds.
 - [x] Run checks and verify desktop movement, then save a checkpoint.
+
+## Reference-style realistic books
+
+- [x] Treat the supplied photos as visual ground truth for leather covers, gold ornament, Arabic spine typography, and coordinated sets.
+- [x] Add visible cover/spine detailing beyond flat colored rectangles while keeping the geometry lightweight.
+- [x] Arrange books in denser, believable rows and multi-volume groups with safe picking targets.
+- [x] Run checks and verify the reference-style result, then save a checkpoint.
