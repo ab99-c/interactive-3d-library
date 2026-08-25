@@ -83,9 +83,12 @@ function addShelf(scene: Scene, x: number, z: number, rotationY: number, wood: S
       spineLabel.parent = root;
       const spineBand = box(scene, `book-band-${row}-${i}`, { width: bookWidth * 0.9, height: 0.035, depth: 0.03 }, new Vector3(-1.7 + i * 0.45, y + 0.68, -0.53), brass, false);
       spineBand.parent = root;
-      book.metadata = { book: books[(row + i) % books.length] };
+      const bookInfo = books[(row + i) % books.length];
+      book.metadata = { book: bookInfo };
+      spineLabel.metadata = { book: bookInfo };
+      spineBand.metadata = { book: bookInfo };
       book.actionManager = new ActionManager(scene);
-      book.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => window.dispatchEvent(new CustomEvent("library:book", { detail: book.metadata.book }))));
+      book.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => window.dispatchEvent(new CustomEvent("library:book", { detail: bookInfo }))));
       shadow.addShadowCaster(book);
     }
   });
@@ -161,13 +164,29 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const plaque = box(scene, "welcome-plaque", { width: 3.4, height: 1.2, depth: 0.08 }, new Vector3(0, 4.3, -13.28), ivory, false);
   plaque.metadata = { decorative: true };
 
-  const onPointer = () => {
-    const pick = scene.pick(scene.pointerX, scene.pointerY);
-    if (pick?.hit && pick.pickedMesh?.metadata?.book) {
-      window.dispatchEvent(new CustomEvent("library:book", { detail: pick.pickedMesh.metadata.book }));
+  const openBook = (mesh: any) => {
+    let current = mesh;
+    while (current) {
+      if (current.metadata?.book) {
+        window.dispatchEvent(new CustomEvent("library:book", { detail: current.metadata.book }));
+        return true;
+      }
+      current = current.parent;
     }
+    return false;
+  };
+  const onPointer = (pointerInfo: any) => {
+    const pickedMesh = pointerInfo?.pickInfo?.pickedMesh ?? scene.pick(scene.pointerX, scene.pointerY)?.pickedMesh;
+    if (pointerInfo?.pickInfo?.hit || pickedMesh) openBook(pickedMesh);
   };
   scene.onPointerObservable.add(onPointer);
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (!["e", "E", "Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    const centerPick = scene.pick(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2);
+    if (centerPick?.hit) openBook(centerPick.pickedMesh);
+  };
+  window.addEventListener("keydown", onKeyDown);
 
   const demo = new URLSearchParams(window.location.search).has("demo");
   if (demo) {
@@ -182,6 +201,6 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
   }
 
-  const dispose = () => { scene.onPointerObservable.clear(); scene.dispose(); };
+  const dispose = () => { window.removeEventListener("keydown", onKeyDown); scene.onPointerObservable.clear(); scene.dispose(); };
   return { scene, dispose };
 }
