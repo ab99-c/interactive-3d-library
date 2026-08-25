@@ -11,6 +11,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
 import { ActionManager } from "@babylonjs/core/Actions/actionManager";
 import { ExecuteCodeAction } from "@babylonjs/core/Actions/directActions";
 import { PointerEventTypes } from "@babylonjs/core/Events/pointerEvents";
@@ -64,7 +65,52 @@ function box(scene: Scene, name: string, size: { width: number; height: number; 
   return mesh;
 }
 
-function addShelf(scene: Scene, x: number, z: number, rotationY: number, wood: StandardMaterial, olive: StandardMaterial, brass: StandardMaterial, shadow: ShadowGenerator) {
+function createTitleMaterial(scene: Scene, book: BookInfo, cache: Map<string, StandardMaterial>) {
+  const existing = cache.get(book.id);
+  if (existing) return existing;
+  const texture = new DynamicTexture(`book-title-${book.id}`, { width: 256, height: 512 }, scene, true);
+  texture.hasAlpha = true;
+  const context = texture.getContext() as unknown as CanvasRenderingContext2D;
+  context.clearRect(0, 0, 256, 512);
+  context.fillStyle = "#1a1009";
+  context.fillRect(8, 8, 240, 496);
+  context.strokeStyle = "#e4b96f";
+  context.lineWidth = 8;
+  context.strokeRect(12, 12, 232, 488);
+  context.fillStyle = "#fff0c2";
+  context.font = "bold 34px Georgia";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  const words = book.title.toUpperCase().split(" ");
+  const lines: string[] = [];
+  let line = "";
+  words.forEach((word) => {
+    const candidate = line ? `${line} ${word}` : word;
+    if (candidate.length > 10 && line) { lines.push(line); line = word; } else line = candidate;
+  });
+  if (line) lines.push(line);
+  const startY = 205 - (lines.length - 1) * 24;
+  lines.slice(0, 6).forEach((value, index) => context.fillText(value, 128, startY + index * 46));
+  context.fillStyle = "#f0c66d";
+  context.fillRect(42, 350, 172, 8);
+  context.font = "bold 20px Georgia";
+  context.fillStyle = "#ffe6a5";
+  context.fillText(book.category.toUpperCase(), 128, 405);
+  context.font = "bold 17px Georgia";
+  context.fillStyle = "#d7a65b";
+  context.fillText(`VOL. ${book.id.toUpperCase()}`, 128, 452);
+  texture.update();
+  const titleMaterial = new StandardMaterial(`book-title-mat-${book.id}`, scene);
+  titleMaterial.diffuseTexture = texture;
+  titleMaterial.emissiveColor = new Color3(0.42, 0.24, 0.08);
+  titleMaterial.specularColor = new Color3(0.05, 0.03, 0.02);
+  titleMaterial.backFaceCulling = false;
+  titleMaterial.useAlphaFromDiffuseTexture = true;
+  cache.set(book.id, titleMaterial);
+  return titleMaterial;
+}
+
+function addShelf(scene: Scene, x: number, z: number, rotationY: number, wood: StandardMaterial, olive: StandardMaterial, brass: StandardMaterial, shadow: ShadowGenerator, titleMaterials: Map<string, StandardMaterial>) {
   const root = new Mesh("shelf-root", scene);
   root.position = new Vector3(x, 0, z);
   root.rotation.y = rotationY;
@@ -79,21 +125,36 @@ function addShelf(scene: Scene, x: number, z: number, rotationY: number, wood: S
   const bookColors = [COLORS.brass, new Color3(0.34, 0.12, 0.09), COLORS.olive, new Color3(0.08, 0.14, 0.2), COLORS.ivory];
   [0.72, 1.72, 2.72, 3.72].forEach((y, row) => {
     for (let i = 0; i < 8; i += 1) {
-      const bookWidth = 0.26 + (i % 3) * 0.04;
+      const bookWidth = 0.32 + (i % 3) * 0.045;
       const bookHeight = 0.7 + (i % 2) * 0.12;
-      const bookMaterial = material(scene, `book-mat-${row}-${i}`, bookColors[(i + row) % bookColors.length]);
-      const book = box(scene, `book-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: 0.82 }, new Vector3(-1.7 + i * 0.45, y + 0.4, -0.1), bookMaterial, false);
-      book.parent = root;
-      const labelMaterial = i % 3 === 0 ? brass : material(scene, `book-label-mat-${row}-${i}`, COLORS.ivory);
-      const spineLabel = box(scene, `book-label-${row}-${i}`, { width: bookWidth * 0.72, height: 0.08, depth: 0.025 }, new Vector3(-1.7 + i * 0.45, y + 0.42, -0.525), labelMaterial, false);
-      spineLabel.parent = root;
-      const spineBand = box(scene, `book-band-${row}-${i}`, { width: bookWidth * 0.9, height: 0.035, depth: 0.03 }, new Vector3(-1.7 + i * 0.45, y + 0.68, -0.53), brass, false);
-      spineBand.parent = root;
       const bookInfo = books[(row + i) % books.length];
+      const bookMaterial = material(scene, `book-mat-${row}-${i}`, bookColors[(i + row) % bookColors.length]);
+      const bookPosition = new Vector3(-1.7 + i * 0.45, y + 0.4, -0.1);
+      const book = box(scene, `book-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: 0.82 }, bookPosition, bookMaterial, false);
+      book.parent = root;
+      const pages = box(scene, `book-pages-${row}-${i}`, { width: Math.max(bookWidth * 0.68, 0.2), height: bookHeight * 0.82, depth: 0.72 }, new Vector3(bookPosition.x + 0.035, bookPosition.y, bookPosition.z + 0.04), material(scene, `book-pages-mat-${row}-${i}`, new Color3(0.92, 0.83, 0.63)), false);
+      pages.parent = root;
+      const coverTop = box(scene, `book-cover-top-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: 0.86 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.48, bookPosition.z), bookMaterial, false);
+      coverTop.parent = root;
+      const coverBottom = box(scene, `book-cover-bottom-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: 0.86 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.48, bookPosition.z), bookMaterial, false);
+      coverBottom.parent = root;
+      const titlePlate = MeshBuilder.CreatePlane(`book-title-${row}-${i}`, { width: Math.max(bookWidth * 0.9, 0.26), height: bookHeight * 0.84, sideOrientation: Mesh.DOUBLESIDE }, scene);
+      titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + 0.535);
+      titlePlate.material = createTitleMaterial(scene, bookInfo, titleMaterials);
+      titlePlate.parent = root;
+      const labelMaterial = i % 3 === 0 ? brass : material(scene, `book-label-mat-${row}-${i}`, COLORS.ivory);
+      const spineLabel = box(scene, `book-label-${row}-${i}`, { width: bookWidth * 0.72, height: 0.055, depth: 0.025 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.26, bookPosition.z + 0.555), labelMaterial, false);
+      spineLabel.parent = root;
+      const spineBand = box(scene, `book-band-${row}-${i}`, { width: bookWidth * 0.9, height: 0.035, depth: 0.03 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.32, bookPosition.z + 0.56), brass, false);
+      spineBand.parent = root;
       book.metadata = { book: bookInfo };
+      pages.metadata = { book: bookInfo };
+      coverTop.metadata = { book: bookInfo };
+      coverBottom.metadata = { book: bookInfo };
+      titlePlate.metadata = { book: bookInfo };
       spineLabel.metadata = { book: bookInfo };
       spineBand.metadata = { book: bookInfo };
-      [book, spineLabel, spineBand].forEach((target) => {
+      [book, pages, coverTop, coverBottom, titlePlate, spineLabel, spineBand].forEach((target) => {
         target.isPickable = true;
         target.actionManager = new ActionManager(scene);
         target.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => window.dispatchEvent(new CustomEvent("library:book", { detail: bookInfo }))));
@@ -147,17 +208,18 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const ivory = material(scene, "ivory", COLORS.ivory);
   const olive = material(scene, "olive", COLORS.olive);
   const brass = material(scene, "brass", COLORS.brass);
+  const titleMaterials = new Map<string, StandardMaterial>();
 
   box(scene, "floor", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, -0.15, 0), floor);
   box(scene, "back-wall", { width: 24, height: 7, depth: 0.3 }, new Vector3(0, 3.5, -13.5), wall);
   box(scene, "left-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(-12, 3.5, 0), wall);
   box(scene, "right-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(12, 3.5, 0), wall);
   box(scene, "ceiling", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, 7, 0), woodLight, false);
-  addShelf(scene, -6.8, -5.8, 0, wood, olive, brass, shadow);
-  addShelf(scene, 6.8, -5.8, 0, wood, olive, brass, shadow);
-  addShelf(scene, -6.8, 1.0, 0, wood, olive, brass, shadow);
-  addShelf(scene, 6.8, 1.0, 0, wood, olive, brass, shadow);
-  addShelf(scene, 0, -10.8, Math.PI / 2, wood, olive, brass, shadow);
+  addShelf(scene, -6.8, -5.8, 0, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 6.8, -5.8, 0, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, -6.8, 1.0, 0, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 6.8, 1.0, 0, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 0, -10.8, Math.PI / 2, wood, olive, brass, shadow, titleMaterials);
 
   const table = box(scene, "reading-table", { width: 4.8, height: 0.26, depth: 2.2 }, new Vector3(0, 2, 0), woodLight);
   shadow.addShadowCaster(table);
