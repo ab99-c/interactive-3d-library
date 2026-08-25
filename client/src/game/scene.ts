@@ -497,10 +497,13 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     towardPlayerWorld.y = 0;
     if (towardPlayerWorld.lengthSquared() < 0.0001) towardPlayerWorld.z = 1;
     towardPlayerWorld.normalize();
-    const pullDistance = 2.35;
+    const pullDistance = 1.35;
+    const verticalToFace = Math.max(-0.45, Math.min(0.55, camera.globalPosition.y - bookWorldPosition.y - 0.15));
+    const pullVectorWorld = towardPlayerWorld.scale(pullDistance);
+    pullVectorWorld.y = verticalToFace;
     const root = parts[0].parent;
     const rootInverse = root?.getWorldMatrix().clone().invert();
-    const towardPlayerLocal = rootInverse ? Vector3.TransformNormal(towardPlayerWorld.scale(pullDistance), rootInverse) : towardPlayerWorld.scale(pullDistance);
+    const towardPlayerLocal = rootInverse ? Vector3.TransformNormal(pullVectorWorld, rootInverse) : pullVectorWorld;
     const targetPositions = startPositions.map((start) => start.add(towardPlayerLocal));
     const startedAt = performance.now();
     activeBookParts = parts;

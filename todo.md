@@ -253,3 +253,10 @@
 - [x] Confirm left-page clicks use a visible left-to-right motion.
 - [x] Preserve right-page right-to-left motion and the full-book hit area.
 - [x] Run checks and verify both directions before checkpointing.
+
+## Bring book closer to the player
+
+- [x] Inspect the current camera-relative pull distance.
+- [x] Move the selected book closer to the player and keep the open spread readable.
+- [x] Preserve page clicks, RTL/LTR turning, and return-to-shelf behavior.
+- [x] Run checks and verify the closer interaction before checkpointing.
