@@ -73,3 +73,10 @@
 - [x] Increase the selected book motion so it travels toward the player, not only outward from the shelf.
 - [x] Preserve one active book, click-to-return, Return book, and existing movement controls.
 - [x] Run checks and verify the animation, then save a checkpoint.
+
+## Mobile touch controls
+
+- [x] Inspect the current mobile layout and canvas event handling.
+- [x] Add a virtual joystick for movement in all directions.
+- [x] Add touch-drag camera look without breaking book taps.
+- [x] Run checks and verify mobile and desktop layouts, then save a checkpoint.

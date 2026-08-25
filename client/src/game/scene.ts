@@ -27,7 +27,7 @@ import "@babylonjs/core/Shaders/shadowMap.fragment";
 
 export type BookInfo = { id: string; title: string; category: string; description: string };
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
-export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[] };
+export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[]; setTouchMove: (x: number, y: number) => void };
 
 const COLORS = {
   walnut: new Color3(0.18, 0.09, 0.045),
@@ -196,6 +196,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   camera.keysUp = [87, 38]; camera.keysDown = [83, 40]; camera.keysLeft = [65, 37]; camera.keysRight = [68, 39];
   let lastMouseX: number | null = null;
   let lastMouseY: number | null = null;
+  const touchMove = new Vector3(0, 0, 0);
   const onMouseMove = (event: MouseEvent) => {
     const deltaX = event.movementX || (lastMouseX === null ? 0 : event.clientX - lastMouseX);
     const deltaY = event.movementY || (lastMouseY === null ? 0 : event.clientY - lastMouseY);
@@ -207,6 +208,46 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const resetMouseReference = () => { lastMouseX = null; lastMouseY = null; };
   canvas.addEventListener("mousemove", onMouseMove);
   canvas.addEventListener("mouseleave", resetMouseReference);
+  let touchLookId: number | null = null;
+  let lastTouchX = 0;
+  let lastTouchY = 0;
+  const onTouchStart = (event: TouchEvent) => {
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    touchLookId = touch.identifier;
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+  };
+  const onTouchMove = (event: TouchEvent) => {
+    if (touchLookId === null) return;
+    const touch = Array.from(event.touches).find((item) => item.identifier === touchLookId);
+    if (!touch) return;
+    const deltaX = touch.clientX - lastTouchX;
+    const deltaY = touch.clientY - lastTouchY;
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+    camera.rotation.y += deltaX * 0.004;
+    camera.rotation.x = Math.max(-1.25, Math.min(1.25, camera.rotation.x + deltaY * 0.004));
+    event.preventDefault();
+  };
+  const onTouchEnd = (event: TouchEvent) => {
+    if (!Array.from(event.touches).some((touch) => touch.identifier === touchLookId)) touchLookId = null;
+  };
+  canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+  canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+  canvas.addEventListener("touchend", onTouchEnd, { passive: false });
+  canvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
+  scene.onBeforeRenderObservable.add(() => {
+    if (Math.abs(touchMove.x) < 0.001 && Math.abs(touchMove.z) < 0.001) return;
+    const forward = camera.getDirection(Vector3.Forward());
+    forward.y = 0;
+    if (forward.lengthSquared() > 0.001) forward.normalize();
+    const right = camera.getDirection(Vector3.Right());
+    right.y = 0;
+    if (right.lengthSquared() > 0.001) right.normalize();
+    camera.cameraDirection.addInPlace(forward.scale(touchMove.z * camera.speed));
+    camera.cameraDirection.addInPlace(right.scale(touchMove.x * camera.speed));
+  });
 
   const hemi = new HemisphericLight("ambient", new Vector3(0, 1, 0), scene);
   hemi.intensity = 0.86; hemi.diffuse = COLORS.ivory; hemi.groundColor = new Color3(0.12, 0.08, 0.05);
@@ -442,6 +483,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
   }
 
-  const dispose = () => { window.removeEventListener("keydown", onKeyDown); canvas.removeEventListener("pointerdown", onCanvasPointer); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); scene.onPointerObservable.clear(); scene.dispose(); };
-  return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, hasActiveBook, getBookScreenRects };
+  const dispose = () => { window.removeEventListener("keydown", onKeyDown); canvas.removeEventListener("pointerdown", onCanvasPointer); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
+  const setTouchMove = (x: number, y: number) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, y)); };
+  return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, hasActiveBook, getBookScreenRects, setTouchMove };
 }
