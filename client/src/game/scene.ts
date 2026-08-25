@@ -204,9 +204,12 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const openPageSize = Math.max(bookHeight * 1.02, 0.48);
       const openPageWidth = openPageSize;
       const openPageHeight = openPageSize;
-      const openLeftPage = box(scene, `book-open-left-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.12), leftReadingMaterial, false);
-      const openRightPage = box(scene, `book-open-right-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.125), rightReadingMaterial, false);
-      const turningPage = box(scene, `book-turning-page-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.014 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.14), rightReadingMaterial, false);
+      const openLeftPage = MeshBuilder.CreatePlane(`book-open-left-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, sideOrientation: Mesh.DOUBLESIDE }, scene);
+      openLeftPage.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.12); openLeftPage.material = leftReadingMaterial;
+      const openRightPage = MeshBuilder.CreatePlane(`book-open-right-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, sideOrientation: Mesh.DOUBLESIDE }, scene);
+      openRightPage.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.125); openRightPage.material = rightReadingMaterial;
+      const turningPage = MeshBuilder.CreatePlane(`book-turning-page-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, sideOrientation: Mesh.DOUBLESIDE }, scene);
+      turningPage.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.14); turningPage.material = rightReadingMaterial;
       [openLeftPage, openRightPage, turningPage].forEach((page) => { page.parent = root; page.isVisible = false; page.isPickable = false; });
       const titlePlate = MeshBuilder.CreatePlane(`book-title-${row}-${i}`, { width: Math.max(bookWidth * 0.9, 0.20), height: bookHeight * 0.86, sideOrientation: Mesh.DOUBLESIDE }, scene);
       titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.046);

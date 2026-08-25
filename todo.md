@@ -274,3 +274,10 @@
 - [x] Render clear Arabic text on both square pages with visible page numbers.
 - [x] Preserve page-side clicks, RTL/LTR turning, pull, and return behavior.
 - [x] Run checks and verify the opened book before checkpointing.
+
+## Fix mirrored Arabic page text
+
+- [x] Inspect dynamic texture orientation and box-face UV mapping.
+- [x] Correct the text orientation on both opened pages.
+- [x] Preserve page clicks, RTL/LTR turning, pull, and return behavior.
+- [x] Run checks and verify readable Arabic text before checkpointing.
