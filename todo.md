@@ -101,3 +101,10 @@
 - [x] Refine book proportions so each mesh reads as a real book rather than a cube.
 - [x] Add natural variation in thickness, height, tilt, and spacing while keeping titles readable.
 - [x] Run checks and verify the shelves and book interactions, then save a checkpoint.
+
+## Verify unchanged visible version
+
+- [ ] Compare the active preview, latest checkpoint, GitHub main, and Vercel bundle.
+- [ ] Confirm whether realistic book geometry is present in the served source.
+- [ ] Fix any stale-build, deployment, or geometry issue causing the unchanged appearance.
+- [ ] Run checks, verify visually, and save a corrected checkpoint.
