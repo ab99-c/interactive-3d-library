@@ -24,7 +24,7 @@ import "@babylonjs/core/Shaders/default.fragment";
 import "@babylonjs/core/Shaders/shadowMap.vertex";
 import "@babylonjs/core/Shaders/shadowMap.fragment";
 
-export type BookInfo = { id: string; title: string; category: string; description: string };
+export type BookInfo = { id: string; title: string; category: string; description: string; spineTitle: string; volume: string };
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
 export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[]; setTouchMove: (x: number, y: number) => void };
 
@@ -51,10 +51,10 @@ const COLORS = {
 };
 
 export const BOOK_CATALOG: BookInfo[] = [
-  { id: "atlas", title: "Atlas of Quiet Places", category: "الاستكشاف", description: "خرائط لأماكن لا تظهر إلا لمن يمشي ببطء." },
-  { id: "craft", title: "The Craft of Light", category: "التصميم", description: "ملاحظات عن الضوء، الظل، واللحظة التي يصير فيها المكان ذاكرة." },
-  { id: "garden", title: "A Garden in Winter", category: "الأدب", description: "حكاية قصيرة عن بذرة خبأها أحدهم بين صفحات كتاب." },
-  { id: "voices", title: "Voices Between Shelves", category: "المقالات", description: "أصوات القراء، بعد أن يغادر الجميع وتبقى المصابيح مضاءة." },
+  { id: "atlas", title: "Atlas of Quiet Places", category: "الاستكشاف", description: "خرائط لأماكن لا تظهر إلا لمن يمشي ببطء.", spineTitle: "موسوعة السكينة", volume: "١" },
+  { id: "craft", title: "The Craft of Light", category: "التصميم", description: "ملاحظات عن الضوء، الظل، واللحظة التي يصير فيها المكان ذاكرة.", spineTitle: "صناعة النور", volume: "٢" },
+  { id: "garden", title: "A Garden in Winter", category: "الأدب", description: "حكاية قصيرة عن بذرة خبأها أحدهم بين صفحات كتاب.", spineTitle: "حديقة الشتاء", volume: "٣" },
+  { id: "voices", title: "Voices Between Shelves", category: "المقالات", description: "أصوات القراء، بعد أن يغادر الجميع وتبقى المصابيح مضاءة.", spineTitle: "أصوات الرفوف", volume: "٤" },
 ];
 
 function material(scene: Scene, name: string, color: Color3, textureUrl?: string) {
@@ -90,33 +90,43 @@ function createTitleMaterial(scene: Scene, book: BookInfo, cache: Map<string, St
   texture.hasAlpha = true;
   const context = texture.getContext() as unknown as CanvasRenderingContext2D;
   context.clearRect(0, 0, 256, 512);
-  context.fillStyle = "#1a1009";
+  context.fillStyle = "#29140d";
   context.fillRect(8, 8, 240, 496);
   context.strokeStyle = "#e4b96f";
   context.lineWidth = 8;
   context.strokeRect(12, 12, 232, 488);
-  context.fillStyle = "#fff0c2";
-  context.font = "bold 34px Georgia";
+  context.fillStyle = "#0b0b0a";
+  context.fillRect(12, 12, 232, 62);
+  context.fillRect(12, 438, 232, 62);
+  context.strokeStyle = "#d3a34e";
+  context.lineWidth = 5;
+  context.strokeRect(22, 22, 212, 42);
+  context.strokeRect(22, 448, 212, 42);
+  context.fillStyle = "#d9aa55";
+  context.font = "bold 28px Georgia";
   context.textAlign = "center";
   context.textBaseline = "middle";
-  const words = book.title.toUpperCase().split(" ");
-  const lines: string[] = [];
-  let line = "";
-  words.forEach((word) => {
-    const candidate = line ? `${line} ${word}` : word;
-    if (candidate.length > 10 && line) { lines.push(line); line = word; } else line = candidate;
-  });
-  if (line) lines.push(line);
-  const startY = 205 - (lines.length - 1) * 24;
-  lines.slice(0, 6).forEach((value, index) => context.fillText(value, 128, startY + index * 46));
-  context.fillStyle = "#f0c66d";
-  context.fillRect(42, 350, 172, 8);
-  context.font = "bold 20px Georgia";
-  context.fillStyle = "#ffe6a5";
-  context.fillText(book.category.toUpperCase(), 128, 405);
-  context.font = "bold 17px Georgia";
-  context.fillStyle = "#d7a65b";
-  context.fillText(`VOL. ${book.id.toUpperCase()}`, 128, 452);
+  context.fillText("۞  ۞  ۞", 128, 43);
+  context.fillText("۞  ۞  ۞", 128, 469);
+  context.save();
+  context.translate(128, 255);
+  context.rotate(-Math.PI / 2);
+  context.direction = "rtl";
+  context.fillStyle = "#f4d486";
+  context.font = "bold 31px Georgia";
+  context.fillText(book.spineTitle, 0, -4);
+  context.restore();
+  context.fillStyle = "#f1cc72";
+  context.font = "bold 22px Georgia";
+  context.fillText(`الجزء ${book.volume}`, 128, 405);
+  context.fillStyle = "#1a0d08";
+  context.fillRect(62, 365, 132, 48);
+  context.strokeStyle = "#d8aa58";
+  context.lineWidth = 4;
+  context.strokeRect(62, 365, 132, 48);
+  context.fillStyle = "#f4d486";
+  context.font = "bold 25px Georgia";
+  context.fillText(book.volume, 128, 389);
   texture.update();
   const titleMaterial = new StandardMaterial(`book-title-mat-${book.id}`, scene);
   titleMaterial.diffuseTexture = texture;
@@ -140,33 +150,36 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
     box(scene, "shelf-marker", { width: 0.7, height: 0.28, depth: 0.05 }, new Vector3(0, 4.25, -0.62), olive, false),
   ];
   parts.forEach((part) => { part.parent = root; shadow.addShadowCaster(part); });
-  const bookColors = [new Color3(0.25, 0.055, 0.035), new Color3(0.12, 0.045, 0.025), new Color3(0.22, 0.08, 0.045), new Color3(0.06, 0.09, 0.075), new Color3(0.16, 0.07, 0.045)];
-  [0.72, 1.72, 2.72, 3.72].forEach((y, row) => {
-    for (let i = 0; i < 8; i += 1) {
+  const bookColors = [new Color3(0.34, 0.075, 0.045), new Color3(0.24, 0.075, 0.035), new Color3(0.32, 0.11, 0.055), new Color3(0.075, 0.17, 0.12), new Color3(0.28, 0.055, 0.075)];
+      [0.72, 1.72, 2.72, 3.72].forEach((y, row) => {
+    for (let i = 0; i < 9; i += 1) {
       const format = BOOK_FORMATS[(shelfIndex + row + i) % BOOK_FORMATS.length];
       const bookWidth = format.width;
       const bookHeight = format.height;
       const bookDepth = format.depth;
       const bookLean = ((i % 5) - 2) * 0.018;
       const bookInfo = BOOK_CATALOG[(row + i) % BOOK_CATALOG.length];
-      const bookMaterial = material(scene, `book-mat-${shelfIndex}-${row}-${i}`, bookColors[(i + row) % bookColors.length], BOOK_LEATHER_TEXTURE);
-      const bookPosition = new Vector3(-1.72 + i * 0.49, y + 0.4, -0.1);
+      const leatherColor = bookColors[(i + row) % bookColors.length];
+      const bookMaterial = material(scene, `book-mat-${shelfIndex}-${row}-${i}`, leatherColor);
+      const leatherMaterial = material(scene, `book-leather-${shelfIndex}-${row}-${i}`, leatherColor, BOOK_LEATHER_TEXTURE);
+      const bookPosition = new Vector3(-1.94 + i * 0.48, y + 0.4, -0.1);
       const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
       book.parent = root;
       const roundedSpine = MeshBuilder.CreateCylinder(`book-rounded-spine-${shelfIndex}-${row}-${i}`, { diameter: Math.min(bookDepth * 0.9, 0.28), height: bookHeight * 0.94, tessellation: 16 }, scene);
       roundedSpine.position = new Vector3(bookPosition.x - bookWidth * 0.46, bookPosition.y, bookPosition.z);
-      roundedSpine.material = bookMaterial;
+      roundedSpine.material = leatherMaterial;
       roundedSpine.parent = root;
       roundedSpine.isPickable = false;
       const spineStrip = box(scene, `book-spine-strip-${shelfIndex}-${row}-${i}`, { width: Math.max(bookWidth * 0.12, 0.045), height: bookHeight * 0.94, depth: bookDepth * 1.04 }, new Vector3(bookPosition.x - bookWidth * 0.45, bookPosition.y, bookPosition.z), bookMaterial, false);
+      spineStrip.material = leatherMaterial;
       spineStrip.parent = root;
       const pages = box(scene, `book-pages-${row}-${i}`, { width: Math.max(bookWidth * 0.68, 0.2), height: bookHeight * 0.82, depth: bookDepth * 0.78 }, new Vector3(bookPosition.x + 0.035, bookPosition.y, bookPosition.z + 0.012), material(scene, `book-pages-mat-${row}-${i}`, new Color3(0.92, 0.83, 0.63)), false);
       pages.parent = root;
-      const coverTop = box(scene, `book-cover-top-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.48, bookPosition.z), bookMaterial, false);
+      const coverTop = box(scene, `book-cover-top-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.48, bookPosition.z), leatherMaterial, false);
       coverTop.parent = root;
-      const coverBottom = box(scene, `book-cover-bottom-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.48, bookPosition.z), bookMaterial, false);
+      const coverBottom = box(scene, `book-cover-bottom-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.48, bookPosition.z), leatherMaterial, false);
       coverBottom.parent = root;
-      const frontCover = box(scene, `book-front-cover-${shelfIndex}-${row}-${i}`, { width: bookWidth * 1.04, height: bookHeight * 1.02, depth: 0.035 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.014), bookMaterial, false);
+      const frontCover = box(scene, `book-front-cover-${shelfIndex}-${row}-${i}`, { width: bookWidth * 1.04, height: bookHeight * 1.02, depth: 0.035 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.014), leatherMaterial, false);
       frontCover.parent = root;
       const titlePlate = MeshBuilder.CreatePlane(`book-title-${row}-${i}`, { width: Math.max(bookWidth * 0.9, 0.30), height: bookHeight * 0.86, sideOrientation: Mesh.DOUBLESIDE }, scene);
       titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.046);

@@ -150,3 +150,17 @@
 - [x] Replace the repeated rectangular treatment with fully covered, curved-spine book forms.
 - [x] Add thick cover edges, raised binding bands, and grouped multi-volume arrangements.
 - [x] Verify the actual camera view and interaction before saving a checkpoint.
+
+## Match supplied shelf silhouette
+
+- [ ] Compare the reference shelf books with the rendered silhouette and spacing.
+- [ ] Make each visible spine wider, taller, and materially full rather than a thin plaque.
+- [ ] Fill the shelf rows with dense upright volumes and reduce large gaps.
+- [ ] Verify the exact camera view and book interaction before saving a checkpoint.
+
+## Exact Arabic bound-volume reference
+
+- [x] Match the tall narrow-series silhouette shown in the reference.
+- [x] Add brown/black leather bands, repeated gold ornament, vertical Arabic-style spine marks, and part-number badges.
+- [x] Add a distinct large rounded-spine multi-volume form for reference sets.
+- [x] Verify the visible shelf result and selection behavior before saving a checkpoint.ing.
