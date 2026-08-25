@@ -1,6 +1,5 @@
-# TODO — إصلاح Babylon shader
+# TODO — نشر إصلاح Babylon shader
 
-- [x] تحديد الملف أو الطلب الذي يرجع `<!doctype html>` بدل shader.
-- [x] إصلاح مسار shader أو إعداد Babylon الذي يسبب fallback إلى HTML.
-- [x] تشغيل فحص TypeScript وbuild والتحقق من console في المشهد.
-- [x] اختبار اللعبة والتقاط معاينة ثم حفظ الإصدار المصحح.
+- [ ] حفظ إصلاح imports ديال shaders في commit ودفعه إلى GitHub.
+- [ ] إعداد payload جديد وإطلاق deployment على Vercel.
+- [ ] انتظار اكتمال build والتحقق من الرابط العمومي والـ console.
