@@ -93,8 +93,11 @@ function addShelf(scene: Scene, x: number, z: number, rotationY: number, wood: S
       book.metadata = { book: bookInfo };
       spineLabel.metadata = { book: bookInfo };
       spineBand.metadata = { book: bookInfo };
-      book.actionManager = new ActionManager(scene);
-      book.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => window.dispatchEvent(new CustomEvent("library:book", { detail: bookInfo }))));
+      [book, spineLabel, spineBand].forEach((target) => {
+        target.isPickable = true;
+        target.actionManager = new ActionManager(scene);
+        target.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => window.dispatchEvent(new CustomEvent("library:book", { detail: bookInfo }))));
+      });
       shadow.addShadowCaster(book);
     }
   });
@@ -189,7 +192,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const onCanvasPointer = (event: PointerEvent) => {
     if (event.button !== 0) return;
     const rect = canvas.getBoundingClientRect();
-    const pick = scene.pick(event.clientX - rect.left, event.clientY - rect.top);
+    const scaleX = engine.getRenderWidth() / Math.max(rect.width, 1);
+    const scaleY = engine.getRenderHeight() / Math.max(rect.height, 1);
+    const pick = scene.pick((event.clientX - rect.left) * scaleX, (event.clientY - rect.top) * scaleY);
     if (pick?.hit && openBook(pick.pickedMesh)) return;
     openNearestBook();
   };
@@ -198,7 +203,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     if (!["e", "E", "Enter", " "].includes(event.key)) return;
     event.preventDefault();
     const centerPick = scene.pick(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2);
-    if (centerPick?.hit) openBook(centerPick.pickedMesh);
+    if (centerPick?.hit && openBook(centerPick.pickedMesh)) return;
+    openNearestBook();
   };
   window.addEventListener("keydown", onKeyDown);
 
