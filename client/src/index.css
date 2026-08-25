@@ -24,9 +24,15 @@ button { font: inherit; }
 .controls b { color: #f4ead5; font-size: 9px; margin-right: 4px; }
 .help-button, .enter-button, .inspect-button { border: 1px solid rgba(201,148,82,.7); background: rgba(15,10,6,.78); color: #e4bb7d; cursor: pointer; transition: transform .16s ease-out, background .18s ease-out, color .18s ease-out; }
 .help-button { padding: 10px 13px; font-size: 9px; letter-spacing: .13em; text-transform: uppercase; }
-@media (max-width: 720px) { .inspect-button { padding: 10px 11px; font-size: 8px; } .inspect-button span { margin-left: 6px; } }
+@media (max-width: 720px) { .inspect-button { padding: 10px 11px; font-size: 8px; } .inspect-button span { margin-left: 6px; } .book-picker { top: 67px; right: 18px; left: 18px; width: auto; } .book-picker-list button { font-size: 8px; } }
 .help-button:hover, .enter-button:hover, .inspect-button:hover { background: #c99452; color: #1a0e07; transform: translateY(-2px); }
 .hud-actions { display: flex; align-items: center; gap: 10px; pointer-events: auto; }
+.book-picker { position: absolute; z-index: 2; top: 78px; right: 30px; width: min(390px, 42vw); padding: 11px 13px 13px; background: rgba(12,8,5,.78); border: 1px solid rgba(201,148,82,.38); box-shadow: 0 12px 32px rgba(0,0,0,.24); backdrop-filter: blur(8px); pointer-events: auto; }
+.book-picker-label { display: block; margin-bottom: 9px; color: rgba(244,234,213,.48); font-size: 8px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
+.book-picker-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.book-picker-list button { min-height: 34px; padding: 7px 8px; border: 1px solid rgba(244,234,213,.2); background: rgba(244,234,213,.04); color: #f4ead5; font-size: 9px; line-height: 1.25; text-align: left; cursor: pointer; transition: transform .16s ease-out, background .18s ease-out, border-color .18s ease-out; }
+.book-picker-list button:hover { border-color: rgba(201,148,82,.8); background: rgba(201,148,82,.18); transform: translateY(-1px); }
+.book-picker-list button:active { transform: scale(.97); }
 .inspect-button { padding: 10px 13px; font-size: 9px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
 .inspect-button span { margin-left: 12px; font-size: 14px; }
 .inspect-button:active, .help-button:active, .enter-button:active { transform: scale(.97); }

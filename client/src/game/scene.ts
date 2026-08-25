@@ -23,7 +23,7 @@ import "@babylonjs/core/Shaders/shadowMap.vertex";
 import "@babylonjs/core/Shaders/shadowMap.fragment";
 
 export type BookInfo = { id: string; title: string; category: string; description: string };
-export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean };
+export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean };
 
 const COLORS = {
   walnut: new Color3(0.18, 0.09, 0.045),
@@ -34,7 +34,7 @@ const COLORS = {
   ink: new Color3(0.035, 0.028, 0.024),
 };
 
-const books: BookInfo[] = [
+export const BOOK_CATALOG: BookInfo[] = [
   { id: "atlas", title: "Atlas of Quiet Places", category: "Exploration", description: "خرائط لأماكن لا تظهر إلا لمن يمشي ببطء." },
   { id: "craft", title: "The Craft of Light", category: "Design", description: "ملاحظات عن الضوء، الظل، واللحظة التي يصير فيها المكان ذاكرة." },
   { id: "garden", title: "A Garden in Winter", category: "Literature", description: "حكاية قصيرة عن بذرة خبأها أحدهم بين صفحات كتاب." },
@@ -127,7 +127,7 @@ function addShelf(scene: Scene, x: number, z: number, rotationY: number, wood: S
     for (let i = 0; i < 8; i += 1) {
       const bookWidth = 0.32 + (i % 3) * 0.045;
       const bookHeight = 0.7 + (i % 2) * 0.12;
-      const bookInfo = books[(row + i) % books.length];
+      const bookInfo = BOOK_CATALOG[(row + i) % BOOK_CATALOG.length];
       const bookMaterial = material(scene, `book-mat-${row}-${i}`, bookColors[(i + row) % bookColors.length]);
       const bookPosition = new Vector3(-1.7 + i * 0.45, y + 0.4, -0.1);
       const book = box(scene, `book-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: 0.82 }, bookPosition, bookMaterial, false);
@@ -316,10 +316,14 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   window.addEventListener("keydown", onKeyDown);
 
   const openNearestBook = () => {
-      const candidates = scene.meshes.filter((mesh) => /^book-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book);
+    const candidates = scene.meshes.filter((mesh) => /^book-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book);
     if (!candidates.length) return false;
     const nearest = candidates.reduce((closest, candidate) => Vector3.DistanceSquared(candidate.getAbsolutePosition(), camera.position) < Vector3.DistanceSquared(closest.getAbsolutePosition(), camera.position) ? candidate : closest);
     return openBook(nearest);
+  };
+  const openBookById = (bookId: string) => {
+    const target = scene.meshes.find((mesh) => /^book-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book?.id === bookId);
+    return openBook(target);
   };
 
   const demo = new URLSearchParams(window.location.search).has("demo");
@@ -336,5 +340,5 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   }
 
   const dispose = () => { window.removeEventListener("keydown", onKeyDown); canvas.removeEventListener("pointerdown", onCanvasPointer); canvas.removeEventListener("click", onCanvasClick); scene.onPointerObservable.clear(); scene.dispose(); };
-  return { scene, dispose, openNearestBook };
+  return { scene, dispose, openNearestBook, openBookById };
 }
