@@ -297,7 +297,16 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     if (!parts?.length || activeBookParts === parts) return;
     if (returnActiveBookToShelf()) playBookSound("return");
     const startPositions = parts.map((part) => part.position.clone());
-    const pullDistance = 0.72;
+    const bookWorldPosition = parts[0].getAbsolutePosition();
+    const towardPlayerWorld = camera.globalPosition.subtract(bookWorldPosition);
+    towardPlayerWorld.y = 0;
+    if (towardPlayerWorld.lengthSquared() < 0.0001) towardPlayerWorld.z = 1;
+    towardPlayerWorld.normalize();
+    const pullDistance = 2.35;
+    const root = parts[0].parent;
+    const rootInverse = root?.getWorldMatrix().clone().invert();
+    const towardPlayerLocal = rootInverse ? Vector3.TransformNormal(towardPlayerWorld.scale(pullDistance), rootInverse) : towardPlayerWorld.scale(pullDistance);
+    const targetPositions = startPositions.map((start) => start.add(towardPlayerLocal));
     const startedAt = performance.now();
     activeBookParts = parts;
     activeBookId = parts.find((part) => part.metadata?.book)?.metadata?.book?.id ?? null;
@@ -307,14 +316,12 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
       const progress = Math.min((performance.now() - startedAt) / 360, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
       parts.forEach((part, index) => {
-        const start = startPositions[index];
-        part.position = new Vector3(start.x, start.y, start.z + pullDistance * eased);
+        part.position = Vector3.Lerp(startPositions[index], targetPositions[index], eased);
       });
       if (progress >= 1 && activePullObserver) {
         // Keep the selected book pulled out after the animation; only explicit return or a new selection resets it.
         parts.forEach((part, index) => {
-          const start = startPositions[index];
-          part.position = new Vector3(start.x, start.y, start.z + pullDistance);
+          part.position = targetPositions[index].clone();
           part.metadata = { ...part.metadata, bookPulled: true };
         });
         scene.onBeforeRenderObservable.remove(activePullObserver);

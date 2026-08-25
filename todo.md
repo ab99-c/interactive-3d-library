@@ -66,3 +66,10 @@
 - [x] Make clicking the pulled-out book return it to the shelf.
 - [x] Preserve selecting a different book and the Return book button.
 - [x] Run checks and verify the interactions, then save a checkpoint.
+
+## Book approaches the player
+
+- [x] Inspect the current pull direction and camera/player position.
+- [x] Increase the selected book motion so it travels toward the player, not only outward from the shelf.
+- [x] Preserve one active book, click-to-return, Return book, and existing movement controls.
+- [x] Run checks and verify the animation, then save a checkpoint.
