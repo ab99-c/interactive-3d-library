@@ -252,6 +252,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   plaque.metadata = { decorative: true };
 
   let activeBookParts: any[] | null = null;
+  let activeBookId: string | null = null;
   let activePullObserver: any = null;
   let audioContext: AudioContext | null = null;
   const getAudioContext = () => {
@@ -289,6 +290,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
       part.metadata = { ...part.metadata, bookPulled: false };
     });
     activeBookParts = null;
+    activeBookId = null;
     return true;
   };
   const pullBookOut = (parts: any[]) => {
@@ -298,6 +300,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const pullDistance = 0.72;
     const startedAt = performance.now();
     activeBookParts = parts;
+    activeBookId = parts.find((part) => part.metadata?.book)?.metadata?.book?.id ?? null;
     playBookSound("pull");
     parts.forEach((part) => { part.metadata = { ...part.metadata, bookPulled: true }; });
     activePullObserver = scene.onBeforeRenderObservable.add(() => {
@@ -324,6 +327,11 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     let current = mesh;
     while (current) {
       if (current.metadata?.book) {
+        if (activeBookId === current.metadata.book.id) {
+          const returned = returnActiveBookToShelf();
+          if (returned) playBookSound("return");
+          return returned;
+        }
         pullBookOut(current.metadata.bookParts ?? [current]);
         return true;
       }

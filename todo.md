@@ -59,3 +59,10 @@
 - [x] Translate the interface into clear Modern Standard Arabic and preserve original book titles where appropriate.
 - [x] Adjust RTL/Arabic typography and spacing without harming the 3D scene.
 - [x] Run checks and verify the localized layout and interactions, then save a checkpoint.
+
+## Click active book to return
+
+- [x] Trace active-book click handling for canvas and React hotspots.
+- [x] Make clicking the pulled-out book return it to the shelf.
+- [x] Preserve selecting a different book and the Return book button.
+- [x] Run checks and verify the interactions, then save a checkpoint.
