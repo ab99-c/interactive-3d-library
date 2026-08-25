@@ -281,3 +281,10 @@
 - [x] Correct the text orientation on both opened pages.
 - [x] Preserve page clicks, RTL/LTR turning, pull, and return behavior.
 - [x] Run checks and verify readable Arabic text before checkpointing.
+
+## Correct Arabic text mirroring
+
+- [x] Confirm the rendered face is horizontally mirroring the dynamic texture.
+- [x] Apply a horizontal flip to the page texture while preserving Arabic RTL layout.
+- [x] Verify title, lines, and page numbers are readable on both pages.
+- [x] Run checks and preserve page turning, pull, and return behavior before checkpointing.

@@ -196,6 +196,8 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
         lines.forEach((line, lineIndex) => pageContext.fillText(line, 462, 132 + lineIndex * 43));
         pageContext.strokeStyle = "#c49a5a"; pageContext.lineWidth = 2; pageContext.beginPath(); pageContext.moveTo(52, 396); pageContext.lineTo(460, 396); pageContext.stroke();
         pageContext.textAlign = "center"; pageContext.font = "bold 23px serif"; pageContext.fillText(pageNumber, 256, 458);
+        // Babylon's visible page face mirrors this UV direction; flip only the texture, not the RTL text layout.
+        pageTexture.uScale = -1; pageTexture.uOffset = 1;
         pageTexture.update(); pageMaterial.diffuseTexture = pageTexture; return pageMaterial;
       };
       const leftReadingMaterial = makeReadingMaterial("١", "left");
