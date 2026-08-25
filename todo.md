@@ -288,3 +288,10 @@
 - [x] Apply a horizontal flip to the page texture while preserving Arabic RTL layout.
 - [x] Verify title, lines, and page numbers are readable on both pages.
 - [x] Run checks and preserve page turning, pull, and return behavior before checkpointing.
+
+## Complete Hayy ibn Yaqdhan text
+
+- [x] Find and verify a complete Arabic public-domain text source.
+- [x] Prepare compact paginated text with sequential Arabic page numbers.
+- [x] Render the complete pages inside every physical volume.
+- [x] Verify navigation, readability, and performance before checkpointing.

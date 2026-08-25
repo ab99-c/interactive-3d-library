@@ -20,6 +20,7 @@ import "@babylonjs/core/Shaders/default.vertex";
 import "@babylonjs/core/Shaders/default.fragment";
 import "@babylonjs/core/Shaders/shadowMap.vertex";
 import "@babylonjs/core/Shaders/shadowMap.fragment";
+import { HAYY_PAGES, HAYY_PAGE_COUNT, toArabicPageNumber } from "./hayy-pages";
 
 export type BookInfo = { id: string; title: string; category: string; description: string; spineTitle: string; volume: string };
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
@@ -183,25 +184,32 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const frontCover = box(scene, `book-front-cover-${shelfIndex}-${row}-${i}`, { width: bookWidth * 1.04, height: bookHeight * 1.02, depth: 0.035 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.014), leatherMaterial, false);
       frontCover.parent = root;
       // Closed books carry a hidden physical reading spread that unfolds in front of the cover.
-      const makeReadingMaterial = (pageNumber: string, side: "left" | "right") => {
+      const pageRenderers: { left?: (pageIndex: number) => void; right?: (pageIndex: number) => void } = {};
+      const makeReadingMaterial = (initialPageIndex: number, side: "left" | "right") => {
         const pageMaterial = material(scene, `book-reading-pages-${shelfIndex}-${row}-${i}-${side}`, new Color3(0.96, 0.88, 0.70));
         const pageTexture = new DynamicTexture(`book-reading-text-${shelfIndex}-${row}-${i}-${side}`, { width: 512, height: 512 }, scene, true);
         const pageContext = pageTexture.getContext() as unknown as CanvasRenderingContext2D;
-        pageContext.fillStyle = "#f1dfb3"; pageContext.fillRect(0, 0, 512, 512);
-        pageContext.strokeStyle = "#9a6b35"; pageContext.lineWidth = 7; pageContext.strokeRect(16, 16, 480, 480);
-        pageContext.direction = "rtl"; pageContext.textAlign = "right"; pageContext.fillStyle = "#3a2014";
-        pageContext.font = "bold 30px Noto Sans Arabic"; pageContext.fillText("حي بن يقظان", 462, 64);
-        pageContext.font = "bold 19px Noto Sans Arabic";
-        const lines = ["تأمل حيّ بن يقظان العالم من حوله،", "وسأل عن سرّ الحياة والحقيقة،", "ثم تابع بحثه بهدوء بين الطبيعة", "والنور والمعرفة."];
-        lines.forEach((line, lineIndex) => pageContext.fillText(line, 462, 132 + lineIndex * 43));
-        pageContext.strokeStyle = "#c49a5a"; pageContext.lineWidth = 2; pageContext.beginPath(); pageContext.moveTo(52, 396); pageContext.lineTo(460, 396); pageContext.stroke();
-        pageContext.textAlign = "center"; pageContext.font = "bold 23px serif"; pageContext.fillText(pageNumber, 256, 458);
-        // Babylon's visible page face mirrors this UV direction; flip only the texture, not the RTL text layout.
-        pageTexture.uScale = -1; pageTexture.uOffset = 1;
-        pageTexture.update(); pageMaterial.diffuseTexture = pageTexture; return pageMaterial;
+        const renderPage = (pageIndex: number) => {
+          pageContext.fillStyle = "#f1dfb3"; pageContext.fillRect(0, 0, 512, 512);
+          pageContext.strokeStyle = "#9a6b35"; pageContext.lineWidth = 7; pageContext.strokeRect(16, 16, 480, 480);
+          pageContext.direction = "rtl"; pageContext.textAlign = "right"; pageContext.fillStyle = "#3a2014";
+          pageContext.font = "bold 30px Noto Sans Arabic"; pageContext.fillText("حي بن يقظان", 462, 64);
+          pageContext.font = "bold 18px Noto Sans Arabic";
+          const text = HAYY_PAGES[Math.max(0, Math.min(pageIndex, HAYY_PAGE_COUNT - 1))];
+          const lines = text.match(/.{1,28}/g)?.slice(0, 8) ?? [];
+          lines.forEach((line, lineIndex) => pageContext.fillText(line.trim(), 462, 122 + lineIndex * 38));
+          pageContext.strokeStyle = "#c49a5a"; pageContext.lineWidth = 2; pageContext.beginPath(); pageContext.moveTo(52, 420); pageContext.lineTo(460, 420); pageContext.stroke();
+          pageContext.textAlign = "center"; pageContext.font = "bold 23px serif"; pageContext.fillText(toArabicPageNumber(pageIndex + 1), 256, 466);
+          // Babylon's visible page face mirrors this UV direction; flip only the texture, not the RTL text layout.
+          pageTexture.uScale = -1; pageTexture.uOffset = 1;
+          pageTexture.update();
+        };
+        pageRenderers[side] = renderPage;
+        renderPage(initialPageIndex);
+        pageMaterial.diffuseTexture = pageTexture; return pageMaterial;
       };
-      const leftReadingMaterial = makeReadingMaterial("١", "left");
-      const rightReadingMaterial = makeReadingMaterial("٢", "right");
+      const leftReadingMaterial = makeReadingMaterial(0, "left");
+      const rightReadingMaterial = makeReadingMaterial(1, "right");
       // The reading spread uses square pages, like a compact illuminated manuscript.
       const openPageSize = Math.max(bookHeight * 1.02, 0.48);
       const openPageWidth = openPageSize;
@@ -233,9 +241,10 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const frameRight = box(scene, `book-frame-right-${row}-${i}`, { width: 0.018, height: bookHeight * 0.76, depth: 0.022 }, new Vector3(bookPosition.x + bookWidth * 0.38, bookPosition.y, frontZ), brass, false);
       [frameTop, frameBottom, frameLeft, frameRight].forEach((frame) => { frame.parent = root; });
       const bookParts = [book, roundedSpine, spineStrip, pages, coverTop, coverBottom, frontCover, openLeftPage, openRightPage, turningPage, titlePlate, spineLabel, spineBand, bindingBandTop, bindingBandMid, bindingBandBottom, frameTop, frameBottom, frameLeft, frameRight];
+      const pageState = { pageIndex: 0, pageRenderers };
       bookParts.forEach((target) => {
         target.rotation.y = bookLean;
-        target.metadata = { book: bookInfo, format: format.name, openPageWidth, openPageHeight, bookParts, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, readingPage: target === openLeftPage || target === openRightPage, pageSide: target === openLeftPage ? "left" : target === openRightPage ? "right" : undefined, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate || target === spineLabel || target === spineBand || target === frameTop || target === frameBottom || target === frameLeft || target === frameRight };
+        target.metadata = { book: bookInfo, format: format.name, openPageWidth, openPageHeight, bookParts, pageState, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, readingPage: target === openLeftPage || target === openRightPage, pageSide: target === openLeftPage ? "left" : target === openRightPage ? "right" : undefined, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate || target === spineLabel || target === spineBand || target === frameTop || target === frameBottom || target === frameLeft || target === frameRight };
         // Only the main volume is pickable; decorative binding parts move with it but do not create duplicate hits.
         target.isPickable = target === book || target === openLeftPage || target === openRightPage;
       });
@@ -453,6 +462,12 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const openBookSpread = (parts: any[]) => {
     const pages = parts.filter((part) => part.metadata?.readingPage);
     const closedCoverParts = parts.filter((part) => part.metadata?.closedCover);
+    const pageState = parts[0]?.metadata?.pageState;
+    if (pageState) {
+      pageState.pageIndex = 0;
+      pageState.pageRenderers.left?.(0);
+      pageState.pageRenderers.right?.(1);
+    }
     if (!pages.length) return;
     const center = parts[0].position.clone().add(new Vector3(0, 0, 0.12));
     const width = Number(parts[0].metadata?.openPageWidth ?? (parts[0].metadata?.format === "Pocket" ? 0.22 : 0.25));
@@ -478,7 +493,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const turningPage = activeBookParts.find((part) => part.metadata?.turningPage);
     const rightPage = activeBookParts.find((part) => part.metadata?.readingPage && part.name.includes("open-right"));
     const leftPage = activeBookParts.find((part) => part.metadata?.readingPage && part.name.includes("open-left"));
-    if (!turningPage || !rightPage || !leftPage) return false;
+    const pageState = activeBookParts[0]?.metadata?.pageState;
+    if (!turningPage || !rightPage || !leftPage || !pageState) return false;
+    const nextPageIndex = direction === "rtl" ? pageState.pageIndex + 2 : pageState.pageIndex - 2;
+    if (nextPageIndex < 0 || nextPageIndex + 1 >= HAYY_PAGE_COUNT) return false;
     const start = (direction === "rtl" ? rightPage : leftPage).position.clone();
     const end = (direction === "rtl" ? leftPage : rightPage).position.clone();
     const startedAt = performance.now();
@@ -496,6 +514,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         turningPage.isVisible = false;
         scene.onBeforeRenderObservable.remove(activeTurnObserver);
         activeTurnObserver = null;
+        pageState.pageIndex = nextPageIndex;
+        pageState.pageRenderers.left?.(nextPageIndex);
+        pageState.pageRenderers.right?.(nextPageIndex + 1);
         playBookSound("pull");
       }
     });
