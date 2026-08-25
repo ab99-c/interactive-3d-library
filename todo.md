@@ -31,3 +31,10 @@
 - [x] Tune movement and look responsiveness for W/A/S/D and all directions.
 - [x] Run TypeScript and production build checks.
 - [x] Verify the preview and save a stable checkpoint.
+
+## Direct mouse-look
+
+- [x] Inspect the current Babylon camera pointer input and canvas event listeners.
+- [x] Make passive mouse movement rotate the camera without requiring a button or pointer lock.
+- [x] Preserve click/pointerdown book interaction and prevent UI controls from rotating the camera.
+- [x] Run checks and verify mouse-look plus book clicks, then save a checkpoint.

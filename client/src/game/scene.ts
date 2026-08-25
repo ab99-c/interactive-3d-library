@@ -182,6 +182,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   camera.minZ = 0.1;
   camera.rotation.y = Math.PI;
   camera.attachControl(canvas, true);
+  // Mouse-look tuning: keyboard input stays with Babylon, while passive mouse movement turns the view without click or pointer lock.
+  camera.inputs.removeByType("FreeCameraMouseInput");
   // Movement tuning: responsive starts/stops, comfortable walking speed, and easier mouse look in every direction.
   camera.speed = 0.3;
   camera.angularSensibility = 2500;
@@ -190,6 +192,19 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   camera.checkCollisions = true;
   camera.ellipsoid = new Vector3(0.6, 0.9, 0.6);
   camera.keysUp = [87, 38]; camera.keysDown = [83, 40]; camera.keysLeft = [65, 37]; camera.keysRight = [68, 39];
+  let lastMouseX: number | null = null;
+  let lastMouseY: number | null = null;
+  const onMouseMove = (event: MouseEvent) => {
+    const deltaX = event.movementX || (lastMouseX === null ? 0 : event.clientX - lastMouseX);
+    const deltaY = event.movementY || (lastMouseY === null ? 0 : event.clientY - lastMouseY);
+    lastMouseX = event.clientX;
+    lastMouseY = event.clientY;
+    camera.rotation.y += deltaX * 0.0025;
+    camera.rotation.x = Math.max(-1.25, Math.min(1.25, camera.rotation.x + deltaY * 0.0025));
+  };
+  const resetMouseReference = () => { lastMouseX = null; lastMouseY = null; };
+  canvas.addEventListener("mousemove", onMouseMove);
+  canvas.addEventListener("mouseleave", resetMouseReference);
 
   const hemi = new HemisphericLight("ambient", new Vector3(0, 1, 0), scene);
   hemi.intensity = 0.86; hemi.diffuse = COLORS.ivory; hemi.groundColor = new Color3(0.12, 0.08, 0.05);
@@ -404,6 +419,6 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
   }
 
-  const dispose = () => { window.removeEventListener("keydown", onKeyDown); canvas.removeEventListener("pointerdown", onCanvasPointer); canvas.removeEventListener("click", onCanvasClick); scene.onPointerObservable.clear(); scene.dispose(); };
+  const dispose = () => { window.removeEventListener("keydown", onKeyDown); canvas.removeEventListener("pointerdown", onCanvasPointer); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); scene.onPointerObservable.clear(); scene.dispose(); };
   return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, hasActiveBook, getBookScreenRects };
 }
