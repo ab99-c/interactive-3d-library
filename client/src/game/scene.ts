@@ -13,10 +13,11 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { ActionManager } from "@babylonjs/core/Actions/actionManager";
 import { ExecuteCodeAction } from "@babylonjs/core/Actions/directActions";
+import { PointerEventTypes } from "@babylonjs/core/Events/pointerEvents";
 import "@babylonjs/core/Collisions/collisionCoordinator";
 
 export type BookInfo = { id: string; title: string; category: string; description: string };
-export type GameHandle = { scene: Scene; dispose: () => void };
+export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean };
 
 const COLORS = {
   walnut: new Color3(0.18, 0.09, 0.045),
@@ -179,7 +180,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const pickedMesh = pointerInfo?.pickInfo?.pickedMesh ?? scene.pick(scene.pointerX, scene.pointerY)?.pickedMesh;
     if (pointerInfo?.pickInfo?.hit || pickedMesh) openBook(pickedMesh);
   };
-  scene.onPointerObservable.add(onPointer);
+  scene.onPointerObservable.add(onPointer, PointerEventTypes.POINTERPICK);
   const onKeyDown = (event: KeyboardEvent) => {
     if (!["e", "E", "Enter", " "].includes(event.key)) return;
     event.preventDefault();
@@ -187,6 +188,12 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     if (centerPick?.hit) openBook(centerPick.pickedMesh);
   };
   window.addEventListener("keydown", onKeyDown);
+
+  const openNearestBook = () => {
+    const candidates = scene.meshes.filter((mesh) => mesh.name.startsWith("book-") && !mesh.name.startsWith("book-label-") && !mesh.name.startsWith("book-band-") && mesh.metadata?.book);
+    const nearest = candidates.sort((a, b) => Vector3.DistanceSquared(a.getAbsolutePosition(), camera.position) - Vector3.DistanceSquared(b.getAbsolutePosition(), camera.position))[0];
+    return openBook(nearest);
+  };
 
   const demo = new URLSearchParams(window.location.search).has("demo");
   if (demo) {
@@ -202,5 +209,5 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   }
 
   const dispose = () => { window.removeEventListener("keydown", onKeyDown); scene.onPointerObservable.clear(); scene.dispose(); };
-  return { scene, dispose };
+  return { scene, dispose, openNearestBook };
 }

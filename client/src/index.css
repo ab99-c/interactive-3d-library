@@ -1,4 +1,5 @@
 /* Quiet Study Hall: walnut/ivory/olive/brass, cinematic depth, quiet motion, UI never overwhelms the 3D world. */
+/* Quiet Study Hall UI: واجهة دافئة وخفيفة، والكتاب المفتوح هو لحظة التفاعل الأساسية. */
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -31,6 +32,8 @@ button { font: inherit; }
 .welcome-card p { max-width: 320px; color: rgba(244,234,213,.7); font-size: 13px; line-height: 1.7; margin: 0 0 25px; }
 .enter-button { padding: 12px 16px; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .enter-button span { margin-left: 22px; font-size: 15px; }
+.welcome-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.sample-book-button { border-color: rgba(244,234,213,.38); color: #f4ead5; }
 .book-card { top: 50%; right: 8vw; transform: translateY(-50%); width: min(340px, 34vw); padding: 26px 28px 28px; background: rgba(18,12,8,.9); border: 1px solid rgba(201,148,82,.68); box-shadow: 0 22px 70px rgba(0,0,0,.42); backdrop-filter: blur(10px); animation: card-in .35s cubic-bezier(.23,1,.32,1) both; }
 .book-card h2 { font-family: 'DM Serif Display', serif; font-size: 35px; line-height: 1.05; font-weight: 400; margin: 13px 0 17px; color: #fff4dd; }
 .book-card p { color: rgba(244,234,213,.75); font-size: 13px; line-height: 1.7; margin: 0 0 26px; }
