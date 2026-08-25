@@ -83,7 +83,14 @@
 
 ## GitHub upload and Vercel handoff
 
-- [ ] Confirm the latest mobile-controls checkpoint and clean repository state.
-- [ ] Commit and push the latest version to ab99-c/interactive-3d-library.
-- [ ] Verify GitHub main contains the mobile touch controls.
-- [ ] Provide the Vercel Publish handoff without performing publication here.
+- [x] Confirm the latest mobile-controls checkpoint and clean repository state.
+- [x] Commit and push the latest version to ab99-c/interactive-3d-library.
+- [x] Verify GitHub main contains the mobile touch controls.
+- [x] Provide the Vercel Publish handoff without performing publication here.
+
+## Keep mobile player inside library
+
+- [x] Inspect room dimensions and current camera movement loop.
+- [x] Clamp camera position inside safe floor and wall boundaries for touch and keyboard movement.
+- [x] Preserve book picking, mouse-look, and joystick behavior.
+- [x] Run checks and verify mobile and desktop boundaries, then save a checkpoint.

@@ -248,6 +248,17 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     camera.cameraDirection.addInPlace(forward.scale(touchMove.z * camera.speed));
     camera.cameraDirection.addInPlace(right.scale(touchMove.x * camera.speed));
   });
+  // Keep every control scheme inside the playable library floor, including the mobile joystick.
+  const roomBounds = { minX: -10.3, maxX: 10.3, minY: 1.15, maxY: 4.7, minZ: -11.9, maxZ: 10.2 };
+  scene.onBeforeRenderObservable.add(() => {
+    const before = camera.position.clone();
+    camera.position.x = Math.max(roomBounds.minX, Math.min(roomBounds.maxX, camera.position.x));
+    camera.position.y = Math.max(roomBounds.minY, Math.min(roomBounds.maxY, camera.position.y));
+    camera.position.z = Math.max(roomBounds.minZ, Math.min(roomBounds.maxZ, camera.position.z));
+    if (camera.position.x !== before.x && Math.sign(camera.cameraDirection.x) === Math.sign(camera.position.x - before.x)) camera.cameraDirection.x = 0;
+    if (camera.position.y !== before.y && Math.sign(camera.cameraDirection.y) === Math.sign(camera.position.y - before.y)) camera.cameraDirection.y = 0;
+    if (camera.position.z !== before.z && Math.sign(camera.cameraDirection.z) === Math.sign(camera.position.z - before.z)) camera.cameraDirection.z = 0;
+  });
 
   const hemi = new HemisphericLight("ambient", new Vector3(0, 1, 0), scene);
   hemi.intensity = 0.86; hemi.diffuse = COLORS.ivory; hemi.groundColor = new Color3(0.12, 0.08, 0.05);
