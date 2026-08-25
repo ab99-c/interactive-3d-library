@@ -302,3 +302,10 @@
 - [x] Keep exactly one return-book control centered between left and right controls.
 - [x] Ensure tapping it returns the active book to its shelf.
 - [x] Run checks and verify the mobile layout before checkpointing.
+
+## GitHub sync
+
+- [ ] Check the repository status, branch, and configured remote.
+- [ ] Commit the latest stable library changes.
+- [ ] Push the commit to the intended GitHub repository.
+- [ ] Verify the remote commit and report the GitHub URL.
