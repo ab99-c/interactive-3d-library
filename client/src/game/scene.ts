@@ -156,7 +156,8 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const bookHeight = format.height;
       const bookDepth = format.depth;
       const bookLean = ((i % 5) - 2) * 0.018;
-      const bookInfo = BOOK_CATALOG[(row + i + shelfIndex) % BOOK_CATALOG.length];
+      // Every physical volume represents the same public-domain Arabic work requested by the user.
+      const bookInfo = BOOK_CATALOG[0];
       const leatherColor = bookColors[(i + row) % bookColors.length];
       const bookMaterial = material(scene, `book-mat-${shelfIndex}-${row}-${i}`, leatherColor);
       const leatherMaterial = material(scene, `book-leather-${shelfIndex}-${row}-${i}`, leatherColor, BOOK_LEATHER_TEXTURE);

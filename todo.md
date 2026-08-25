@@ -260,3 +260,10 @@
 - [x] Move the selected book closer to the player and keep the open spread readable.
 - [x] Preserve page clicks, RTL/LTR turning, and return-to-shelf behavior.
 - [x] Run checks and verify the closer interaction before checkpointing.
+
+## Shared Hayy ibn Yaqdhan library
+
+- [x] Replace per-volume book identities with Hayy ibn Yaqdhan metadata and Arabic page content.
+- [x] Add visible page numbering consistently to every physical volume.
+- [x] Preserve independent mesh interaction, pull, open, page turn, and return behavior.
+- [x] Run checks and verify the library before checkpointing.
