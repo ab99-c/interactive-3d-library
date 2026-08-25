@@ -23,7 +23,8 @@ import "@babylonjs/core/Shaders/shadowMap.vertex";
 import "@babylonjs/core/Shaders/shadowMap.fragment";
 
 export type BookInfo = { id: string; title: string; category: string; description: string };
-export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean };
+export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
+export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; getBookScreenRects: () => BookScreenRect[] };
 
 const COLORS = {
   walnut: new Color3(0.18, 0.09, 0.045),
@@ -325,6 +326,16 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const target = scene.meshes.find((mesh) => /^book-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book?.id === bookId);
     return openBook(target);
   };
+  const openBookByMeshName = (meshName: string) => openBook(scene.getMeshByName(meshName));
+  const getBookScreenRects = (): BookScreenRect[] => {
+    const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
+    return scene.meshes.filter((mesh) => /^book-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book).map((mesh) => {
+      const projected = Vector3.Project(mesh.getAbsolutePosition(), Matrix.Identity(), scene.getTransformMatrix(), viewport);
+      const distance = Vector3.Distance(mesh.getAbsolutePosition(), camera.position);
+      const scale = Math.min(2.4, Math.max(0.7, 4.2 / Math.max(distance, 1)));
+      return { meshName: mesh.name, bookId: mesh.metadata.book.id, title: mesh.metadata.book.title, x: projected.x / engine.getRenderWidth() * canvas.clientWidth, y: projected.y / engine.getRenderHeight() * canvas.clientHeight, width: 28 * scale, height: 58 * scale };
+    }).filter((rect) => rect.x > -rect.width && rect.x < canvas.clientWidth + rect.width && rect.y > -rect.height && rect.y < canvas.clientHeight + rect.height);
+  };
 
   const demo = new URLSearchParams(window.location.search).has("demo");
   if (demo) {
@@ -340,5 +351,5 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   }
 
   const dispose = () => { window.removeEventListener("keydown", onKeyDown); canvas.removeEventListener("pointerdown", onCanvasPointer); canvas.removeEventListener("click", onCanvasClick); scene.onPointerObservable.clear(); scene.dispose(); };
-  return { scene, dispose, openNearestBook, openBookById };
+  return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, getBookScreenRects };
 }

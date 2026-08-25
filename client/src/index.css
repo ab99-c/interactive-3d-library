@@ -33,6 +33,11 @@ button { font: inherit; }
 .book-picker-list button { min-height: 34px; padding: 7px 8px; border: 1px solid rgba(244,234,213,.2); background: rgba(244,234,213,.04); color: #f4ead5; font-size: 9px; line-height: 1.25; text-align: left; cursor: pointer; transition: transform .16s ease-out, background .18s ease-out, border-color .18s ease-out; }
 .book-picker-list button:hover { border-color: rgba(201,148,82,.8); background: rgba(201,148,82,.18); transform: translateY(-1px); }
 .book-picker-list button:active { transform: scale(.97); }
+.book-hotspots { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.book-hotspot { position: absolute; padding: 3px; border: 1px solid transparent; border-radius: 2px; background: transparent; color: #f4ead5; cursor: pointer; pointer-events: auto; transition: transform .16s ease-out, background .16s ease-out, border-color .16s ease-out, box-shadow .16s ease-out; }
+.book-hotspot span { display: block; max-width: 100%; overflow: hidden; color: rgba(244,234,213,.72); font-size: 7px; line-height: 1.1; opacity: 0; text-overflow: ellipsis; white-space: nowrap; transition: opacity .16s ease-out; }
+.book-hotspot:hover, .book-hotspot:focus-visible { z-index: 4; border-color: #c99452; background: rgba(24,14,8,.84); box-shadow: 0 0 0 2px rgba(201,148,82,.18); transform: scale(1.08); outline: none; }
+.book-hotspot:hover span, .book-hotspot:focus-visible span { opacity: 1; }
 .inspect-button { padding: 10px 13px; font-size: 9px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
 .inspect-button span { margin-left: 12px; font-size: 14px; }
 .inspect-button:active, .help-button:active, .enter-button:active { transform: scale(.97); }
