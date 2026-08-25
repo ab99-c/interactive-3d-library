@@ -38,3 +38,10 @@
 - [x] Make passive mouse movement rotate the camera without requiring a button or pointer lock.
 - [x] Preserve click/pointerdown book interaction and prevent UI controls from rotating the camera.
 - [x] Run checks and verify mouse-look plus book clicks, then save a checkpoint.
+
+## Restore walking after mouse-look
+
+- [x] Inspect keyboard input ownership and current camera attachment.
+- [x] Restore reliable WASD and arrow walking while keeping passive mouse-look.
+- [x] Run checks and verify walking plus mouse-look together.
+- [x] Save a stable checkpoint.

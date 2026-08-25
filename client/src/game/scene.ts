@@ -2,6 +2,7 @@
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
 import { UniversalCamera } from "@babylonjs/core/Cameras/universalCamera";
+import { FreeCameraKeyboardMoveInput } from "@babylonjs/core/Cameras/Inputs/freeCameraKeyboardMoveInput";
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
@@ -184,6 +185,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   camera.attachControl(canvas, true);
   // Mouse-look tuning: keyboard input stays with Babylon, while passive mouse movement turns the view without click or pointer lock.
   camera.inputs.removeByType("FreeCameraMouseInput");
+  if (!camera.inputs.attached.keyboard) camera.inputs.add(new FreeCameraKeyboardMoveInput());
   // Movement tuning: responsive starts/stops, comfortable walking speed, and easier mouse look in every direction.
   camera.speed = 0.3;
   camera.angularSensibility = 2500;
