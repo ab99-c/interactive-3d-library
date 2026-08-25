@@ -182,9 +182,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   camera.minZ = 0.1;
   camera.rotation.y = Math.PI;
   camera.attachControl(canvas, true);
-  camera.speed = 0.22;
-  camera.angularSensibility = 3800;
-  camera.inertia = 0.72;
+  // Movement tuning: responsive starts/stops, comfortable walking speed, and easier mouse look in every direction.
+  camera.speed = 0.3;
+  camera.angularSensibility = 2500;
+  camera.inertia = 0.42;
   camera.applyGravity = true;
   camera.checkCollisions = true;
   camera.ellipsoid = new Vector3(0.6, 0.9, 0.6);

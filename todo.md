@@ -24,3 +24,10 @@
 - [x] Add and style a visible Return book HUD button with disabled state when no book is active.
 - [x] Run TypeScript and production build checks.
 - [x] Verify the control, sounds, and scene visually, then save a checkpoint.
+
+## Smooth movement tuning
+
+- [x] Inspect the current camera speed, inertia, gravity, collisions, and keyboard mappings.
+- [x] Tune movement and look responsiveness for W/A/S/D and all directions.
+- [x] Run TypeScript and production build checks.
+- [x] Verify the preview and save a stable checkpoint.
