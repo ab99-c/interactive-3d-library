@@ -2,7 +2,7 @@
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
 import { UniversalCamera } from "@babylonjs/core/Cameras/universalCamera";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
@@ -259,17 +259,44 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     }
     return false;
   };
+  const isBookMesh = (mesh: any) => {
+    let current = mesh;
+    while (current) {
+      if (current.metadata?.book) return true;
+      current = current.parent;
+    }
+    return false;
+  };
+  const pickBookAt = (x: number, y: number) => {
+    const hits = scene.multiPick(x, y, isBookMesh) ?? [];
+    const firstBookHit = hits.find((hit) => hit.hit && hit.pickedMesh);
+    if (firstBookHit?.pickedMesh) return firstBookHit.pickedMesh;
+    const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
+    const screenCandidates = scene.meshes.filter((mesh) => /^book-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book);
+    let closest: any = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
+    screenCandidates.forEach((mesh) => {
+      const screen = Vector3.Project(mesh.getAbsolutePosition(), Matrix.Identity(), scene.getTransformMatrix(), viewport);
+      const distance = Math.hypot(screen.x - x, screen.y - y);
+      if (distance < closestDistance && distance < 92) { closest = mesh; closestDistance = distance; }
+    });
+    return closest;
+  };
   const onPointer = (pointerInfo: any) => {
-    const pickedMesh = pointerInfo?.pickInfo?.pickedMesh ?? scene.pick(scene.pointerX, scene.pointerY)?.pickedMesh;
-    if (pointerInfo?.pickInfo?.hit || pickedMesh) openBook(pickedMesh);
+    const directMesh = pointerInfo?.pickInfo?.pickedMesh;
+    if (directMesh && openBook(directMesh)) return;
+    const pickedBook = pickBookAt(scene.pointerX, scene.pointerY);
+    if (pickedBook) openBook(pickedBook);
   };
   scene.onPointerObservable.add(onPointer, PointerEventTypes.POINTERPICK);
   const inspectAt = (clientX: number, clientY: number) => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = engine.getRenderWidth() / Math.max(rect.width, 1);
     const scaleY = engine.getRenderHeight() / Math.max(rect.height, 1);
-    const pick = scene.pick((clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY);
-    if (pick?.hit) return openBook(pick.pickedMesh);
+    const x = (clientX - rect.left) * scaleX;
+    const y = (clientY - rect.top) * scaleY;
+    const pickedBook = pickBookAt(x, y);
+    if (pickedBook) return openBook(pickedBook);
     return false;
   };
   const onCanvasPointer = (event: PointerEvent) => {
@@ -282,8 +309,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const onKeyDown = (event: KeyboardEvent) => {
     if (!["e", "E", "Enter", " "].includes(event.key)) return;
     event.preventDefault();
-    const centerPick = scene.pick(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2);
-    if (centerPick?.hit && openBook(centerPick.pickedMesh)) return;
+    const centerBook = pickBookAt(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2);
+    if (centerBook && openBook(centerBook)) return;
     openNearestBook();
   };
   window.addEventListener("keydown", onKeyDown);
