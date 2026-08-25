@@ -80,3 +80,10 @@
 - [x] Add a virtual joystick for movement in all directions.
 - [x] Add touch-drag camera look without breaking book taps.
 - [x] Run checks and verify mobile and desktop layouts, then save a checkpoint.
+
+## GitHub upload and Vercel handoff
+
+- [ ] Confirm the latest mobile-controls checkpoint and clean repository state.
+- [ ] Commit and push the latest version to ab99-c/interactive-3d-library.
+- [ ] Verify GitHub main contains the mobile touch controls.
+- [ ] Provide the Vercel Publish handoff without performing publication here.
