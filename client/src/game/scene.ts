@@ -39,6 +39,8 @@ const BOOK_FORMATS = [
   { name: "Notebook", width: 0.42, height: 0.90, depth: 0.27 },
 ];
 
+const BOOK_LEATHER_TEXTURE = "/manus-storage/arabic-leather-book-cover-texture_f389a004.png";
+
 const COLORS = {
   walnut: new Color3(0.18, 0.09, 0.045),
   walnutLight: new Color3(0.34, 0.18, 0.08),
@@ -145,18 +147,25 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const bookDepth = format.depth;
       const bookLean = ((i % 5) - 2) * 0.018;
       const bookInfo = BOOK_CATALOG[(row + i) % BOOK_CATALOG.length];
-      const bookMaterial = material(scene, `book-mat-${row}-${i}`, bookColors[(i + row) % bookColors.length]);
+      const bookMaterial = material(scene, `book-mat-${shelfIndex}-${row}-${i}`, bookColors[(i + row) % bookColors.length], BOOK_LEATHER_TEXTURE);
       const bookPosition = new Vector3(-1.72 + i * 0.49, y + 0.4, -0.1);
       const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
       book.parent = root;
+      const roundedSpine = MeshBuilder.CreateCylinder(`book-rounded-spine-${shelfIndex}-${row}-${i}`, { diameter: Math.min(bookDepth * 0.9, 0.28), height: bookHeight * 0.94, tessellation: 16 }, scene);
+      roundedSpine.position = new Vector3(bookPosition.x - bookWidth * 0.46, bookPosition.y, bookPosition.z);
+      roundedSpine.material = bookMaterial;
+      roundedSpine.parent = root;
+      roundedSpine.isPickable = false;
       const pages = box(scene, `book-pages-${row}-${i}`, { width: Math.max(bookWidth * 0.68, 0.2), height: bookHeight * 0.82, depth: bookDepth * 0.78 }, new Vector3(bookPosition.x + 0.035, bookPosition.y, bookPosition.z + 0.012), material(scene, `book-pages-mat-${row}-${i}`, new Color3(0.92, 0.83, 0.63)), false);
       pages.parent = root;
       const coverTop = box(scene, `book-cover-top-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.48, bookPosition.z), bookMaterial, false);
       coverTop.parent = root;
       const coverBottom = box(scene, `book-cover-bottom-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.48, bookPosition.z), bookMaterial, false);
       coverBottom.parent = root;
+      const frontCover = box(scene, `book-front-cover-${shelfIndex}-${row}-${i}`, { width: bookWidth * 1.04, height: bookHeight * 1.02, depth: 0.035 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.014), bookMaterial, false);
+      frontCover.parent = root;
       const titlePlate = MeshBuilder.CreatePlane(`book-title-${row}-${i}`, { width: Math.max(bookWidth * 0.9, 0.30), height: bookHeight * 0.86, sideOrientation: Mesh.DOUBLESIDE }, scene);
-      titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.012);
+      titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.046);
       titlePlate.material = createTitleMaterial(scene, bookInfo, titleMaterials);
       titlePlate.parent = root;
       const labelMaterial = i % 3 === 0 ? brass : material(scene, `book-label-mat-${row}-${i}`, COLORS.ivory);
@@ -170,7 +179,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const frameLeft = box(scene, `book-frame-left-${row}-${i}`, { width: 0.018, height: bookHeight * 0.76, depth: 0.022 }, new Vector3(bookPosition.x - bookWidth * 0.38, bookPosition.y, frontZ), brass, false);
       const frameRight = box(scene, `book-frame-right-${row}-${i}`, { width: 0.018, height: bookHeight * 0.76, depth: 0.022 }, new Vector3(bookPosition.x + bookWidth * 0.38, bookPosition.y, frontZ), brass, false);
       [frameTop, frameBottom, frameLeft, frameRight].forEach((frame) => { frame.parent = root; });
-      const bookParts = [book, pages, coverTop, coverBottom, titlePlate, spineLabel, spineBand, frameTop, frameBottom, frameLeft, frameRight];
+      const bookParts = [book, roundedSpine, pages, coverTop, coverBottom, frontCover, titlePlate, spineLabel, spineBand, frameTop, frameBottom, frameLeft, frameRight];
       bookParts.forEach((target) => {
         target.rotation.y = bookLean;
         target.metadata = { book: bookInfo, format: format.name, bookParts, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookPulled: false };

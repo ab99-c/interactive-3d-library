@@ -136,3 +136,10 @@
 - [x] Make leather covers, gold ornament, Arabic spine details, and varied sizes visibly prominent at the camera distance.
 - [x] Verify the exact rendered preview and confirm book picking still works.
 - [x] Save a new checkpoint only after the visible difference is confirmed.
+
+## Rebuild realistic Arabic-bound books
+
+- [x] Define a book asset structure based on the supplied real-book references.
+- [x] Replace the box-like appearance with rounded spines, separate covers, page blocks, and visible binding details.
+- [x] Add reference-matched Arabic ornamental treatment while preserving lightweight picking meshes.
+- [x] Verify at gameplay distance and test pull, return, and selection interactions before saving a checkpoint.
