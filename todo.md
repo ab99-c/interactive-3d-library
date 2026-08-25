@@ -267,3 +267,10 @@
 - [x] Add visible page numbering consistently to every physical volume.
 - [x] Preserve independent mesh interaction, pull, open, page turn, and return behavior.
 - [x] Run checks and verify the library before checkpointing.
+
+## Readable Arabic book pages
+
+- [x] Inspect the current page texture and page-material visibility.
+- [x] Render clear Arabic text on both square pages with visible page numbers.
+- [x] Preserve page-side clicks, RTL/LTR turning, pull, and return behavior.
+- [x] Run checks and verify the opened book before checkpointing.

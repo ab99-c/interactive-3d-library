@@ -183,22 +183,30 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const frontCover = box(scene, `book-front-cover-${shelfIndex}-${row}-${i}`, { width: bookWidth * 1.04, height: bookHeight * 1.02, depth: 0.035 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.014), leatherMaterial, false);
       frontCover.parent = root;
       // Closed books carry a hidden physical reading spread that unfolds in front of the cover.
-      const readingPageMaterial = material(scene, `book-reading-pages-${shelfIndex}-${row}-${i}`, new Color3(0.91, 0.82, 0.62));
-      const readingTexture = new DynamicTexture(`book-reading-text-${shelfIndex}-${row}-${i}`, { width: 512, height: 512 }, scene, true);
-      const readingContext = readingTexture.getContext() as unknown as CanvasRenderingContext2D;
-      readingContext.fillStyle = "#ead9ad"; readingContext.fillRect(0, 0, 512, 512);
-      readingContext.direction = "rtl"; readingContext.textAlign = "right"; readingContext.fillStyle = "#4a2a18";
-      readingContext.font = "bold 28px Noto Sans Arabic"; readingContext.fillText(bookInfo.spineTitle, 462, 58);
-      readingContext.font = "18px Noto Sans Arabic";
-      for (let line = 0; line < 9; line += 1) { readingContext.fillText("ــــــــــــــــــــــــــــــــــــــــــــــــ", 462, 112 + line * 40); }
-      readingTexture.update(); readingPageMaterial.diffuseTexture = readingTexture;
+      const makeReadingMaterial = (pageNumber: string, side: "left" | "right") => {
+        const pageMaterial = material(scene, `book-reading-pages-${shelfIndex}-${row}-${i}-${side}`, new Color3(0.96, 0.88, 0.70));
+        const pageTexture = new DynamicTexture(`book-reading-text-${shelfIndex}-${row}-${i}-${side}`, { width: 512, height: 512 }, scene, true);
+        const pageContext = pageTexture.getContext() as unknown as CanvasRenderingContext2D;
+        pageContext.fillStyle = "#f1dfb3"; pageContext.fillRect(0, 0, 512, 512);
+        pageContext.strokeStyle = "#9a6b35"; pageContext.lineWidth = 7; pageContext.strokeRect(16, 16, 480, 480);
+        pageContext.direction = "rtl"; pageContext.textAlign = "right"; pageContext.fillStyle = "#3a2014";
+        pageContext.font = "bold 30px Noto Sans Arabic"; pageContext.fillText("حي بن يقظان", 462, 64);
+        pageContext.font = "bold 19px Noto Sans Arabic";
+        const lines = ["تأمل حيّ بن يقظان العالم من حوله،", "وسأل عن سرّ الحياة والحقيقة،", "ثم تابع بحثه بهدوء بين الطبيعة", "والنور والمعرفة."];
+        lines.forEach((line, lineIndex) => pageContext.fillText(line, 462, 132 + lineIndex * 43));
+        pageContext.strokeStyle = "#c49a5a"; pageContext.lineWidth = 2; pageContext.beginPath(); pageContext.moveTo(52, 396); pageContext.lineTo(460, 396); pageContext.stroke();
+        pageContext.textAlign = "center"; pageContext.font = "bold 23px serif"; pageContext.fillText(pageNumber, 256, 458);
+        pageTexture.update(); pageMaterial.diffuseTexture = pageTexture; return pageMaterial;
+      };
+      const leftReadingMaterial = makeReadingMaterial("١", "left");
+      const rightReadingMaterial = makeReadingMaterial("٢", "right");
       // The reading spread uses square pages, like a compact illuminated manuscript.
       const openPageSize = Math.max(bookHeight * 1.02, 0.48);
       const openPageWidth = openPageSize;
       const openPageHeight = openPageSize;
-      const openLeftPage = box(scene, `book-open-left-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.12), readingPageMaterial, false);
-      const openRightPage = box(scene, `book-open-right-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.125), readingPageMaterial, false);
-      const turningPage = box(scene, `book-turning-page-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.014 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.14), readingPageMaterial, false);
+      const openLeftPage = box(scene, `book-open-left-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.12), leftReadingMaterial, false);
+      const openRightPage = box(scene, `book-open-right-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.125), rightReadingMaterial, false);
+      const turningPage = box(scene, `book-turning-page-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.014 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.14), rightReadingMaterial, false);
       [openLeftPage, openRightPage, turningPage].forEach((page) => { page.parent = root; page.isVisible = false; page.isPickable = false; });
       const titlePlate = MeshBuilder.CreatePlane(`book-title-${row}-${i}`, { width: Math.max(bookWidth * 0.9, 0.20), height: bookHeight * 0.86, sideOrientation: Mesh.DOUBLESIDE }, scene);
       titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.046);
