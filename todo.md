@@ -45,3 +45,10 @@
 - [x] Restore reliable WASD and arrow walking while keeping passive mouse-look.
 - [x] Run checks and verify walking plus mouse-look together.
 - [x] Save a stable checkpoint.
+
+## Persist pulled book until explicit return
+
+- [x] Trace every pull completion and shelf-reset path.
+- [x] Ensure animation completion leaves the active book pulled out.
+- [x] Keep return limited to selecting another book or pressing Return book.
+- [x] Run checks and verify the behavior, then save a checkpoint.

@@ -308,6 +308,12 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         part.position = new Vector3(start.x, start.y, start.z + pullDistance * eased);
       });
       if (progress >= 1 && activePullObserver) {
+        // Keep the selected book pulled out after the animation; only explicit return or a new selection resets it.
+        parts.forEach((part, index) => {
+          const start = startPositions[index];
+          part.position = new Vector3(start.x, start.y, start.z + pullDistance);
+          part.metadata = { ...part.metadata, bookPulled: true };
+        });
         scene.onBeforeRenderObservable.remove(activePullObserver);
         activePullObserver = null;
       }
