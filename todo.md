@@ -164,3 +164,10 @@
 - [x] Add brown/black leather bands, repeated gold ornament, vertical Arabic-style spine marks, and part-number badges.
 - [x] Add a distinct large rounded-spine multi-volume form for reference sets.
 - [x] Verify the visible shelf result and selection behavior before saving a checkpoint.ing.
+
+## Smaller books and fuller shelves
+
+- [x] Reduce book width, height, and depth while preserving readable details.
+- [x] Increase each shelf row to a denser set of volumes with safe spacing.
+- [x] Keep all book meshes uniquely pickable and preserve pull/return behavior.
+- [x] Verify the filled shelves visually and run checks before checkpointing.

@@ -29,14 +29,14 @@ export type BookScreenRect = { meshName: string; bookId: string; title: string; 
 export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[]; setTouchMove: (x: number, y: number) => void };
 
 const BOOK_FORMATS = [
-  { name: "Pocket", width: 0.32, height: 0.74, depth: 0.22 },
-  { name: "A5", width: 0.38, height: 0.92, depth: 0.28 },
-  { name: "Trade Paperback", width: 0.42, height: 0.96, depth: 0.30 },
-  { name: "B5", width: 0.45, height: 1.00, depth: 0.31 },
-  { name: "A4 Reference", width: 0.48, height: 1.04, depth: 0.34 },
-  { name: "Square", width: 0.48, height: 0.72, depth: 0.28 },
-  { name: "Planner", width: 0.40, height: 0.98, depth: 0.30 },
-  { name: "Notebook", width: 0.42, height: 0.90, depth: 0.27 },
+  { name: "Pocket", width: 0.24, height: 0.58, depth: 0.16 },
+  { name: "A5", width: 0.27, height: 0.68, depth: 0.18 },
+  { name: "Trade Paperback", width: 0.29, height: 0.72, depth: 0.19 },
+  { name: "B5", width: 0.31, height: 0.76, depth: 0.20 },
+  { name: "A4 Reference", width: 0.33, height: 0.80, depth: 0.22 },
+  { name: "Square", width: 0.34, height: 0.55, depth: 0.18 },
+  { name: "Planner", width: 0.28, height: 0.74, depth: 0.20 },
+  { name: "Notebook", width: 0.29, height: 0.66, depth: 0.18 },
 ];
 
 const BOOK_LEATHER_TEXTURE = "/manus-storage/arabic-leather-book-cover-texture_f389a004.png";
@@ -150,19 +150,19 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
     box(scene, "shelf-marker", { width: 0.7, height: 0.28, depth: 0.05 }, new Vector3(0, 4.25, -0.62), olive, false),
   ];
   parts.forEach((part) => { part.parent = root; shadow.addShadowCaster(part); });
-  const bookColors = [new Color3(0.34, 0.075, 0.045), new Color3(0.24, 0.075, 0.035), new Color3(0.32, 0.11, 0.055), new Color3(0.075, 0.17, 0.12), new Color3(0.28, 0.055, 0.075)];
+      const bookColors = [new Color3(0.34, 0.075, 0.045), new Color3(0.24, 0.075, 0.035), new Color3(0.32, 0.11, 0.055), new Color3(0.075, 0.17, 0.12), new Color3(0.28, 0.055, 0.075)];
       [0.72, 1.72, 2.72, 3.72].forEach((y, row) => {
-    for (let i = 0; i < 9; i += 1) {
+    for (let i = 0; i < 11; i += 1) {
       const format = BOOK_FORMATS[(shelfIndex + row + i) % BOOK_FORMATS.length];
       const bookWidth = format.width;
       const bookHeight = format.height;
       const bookDepth = format.depth;
       const bookLean = ((i % 5) - 2) * 0.018;
-      const bookInfo = BOOK_CATALOG[(row + i) % BOOK_CATALOG.length];
+      const bookInfo = BOOK_CATALOG[(row + i + shelfIndex) % BOOK_CATALOG.length];
       const leatherColor = bookColors[(i + row) % bookColors.length];
       const bookMaterial = material(scene, `book-mat-${shelfIndex}-${row}-${i}`, leatherColor);
       const leatherMaterial = material(scene, `book-leather-${shelfIndex}-${row}-${i}`, leatherColor, BOOK_LEATHER_TEXTURE);
-      const bookPosition = new Vector3(-1.94 + i * 0.48, y + 0.4, -0.1);
+      const bookPosition = new Vector3(-1.95 + i * 0.39, y + 0.4, -0.1);
       const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
       book.parent = root;
       const roundedSpine = MeshBuilder.CreateCylinder(`book-rounded-spine-${shelfIndex}-${row}-${i}`, { diameter: Math.min(bookDepth * 0.9, 0.28), height: bookHeight * 0.94, tessellation: 16 }, scene);
