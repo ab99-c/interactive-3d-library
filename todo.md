@@ -143,3 +143,10 @@
 - [x] Replace the box-like appearance with rounded spines, separate covers, page blocks, and visible binding details.
 - [x] Add reference-matched Arabic ornamental treatment while preserving lightweight picking meshes.
 - [x] Verify at gameplay distance and test pull, return, and selection interactions before saving a checkpoint.
+
+## Reference-shaped book rebuild
+
+- [x] Compare the current visible silhouettes with the supplied book references.
+- [x] Replace the repeated rectangular treatment with fully covered, curved-spine book forms.
+- [x] Add thick cover edges, raised binding bands, and grouped multi-volume arrangements.
+- [x] Verify the actual camera view and interaction before saving a checkpoint.
