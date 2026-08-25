@@ -185,7 +185,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     if (event.button !== 0) return;
     const rect = canvas.getBoundingClientRect();
     const pick = scene.pick(event.clientX - rect.left, event.clientY - rect.top);
-    if (pick?.hit) openBook(pick.pickedMesh);
+    if (pick?.hit && openBook(pick.pickedMesh)) return;
+    openNearestBook();
   };
   canvas.addEventListener("pointerdown", onCanvasPointer);
   const onKeyDown = (event: KeyboardEvent) => {
