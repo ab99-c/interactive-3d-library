@@ -29,14 +29,14 @@ export type BookScreenRect = { meshName: string; bookId: string; title: string; 
 export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[]; setTouchMove: (x: number, y: number) => void };
 
 const BOOK_FORMATS = [
-  { name: "Pocket", width: 0.29, height: 0.70, depth: 0.16 },
-  { name: "A5", width: 0.32, height: 0.84, depth: 0.19 },
-  { name: "Trade Paperback", width: 0.36, height: 0.88, depth: 0.20 },
-  { name: "B5", width: 0.38, height: 0.90, depth: 0.22 },
-  { name: "A4 Reference", width: 0.40, height: 0.94, depth: 0.22 },
-  { name: "Square", width: 0.40, height: 0.64, depth: 0.18 },
-  { name: "Planner", width: 0.34, height: 0.88, depth: 0.21 },
-  { name: "Notebook", width: 0.36, height: 0.82, depth: 0.19 },
+  { name: "Pocket", width: 0.32, height: 0.74, depth: 0.22 },
+  { name: "A5", width: 0.38, height: 0.92, depth: 0.28 },
+  { name: "Trade Paperback", width: 0.42, height: 0.96, depth: 0.30 },
+  { name: "B5", width: 0.45, height: 1.00, depth: 0.31 },
+  { name: "A4 Reference", width: 0.48, height: 1.04, depth: 0.34 },
+  { name: "Square", width: 0.48, height: 0.72, depth: 0.28 },
+  { name: "Planner", width: 0.40, height: 0.98, depth: 0.30 },
+  { name: "Notebook", width: 0.42, height: 0.90, depth: 0.27 },
 ];
 
 const COLORS = {
@@ -146,7 +146,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const bookLean = ((i % 5) - 2) * 0.018;
       const bookInfo = BOOK_CATALOG[(row + i) % BOOK_CATALOG.length];
       const bookMaterial = material(scene, `book-mat-${row}-${i}`, bookColors[(i + row) % bookColors.length]);
-      const bookPosition = new Vector3(-1.7 + i * 0.45, y + 0.4, -0.1);
+      const bookPosition = new Vector3(-1.72 + i * 0.49, y + 0.4, -0.1);
       const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
       book.parent = root;
       const pages = box(scene, `book-pages-${row}-${i}`, { width: Math.max(bookWidth * 0.68, 0.2), height: bookHeight * 0.82, depth: bookDepth * 0.78 }, new Vector3(bookPosition.x + 0.035, bookPosition.y, bookPosition.z + 0.012), material(scene, `book-pages-mat-${row}-${i}`, new Color3(0.92, 0.83, 0.63)), false);
@@ -155,7 +155,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       coverTop.parent = root;
       const coverBottom = box(scene, `book-cover-bottom-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.48, bookPosition.z), bookMaterial, false);
       coverBottom.parent = root;
-      const titlePlate = MeshBuilder.CreatePlane(`book-title-${row}-${i}`, { width: Math.max(bookWidth * 0.9, 0.26), height: bookHeight * 0.84, sideOrientation: Mesh.DOUBLESIDE }, scene);
+      const titlePlate = MeshBuilder.CreatePlane(`book-title-${row}-${i}`, { width: Math.max(bookWidth * 0.9, 0.30), height: bookHeight * 0.86, sideOrientation: Mesh.DOUBLESIDE }, scene);
       titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.012);
       titlePlate.material = createTitleMaterial(scene, bookInfo, titleMaterials);
       titlePlate.parent = root;

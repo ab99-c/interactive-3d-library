@@ -129,3 +129,10 @@
 - [x] Add visible cover/spine detailing beyond flat colored rectangles while keeping the geometry lightweight.
 - [x] Arrange books in denser, believable rows and multi-volume groups with safe picking targets.
 - [x] Run checks and verify the reference-style result, then save a checkpoint.
+
+## Visible reference redesign retry
+
+- [x] Compare the visible build with the supplied reference style and identify why the previous change was imperceptible.
+- [x] Make leather covers, gold ornament, Arabic spine details, and varied sizes visibly prominent at the camera distance.
+- [x] Verify the exact rendered preview and confirm book picking still works.
+- [x] Save a new checkpoint only after the visible difference is confirmed.
