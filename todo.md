@@ -213,3 +213,9 @@
 - [x] Add a stable two-page spread and a visible right-to-left page-turn animation.
 - [x] Add Arabic page-turn controls and preserve close/return behavior.
 - [x] Verify the interaction on desktop and mobile, then save a checkpoint.
+
+## Remove book-picker overlay
+
+- [x] Remove the visible «اختر كتاباً» panel from the React HUD.
+- [x] Preserve direct physical shelf clicking, nearest-book inspection, page opening, page turning, and return behavior.
+- [x] Run checks and verify desktop and mobile layout before saving a checkpoint.
