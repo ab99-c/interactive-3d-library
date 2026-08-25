@@ -199,3 +199,10 @@
 - [x] Record the source URL and the safe rights rationale before using any title or excerpt.
 - [x] Add the verified book to the in-game catalogue without copying a protected modern edition.
 - [x] Run checks, verify the Arabic book interaction, and save a checkpoint.
+
+## Physical book opening animation
+
+- [x] Inspect the current book hierarchy, pull animation, and active-book state.
+- [x] Add a physical pull-to-player motion followed by a cover-opening and two-page spread animation.
+- [x] Connect the opened physical book to the Arabic HUD and preserve explicit return behavior.
+- [x] Verify desktop and mobile interaction, then save a checkpoint.

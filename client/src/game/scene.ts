@@ -181,6 +181,19 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       coverBottom.parent = root;
       const frontCover = box(scene, `book-front-cover-${shelfIndex}-${row}-${i}`, { width: bookWidth * 1.04, height: bookHeight * 1.02, depth: 0.035 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.014), leatherMaterial, false);
       frontCover.parent = root;
+      // Closed books carry a hidden physical reading spread that unfolds in front of the cover.
+      const readingPageMaterial = material(scene, `book-reading-pages-${shelfIndex}-${row}-${i}`, new Color3(0.91, 0.82, 0.62));
+      const readingTexture = new DynamicTexture(`book-reading-text-${shelfIndex}-${row}-${i}`, { width: 256, height: 512 }, scene, true);
+      const readingContext = readingTexture.getContext() as unknown as CanvasRenderingContext2D;
+      readingContext.fillStyle = "#ead9ad"; readingContext.fillRect(0, 0, 256, 512);
+      readingContext.direction = "rtl"; readingContext.textAlign = "right"; readingContext.fillStyle = "#4a2a18";
+      readingContext.font = "bold 23px Noto Sans Arabic"; readingContext.fillText(bookInfo.spineTitle, 226, 54);
+      readingContext.font = "16px Noto Sans Arabic";
+      for (let line = 0; line < 9; line += 1) { readingContext.fillText("ــــــــــــــــــــــــــــــــــ", 226, 104 + line * 38); }
+      readingTexture.update(); readingPageMaterial.diffuseTexture = readingTexture;
+      const openLeftPage = box(scene, `book-open-left-${shelfIndex}-${row}-${i}`, { width: bookWidth * 0.48, height: bookHeight * 0.9, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.07), readingPageMaterial, false);
+      const openRightPage = box(scene, `book-open-right-${shelfIndex}-${row}-${i}`, { width: bookWidth * 0.48, height: bookHeight * 0.9, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.075), readingPageMaterial, false);
+      [openLeftPage, openRightPage].forEach((page) => { page.parent = root; page.isVisible = false; page.isPickable = false; });
       const titlePlate = MeshBuilder.CreatePlane(`book-title-${row}-${i}`, { width: Math.max(bookWidth * 0.9, 0.20), height: bookHeight * 0.86, sideOrientation: Mesh.DOUBLESIDE }, scene);
       titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.046);
       titlePlate.material = createTitleMaterial(scene, bookInfo, titleMaterials);
@@ -200,10 +213,10 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const frameLeft = box(scene, `book-frame-left-${row}-${i}`, { width: 0.018, height: bookHeight * 0.76, depth: 0.022 }, new Vector3(bookPosition.x - bookWidth * 0.38, bookPosition.y, frontZ), brass, false);
       const frameRight = box(scene, `book-frame-right-${row}-${i}`, { width: 0.018, height: bookHeight * 0.76, depth: 0.022 }, new Vector3(bookPosition.x + bookWidth * 0.38, bookPosition.y, frontZ), brass, false);
       [frameTop, frameBottom, frameLeft, frameRight].forEach((frame) => { frame.parent = root; });
-      const bookParts = [book, roundedSpine, spineStrip, pages, coverTop, coverBottom, frontCover, titlePlate, spineLabel, spineBand, bindingBandTop, bindingBandMid, bindingBandBottom, frameTop, frameBottom, frameLeft, frameRight];
+      const bookParts = [book, roundedSpine, spineStrip, pages, coverTop, coverBottom, frontCover, openLeftPage, openRightPage, titlePlate, spineLabel, spineBand, bindingBandTop, bindingBandMid, bindingBandBottom, frameTop, frameBottom, frameLeft, frameRight];
       bookParts.forEach((target) => {
         target.rotation.y = bookLean;
-        target.metadata = { book: bookInfo, format: format.name, bookParts, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookPulled: false };
+        target.metadata = { book: bookInfo, format: format.name, bookParts, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, readingPage: target === openLeftPage || target === openRightPage, closedCover: target === frontCover || target === titlePlate || target === spineLabel || target === spineBand || target === frameTop || target === frameBottom || target === frameLeft || target === frameRight };
         // Only the main volume is pickable; decorative binding parts move with it but do not create duplicate hits.
         target.isPickable = target === book;
       });
@@ -364,6 +377,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   let activeBookParts: any[] | null = null;
   let activeBookId: string | null = null;
   let activePullObserver: any = null;
+  let activeOpenObserver: any = null;
   let audioContext: AudioContext | null = null;
   const emitBookState = () => window.dispatchEvent(new CustomEvent("library:book-state", { detail: { active: Boolean(activeBookParts), bookId: activeBookId } }));
   const getAudioContext = () => {
@@ -394,19 +408,47 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
       scene.onBeforeRenderObservable.remove(activePullObserver);
       activePullObserver = null;
     }
+    if (activeOpenObserver) {
+      scene.onBeforeRenderObservable.remove(activeOpenObserver);
+      activeOpenObserver = null;
+    }
     if (!activeBookParts) return false;
     activeBookParts.forEach((part) => {
       const restPosition = part.metadata?.bookRestPosition;
       const restRotation = part.metadata?.bookRestRotation;
       if (restPosition) part.position = restPosition.clone();
       if (restRotation) part.rotation = restRotation.clone();
-      part.metadata = { ...part.metadata, bookPulled: false };
+      if (typeof part.metadata?.bookRestVisible === "boolean") part.isVisible = part.metadata.bookRestVisible;
+      part.metadata = { ...part.metadata, bookPulled: false, bookOpened: false };
     });
     activeBookParts = null;
     activeBookId = null;
     emitBookState();
     return true;
   };
+  const openBookSpread = (parts: any[]) => {
+    const pages = parts.filter((part) => part.metadata?.readingPage);
+    const closedCoverParts = parts.filter((part) => part.metadata?.closedCover);
+    if (!pages.length) return;
+    const center = parts[0].position.clone();
+    const width = Number(parts[0].metadata?.format === "Pocket" ? 0.17 : 0.2);
+    const pageTargets = [center.add(new Vector3(-width * 0.48, 0, 0.045)), center.add(new Vector3(width * 0.48, 0, 0.05))];
+    const pageStarts = pages.map((page) => page.position.clone());
+    const startedAt = performance.now();
+    closedCoverParts.forEach((part) => { part.isVisible = false; });
+    pages.forEach((page) => { page.isVisible = true; page.metadata = { ...page.metadata, bookOpened: true }; });
+    activeOpenObserver = scene.onBeforeRenderObservable.add(() => {
+      const progress = Math.min((performance.now() - startedAt) / 420, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      pages.forEach((page, index) => { page.position = Vector3.Lerp(pageStarts[index], pageTargets[index], eased); });
+      if (progress >= 1 && activeOpenObserver) {
+        pages.forEach((page, index) => { page.position = pageTargets[index].clone(); });
+        scene.onBeforeRenderObservable.remove(activeOpenObserver);
+        activeOpenObserver = null;
+      }
+    });
+  };
+
   const pullBookOut = (parts: any[]) => {
     if (!parts?.length || activeBookParts === parts) return;
     if (returnActiveBookToShelf()) playBookSound("return");
@@ -441,6 +483,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         });
         scene.onBeforeRenderObservable.remove(activePullObserver);
         activePullObserver = null;
+        openBookSpread(parts);
       }
     });
   };
