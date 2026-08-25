@@ -48,10 +48,11 @@ const COLORS = {
 };
 
 export const BOOK_CATALOG: BookInfo[] = [
-  { id: "atlas", title: "Atlas of Quiet Places", category: "الاستكشاف", description: "خرائط لأماكن لا تظهر إلا لمن يمشي ببطء.", spineTitle: "موسوعة السكينة", volume: "١" },
-  { id: "craft", title: "The Craft of Light", category: "التصميم", description: "ملاحظات عن الضوء، الظل، واللحظة التي يصير فيها المكان ذاكرة.", spineTitle: "صناعة النور", volume: "٢" },
-  { id: "garden", title: "A Garden in Winter", category: "الأدب", description: "حكاية قصيرة عن بذرة خبأها أحدهم بين صفحات كتاب.", spineTitle: "حديقة الشتاء", volume: "٣" },
-  { id: "voices", title: "Voices Between Shelves", category: "المقالات", description: "أصوات القراء، بعد أن يغادر الجميع وتبقى المصابيح مضاءة.", spineTitle: "أصوات الرفوف", volume: "٤" },
+  { id: "hayy-ibn-yaqdhan", title: "حي بن يقظان", category: "الفلسفة", description: "رحلة فكرية كلاسيكية عن الإنسان والطبيعة والبحث عن الحقيقة.", spineTitle: "حي بن يقظان", volume: "١" },
+  { id: "atlas", title: "Atlas of Quiet Places", category: "الاستكشاف", description: "خرائط لأماكن لا تظهر إلا لمن يمشي ببطء.", spineTitle: "موسوعة السكينة", volume: "٢" },
+  { id: "craft", title: "The Craft of Light", category: "التصميم", description: "ملاحظات عن الضوء، الظل، واللحظة التي يصير فيها المكان ذاكرة.", spineTitle: "صناعة النور", volume: "٣" },
+  { id: "garden", title: "A Garden in Winter", category: "الأدب", description: "حكاية قصيرة عن بذرة خبأها أحدهم بين صفحات كتاب.", spineTitle: "حديقة الشتاء", volume: "٤" },
+  { id: "voices", title: "Voices Between Shelves", category: "المقالات", description: "أصوات القراء، بعد أن يغادر الجميع وتبقى المصابيح مضاءة.", spineTitle: "أصوات الرفوف", volume: "٥" },
 ];
 
 function material(scene: Scene, name: string, color: Color3, textureUrl?: string) {

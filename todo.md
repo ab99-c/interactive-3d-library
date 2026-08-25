@@ -192,3 +192,10 @@
 - [x] Move the books inward and down so each volume is supported by its shelf board.
 - [x] Keep rows evenly spaced, reduce protrusion, and preserve unique picking and pull/return behavior.
 - [x] Verify alignment visually and run checks before saving a checkpoint.
+
+## Public-domain Arabic book
+
+- [x] Research a suitable Arabic book whose original text is in the public domain and verify the online source terms.
+- [x] Record the source URL and the safe rights rationale before using any title or excerpt.
+- [x] Add the verified book to the in-game catalogue without copying a protected modern edition.
+- [x] Run checks, verify the Arabic book interaction, and save a checkpoint.
