@@ -39,10 +39,10 @@ const COLORS = {
 };
 
 export const BOOK_CATALOG: BookInfo[] = [
-  { id: "atlas", title: "Atlas of Quiet Places", category: "Exploration", description: "خرائط لأماكن لا تظهر إلا لمن يمشي ببطء." },
-  { id: "craft", title: "The Craft of Light", category: "Design", description: "ملاحظات عن الضوء، الظل، واللحظة التي يصير فيها المكان ذاكرة." },
-  { id: "garden", title: "A Garden in Winter", category: "Literature", description: "حكاية قصيرة عن بذرة خبأها أحدهم بين صفحات كتاب." },
-  { id: "voices", title: "Voices Between Shelves", category: "Essays", description: "أصوات القراء، بعد أن يغادر الجميع وتبقى المصابيح مضاءة." },
+  { id: "atlas", title: "Atlas of Quiet Places", category: "الاستكشاف", description: "خرائط لأماكن لا تظهر إلا لمن يمشي ببطء." },
+  { id: "craft", title: "The Craft of Light", category: "التصميم", description: "ملاحظات عن الضوء، الظل، واللحظة التي يصير فيها المكان ذاكرة." },
+  { id: "garden", title: "A Garden in Winter", category: "الأدب", description: "حكاية قصيرة عن بذرة خبأها أحدهم بين صفحات كتاب." },
+  { id: "voices", title: "Voices Between Shelves", category: "المقالات", description: "أصوات القراء، بعد أن يغادر الجميع وتبقى المصابيح مضاءة." },
 ];
 
 function material(scene: Scene, name: string, color: Color3, textureUrl?: string) {

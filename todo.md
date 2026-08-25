@@ -52,3 +52,10 @@
 - [x] Ensure animation completion leaves the active book pulled out.
 - [x] Keep return limited to selecting another book or pressing Return book.
 - [x] Run checks and verify the behavior, then save a checkpoint.
+
+## Modern Standard Arabic interface
+
+- [x] Audit all visible HUD, welcome, control, and interaction strings.
+- [x] Translate the interface into clear Modern Standard Arabic and preserve original book titles where appropriate.
+- [x] Adjust RTL/Arabic typography and spacing without harming the 3D scene.
+- [x] Run checks and verify the localized layout and interactions, then save a checkpoint.
