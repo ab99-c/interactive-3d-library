@@ -575,6 +575,15 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const scaleY = engine.getRenderHeight() / Math.max(rect.height, 1);
     const x = (clientX - rect.left) * scaleX;
     const y = (clientY - rect.top) * scaleY;
+    const activeSpread = activeBookParts?.some((part) => part.metadata?.bookOpened && part.metadata?.readingPage);
+    if (activeSpread && activeBookParts?.[0]) {
+      const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
+      const projectedCenter = Vector3.Project(activeBookParts[0].getAbsolutePosition(), Matrix.Identity(), scene.getTransformMatrix(), viewport);
+      const spreadRadius = Math.max(150, Number(activeBookParts[0].metadata?.openPageWidth ?? 0.5) * 420);
+      if (Math.hypot(projectedCenter.x - x, projectedCenter.y - y) < spreadRadius) {
+        return turnActivePage(x >= projectedCenter.x ? "rtl" : "ltr");
+      }
+    }
     const pickedBook = pickBookAt(x, y);
     if (pickedBook) return openBook(pickedBook);
     return false;

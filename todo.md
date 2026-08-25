@@ -240,3 +240,10 @@
 - [x] Make right-page clicks turn right-to-left and left-page clicks turn left-to-right.
 - [x] Keep Arabic controls, closing, return, and direct book interaction intact.
 - [x] Run checks and verify both page directions before checkpointing.
+
+## Side-aware full-book clicking
+
+- [x] Detect clicks on the whole open-book hit area, not only exact page meshes.
+- [x] Use the click side to turn the adjacent page in the matching direction.
+- [x] Preserve exact page clicks, Arabic controls, close, return, and mobile touch behavior.
+- [x] Run checks and verify both sides before checkpointing.
