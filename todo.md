@@ -171,3 +171,10 @@
 - [x] Increase each shelf row to a denser set of volumes with safe spacing.
 - [x] Keep all book meshes uniquely pickable and preserve pull/return behavior.
 - [x] Verify the filled shelves visually and run checks before checkpointing.
+
+## Smaller final book scale
+
+- [x] Reduce the current book dimensions substantially based on the supplied size reference.
+- [x] Keep the shelf rows populated after scaling down the volumes.
+- [x] Preserve readable spine details and unique book picking.
+- [x] Verify the new scale visually and save a checkpoint.
