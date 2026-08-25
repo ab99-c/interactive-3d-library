@@ -295,3 +295,10 @@
 - [x] Prepare compact paginated text with sequential Arabic page numbers.
 - [x] Render the complete pages inside every physical volume.
 - [x] Verify navigation, readability, and performance before checkpointing.
+
+## Mobile centered return control
+
+- [x] Inspect all mobile return controls and page-turn controls.
+- [x] Keep exactly one return-book control centered between left and right controls.
+- [x] Ensure tapping it returns the active book to its shelf.
+- [x] Run checks and verify the mobile layout before checkpointing.
