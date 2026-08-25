@@ -37,7 +37,9 @@ const books: BookInfo[] = [
 function material(scene: Scene, name: string, color: Color3, textureUrl?: string) {
   const mat = new StandardMaterial(name, scene);
   mat.diffuseColor = color;
-  mat.specularColor = new Color3(0.08, 0.06, 0.04);
+  mat.ambientColor = color.scale(0.38);
+  mat.emissiveColor = color.scale(0.045);
+  mat.specularColor = new Color3(0.12, 0.09, 0.06);
   if (textureUrl) {
     const texture = new Texture(textureUrl, scene);
     texture.uScale = 2;
@@ -71,8 +73,16 @@ function addShelf(scene: Scene, x: number, z: number, rotationY: number, wood: S
   const bookColors = [COLORS.brass, new Color3(0.34, 0.12, 0.09), COLORS.olive, new Color3(0.08, 0.14, 0.2), COLORS.ivory];
   [0.72, 1.72, 2.72, 3.72].forEach((y, row) => {
     for (let i = 0; i < 8; i += 1) {
-      const book = box(scene, `book-${row}-${i}`, { width: 0.26 + (i % 3) * 0.04, height: 0.7 + (i % 2) * 0.12, depth: 0.82 }, new Vector3(-1.7 + i * 0.45, y + 0.4, -0.1), material(scene, `book-mat-${row}-${i}`, bookColors[(i + row) % bookColors.length]), false);
+      const bookWidth = 0.26 + (i % 3) * 0.04;
+      const bookHeight = 0.7 + (i % 2) * 0.12;
+      const bookMaterial = material(scene, `book-mat-${row}-${i}`, bookColors[(i + row) % bookColors.length]);
+      const book = box(scene, `book-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: 0.82 }, new Vector3(-1.7 + i * 0.45, y + 0.4, -0.1), bookMaterial, false);
       book.parent = root;
+      const labelMaterial = i % 3 === 0 ? brass : material(scene, `book-label-mat-${row}-${i}`, COLORS.ivory);
+      const spineLabel = box(scene, `book-label-${row}-${i}`, { width: bookWidth * 0.72, height: 0.08, depth: 0.025 }, new Vector3(-1.7 + i * 0.45, y + 0.42, -0.525), labelMaterial, false);
+      spineLabel.parent = root;
+      const spineBand = box(scene, `book-band-${row}-${i}`, { width: bookWidth * 0.9, height: 0.035, depth: 0.03 }, new Vector3(-1.7 + i * 0.45, y + 0.68, -0.53), brass, false);
+      spineBand.parent = root;
       book.metadata = { book: books[(row + i) % books.length] };
       book.actionManager = new ActionManager(scene);
       book.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => window.dispatchEvent(new CustomEvent("library:book", { detail: book.metadata.book }))));
@@ -110,16 +120,18 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   camera.keysUp = [87, 38]; camera.keysDown = [83, 40]; camera.keysLeft = [65, 37]; camera.keysRight = [68, 39];
 
   const hemi = new HemisphericLight("ambient", new Vector3(0, 1, 0), scene);
-  hemi.intensity = 0.62; hemi.diffuse = COLORS.ivory; hemi.groundColor = COLORS.ink;
+  hemi.intensity = 0.86; hemi.diffuse = COLORS.ivory; hemi.groundColor = new Color3(0.12, 0.08, 0.05);
   const ceilingLight = new PointLight("ceiling-light", new Vector3(0, 5.4, 1), scene);
-  ceilingLight.diffuse = COLORS.brass; ceilingLight.intensity = 2.8; ceilingLight.range = 22;
+  ceilingLight.diffuse = COLORS.brass; ceilingLight.intensity = 3.8; ceilingLight.range = 22;
+  const aisleLight = new PointLight("aisle-fill", new Vector3(0, 3.7, -6), scene);
+  aisleLight.diffuse = new Color3(1, 0.78, 0.5); aisleLight.intensity = 1.7; aisleLight.range = 15;
   const shadow = new ShadowGenerator(1024, ceilingLight);
   shadow.useBlurExponentialShadowMap = true; shadow.blurKernel = 24;
 
   const wood = material(scene, "walnut", COLORS.walnut, "/manus-storage/walnut-shelf-texture_c5b61c55.png");
   const woodLight = material(scene, "wood-light", COLORS.walnutLight);
   const floor = material(scene, "floor", new Color3(0.12, 0.065, 0.032), "/manus-storage/walnut-shelf-texture_c5b61c55.png");
-  const wall = material(scene, "plaster", new Color3(0.34, 0.28, 0.19));
+  const wall = material(scene, "plaster", new Color3(0.42, 0.34, 0.23));
   const ivory = material(scene, "ivory", COLORS.ivory);
   const olive = material(scene, "olive", COLORS.olive);
   const brass = material(scene, "brass", COLORS.brass);

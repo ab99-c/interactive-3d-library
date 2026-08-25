@@ -1,6 +1,6 @@
-# TODO — Vercel deployment fix
+# TODO — تحسين وضوح المكتبة
 
-- [ ] Inspect the current Vite build output and Vercel project settings.
-- [ ] Add a Vercel configuration that serves the generated `dist/public` static app instead of source files.
-- [ ] Run `pnpm check` and `pnpm build` after the configuration change.
-- [ ] Push the fix to the new GitHub repository and verify the production URL serves the game.
+- [x] رفع الإضاءة العامة والمحلية مع الحفاظ على الجو الدافئ.
+- [x] تحسين تباين وألوان الكتب وإضافة تفاصيل مرئية على الأغلفة والرفوف.
+- [x] تشغيل فحص TypeScript وbuild والتقاط معاينة للمشهد.
+- [ ] دفع التعديل إلى GitHub والتحقق من redeploy على Vercel.
