@@ -233,20 +233,40 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const plaque = box(scene, "welcome-plaque", { width: 3.4, height: 1.2, depth: 0.08 }, new Vector3(0, 4.3, -13.28), ivory, false);
   plaque.metadata = { decorative: true };
 
+  let activeBookParts: any[] | null = null;
+  let activePullObserver: any = null;
+  const returnActiveBookToShelf = () => {
+    if (activePullObserver) {
+      scene.onBeforeRenderObservable.remove(activePullObserver);
+      activePullObserver = null;
+    }
+    if (!activeBookParts) return;
+    activeBookParts.forEach((part) => {
+      const restPosition = part.metadata?.bookRestPosition;
+      if (restPosition) part.position = restPosition.clone();
+      part.metadata = { ...part.metadata, bookPulled: false };
+    });
+    activeBookParts = null;
+  };
   const pullBookOut = (parts: any[]) => {
-    if (!parts?.length || parts.some((part) => part.metadata?.bookPulled)) return;
+    if (!parts?.length || activeBookParts === parts) return;
+    returnActiveBookToShelf();
     const startPositions = parts.map((part) => part.position.clone());
     const pullDistance = 0.72;
     const startedAt = performance.now();
+    activeBookParts = parts;
     parts.forEach((part) => { part.metadata = { ...part.metadata, bookPulled: true }; });
-    const observer = scene.onBeforeRenderObservable.add(() => {
+    activePullObserver = scene.onBeforeRenderObservable.add(() => {
       const progress = Math.min((performance.now() - startedAt) / 360, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
       parts.forEach((part, index) => {
         const start = startPositions[index];
         part.position = new Vector3(start.x, start.y, start.z + pullDistance * eased);
       });
-      if (progress >= 1) scene.onBeforeRenderObservable.remove(observer);
+      if (progress >= 1 && activePullObserver) {
+        scene.onBeforeRenderObservable.remove(activePullObserver);
+        activePullObserver = null;
+      }
     });
   };
 
@@ -255,7 +275,6 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     while (current) {
       if (current.metadata?.book) {
         pullBookOut(current.metadata.bookParts ?? [current]);
-        window.dispatchEvent(new CustomEvent("library:book", { detail: current.metadata.book }));
         return true;
       }
       current = current.parent;
