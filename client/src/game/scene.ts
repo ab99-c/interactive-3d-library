@@ -147,14 +147,9 @@ function addShelf(scene: Scene, x: number, z: number, rotationY: number, wood: S
       spineLabel.parent = root;
       const spineBand = box(scene, `book-band-${row}-${i}`, { width: bookWidth * 0.9, height: 0.035, depth: 0.03 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.32, bookPosition.z + 0.56), brass, false);
       spineBand.parent = root;
-      book.metadata = { book: bookInfo };
-      pages.metadata = { book: bookInfo };
-      coverTop.metadata = { book: bookInfo };
-      coverBottom.metadata = { book: bookInfo };
-      titlePlate.metadata = { book: bookInfo };
-      spineLabel.metadata = { book: bookInfo };
-      spineBand.metadata = { book: bookInfo };
-      [book, pages, coverTop, coverBottom, titlePlate, spineLabel, spineBand].forEach((target) => {
+      const bookParts = [book, pages, coverTop, coverBottom, titlePlate, spineLabel, spineBand];
+      bookParts.forEach((target) => {
+        target.metadata = { book: bookInfo, bookParts, bookRestPosition: target.position.clone(), bookPulled: false };
         target.isPickable = true;
         target.actionManager = new ActionManager(scene);
         target.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => window.dispatchEvent(new CustomEvent("library:book", { detail: bookInfo }))));
@@ -235,10 +230,28 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const plaque = box(scene, "welcome-plaque", { width: 3.4, height: 1.2, depth: 0.08 }, new Vector3(0, 4.3, -13.28), ivory, false);
   plaque.metadata = { decorative: true };
 
+  const pullBookOut = (parts: any[]) => {
+    if (!parts?.length || parts.some((part) => part.metadata?.bookPulled)) return;
+    const startPositions = parts.map((part) => part.position.clone());
+    const pullDistance = 0.72;
+    const startedAt = performance.now();
+    parts.forEach((part) => { part.metadata = { ...part.metadata, bookPulled: true }; });
+    const observer = scene.onBeforeRenderObservable.add(() => {
+      const progress = Math.min((performance.now() - startedAt) / 360, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      parts.forEach((part, index) => {
+        const start = startPositions[index];
+        part.position = new Vector3(start.x, start.y, start.z + pullDistance * eased);
+      });
+      if (progress >= 1) scene.onBeforeRenderObservable.remove(observer);
+    });
+  };
+
   const openBook = (mesh: any) => {
     let current = mesh;
     while (current) {
       if (current.metadata?.book) {
+        pullBookOut(current.metadata.bookParts ?? [current]);
         window.dispatchEvent(new CustomEvent("library:book", { detail: current.metadata.book }));
         return true;
       }
@@ -256,8 +269,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const scaleX = engine.getRenderWidth() / Math.max(rect.width, 1);
     const scaleY = engine.getRenderHeight() / Math.max(rect.height, 1);
     const pick = scene.pick((clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY);
-    if (pick?.hit && openBook(pick.pickedMesh)) return true;
-    return openNearestBook();
+    if (pick?.hit) return openBook(pick.pickedMesh);
+    return false;
   };
   const onCanvasPointer = (event: PointerEvent) => {
     if (event.button !== 0) return;
@@ -276,7 +289,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   window.addEventListener("keydown", onKeyDown);
 
   const openNearestBook = () => {
-      const candidates = scene.meshes.filter((mesh) => mesh.name.startsWith("book-") && !mesh.name.startsWith("book-label-") && !mesh.name.startsWith("book-band-") && mesh.metadata?.book);
+      const candidates = scene.meshes.filter((mesh) => /^book-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book);
     if (!candidates.length) return false;
     const nearest = candidates.reduce((closest, candidate) => Vector3.DistanceSquared(candidate.getAbsolutePosition(), camera.position) < Vector3.DistanceSquared(closest.getAbsolutePosition(), camera.position) ? candidate : closest);
     return openBook(nearest);
