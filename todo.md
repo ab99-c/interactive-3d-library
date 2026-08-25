@@ -219,3 +219,10 @@
 - [x] Remove the visible «اختر كتاباً» panel from the React HUD.
 - [x] Preserve direct physical shelf clicking, nearest-book inspection, page opening, page turning, and return behavior.
 - [x] Run checks and verify desktop and mobile layout before saving a checkpoint.
+
+## Recording: physical book does not open
+
+- [x] Analyze the supplied recording and reproduce the failed physical-book flow.
+- [x] Trace event routing and opened-book state for the selected mesh.
+- [x] Fix the open and RTL page-turn animation without breaking return behavior.
+- [x] Run checks, verify the recording-driven flow, and save a checkpoint.

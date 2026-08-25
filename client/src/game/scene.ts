@@ -191,9 +191,11 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       readingContext.font = "16px Noto Sans Arabic";
       for (let line = 0; line < 9; line += 1) { readingContext.fillText("ــــــــــــــــــــــــــــــــــ", 226, 104 + line * 38); }
       readingTexture.update(); readingPageMaterial.diffuseTexture = readingTexture;
-      const openLeftPage = box(scene, `book-open-left-${shelfIndex}-${row}-${i}`, { width: bookWidth * 0.48, height: bookHeight * 0.9, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.07), readingPageMaterial, false);
-      const openRightPage = box(scene, `book-open-right-${shelfIndex}-${row}-${i}`, { width: bookWidth * 0.48, height: bookHeight * 0.9, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.075), readingPageMaterial, false);
-      const turningPage = box(scene, `book-turning-page-${shelfIndex}-${row}-${i}`, { width: bookWidth * 0.48, height: bookHeight * 0.9, depth: 0.014 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.09), readingPageMaterial, false);
+      const openPageWidth = Math.max(bookWidth * 1.18, 0.23);
+      const openPageHeight = Math.max(bookHeight * 1.48, 0.64);
+      const openLeftPage = box(scene, `book-open-left-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.12), readingPageMaterial, false);
+      const openRightPage = box(scene, `book-open-right-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.125), readingPageMaterial, false);
+      const turningPage = box(scene, `book-turning-page-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.014 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.14), readingPageMaterial, false);
       [openLeftPage, openRightPage, turningPage].forEach((page) => { page.parent = root; page.isVisible = false; page.isPickable = false; });
       const titlePlate = MeshBuilder.CreatePlane(`book-title-${row}-${i}`, { width: Math.max(bookWidth * 0.9, 0.20), height: bookHeight * 0.86, sideOrientation: Mesh.DOUBLESIDE }, scene);
       titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.046);
@@ -217,7 +219,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const bookParts = [book, roundedSpine, spineStrip, pages, coverTop, coverBottom, frontCover, openLeftPage, openRightPage, turningPage, titlePlate, spineLabel, spineBand, bindingBandTop, bindingBandMid, bindingBandBottom, frameTop, frameBottom, frameLeft, frameRight];
       bookParts.forEach((target) => {
         target.rotation.y = bookLean;
-        target.metadata = { book: bookInfo, format: format.name, bookParts, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, readingPage: target === openLeftPage || target === openRightPage, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate || target === spineLabel || target === spineBand || target === frameTop || target === frameBottom || target === frameLeft || target === frameRight };
+        target.metadata = { book: bookInfo, format: format.name, openPageWidth, openPageHeight, bookParts, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, readingPage: target === openLeftPage || target === openRightPage, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate || target === spineLabel || target === spineBand || target === frameTop || target === frameBottom || target === frameLeft || target === frameRight };
         // Only the main volume is pickable; decorative binding parts move with it but do not create duplicate hits.
         target.isPickable = target === book;
       });
@@ -436,9 +438,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const pages = parts.filter((part) => part.metadata?.readingPage);
     const closedCoverParts = parts.filter((part) => part.metadata?.closedCover);
     if (!pages.length) return;
-    const center = parts[0].position.clone();
-    const width = Number(parts[0].metadata?.format === "Pocket" ? 0.17 : 0.2);
-    const pageTargets = [center.add(new Vector3(-width * 0.48, 0, 0.045)), center.add(new Vector3(width * 0.48, 0, 0.05))];
+    const center = parts[0].position.clone().add(new Vector3(0, 0, 0.12));
+    const width = Number(parts[0].metadata?.openPageWidth ?? (parts[0].metadata?.format === "Pocket" ? 0.22 : 0.25));
+    const pageTargets = [center.add(new Vector3(-width * 0.58, 0, 0.02)), center.add(new Vector3(width * 0.58, 0, 0.025))];
     const pageStarts = pages.map((page) => page.position.clone());
     const startedAt = performance.now();
     closedCoverParts.forEach((part) => { part.isVisible = false; });
