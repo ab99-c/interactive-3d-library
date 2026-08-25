@@ -22,9 +22,14 @@ button { font: inherit; }
 .crosshair { width: 27px; height: 27px; display: grid; place-items: center; color: #c99452; font-size: 17px; font-weight: 300; opacity: .8; }
 .controls { display: flex; gap: 17px; margin-left: 30px; margin-right: auto; color: rgba(244,234,213,.55); font-size: 9px; text-transform: uppercase; letter-spacing: .13em; }
 .controls b { color: #f4ead5; font-size: 9px; margin-right: 4px; }
-.help-button, .enter-button { border: 1px solid rgba(201,148,82,.7); background: rgba(15,10,6,.62); color: #e4bb7d; cursor: pointer; transition: transform .16s ease-out, background .18s ease-out, color .18s ease-out; }
+.help-button, .enter-button, .inspect-button { border: 1px solid rgba(201,148,82,.7); background: rgba(15,10,6,.78); color: #e4bb7d; cursor: pointer; transition: transform .16s ease-out, background .18s ease-out, color .18s ease-out; }
 .help-button { padding: 10px 13px; font-size: 9px; letter-spacing: .13em; text-transform: uppercase; }
-.help-button:hover, .enter-button:hover { background: #c99452; color: #1a0e07; transform: translateY(-2px); }
+@media (max-width: 720px) { .inspect-button { padding: 10px 11px; font-size: 8px; } .inspect-button span { margin-left: 6px; } }
+.help-button:hover, .enter-button:hover, .inspect-button:hover { background: #c99452; color: #1a0e07; transform: translateY(-2px); }
+.hud-actions { display: flex; align-items: center; gap: 10px; pointer-events: auto; }
+.inspect-button { padding: 10px 13px; font-size: 9px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.inspect-button span { margin-left: 12px; font-size: 14px; }
+.inspect-button:active, .help-button:active, .enter-button:active { transform: scale(.97); }
 .welcome-card { left: 8vw; top: 50%; transform: translateY(-45%); width: min(430px, 41vw); padding: 27px 29px 31px; background: linear-gradient(135deg, rgba(14,10,7,.86), rgba(14,10,7,.45)); border-left: 2px solid #c99452; backdrop-filter: blur(4px); box-shadow: 0 18px 60px rgba(0,0,0,.26); animation: card-in .6s cubic-bezier(.23,1,.32,1) both; }
 .eyebrow { color: #c99452; font-size: 9px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; }
 .welcome-card h1 { font-family: 'DM Serif Display', serif; font-size: clamp(43px, 5vw, 68px); font-weight: 400; line-height: .96; letter-spacing: -.03em; margin: 17px 0 18px; text-shadow: 0 4px 24px rgba(0,0,0,.5); }

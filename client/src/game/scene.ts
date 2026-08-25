@@ -251,16 +251,21 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     if (pointerInfo?.pickInfo?.hit || pickedMesh) openBook(pickedMesh);
   };
   scene.onPointerObservable.add(onPointer, PointerEventTypes.POINTERPICK);
-  const onCanvasPointer = (event: PointerEvent) => {
-    if (event.button !== 0) return;
+  const inspectAt = (clientX: number, clientY: number) => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = engine.getRenderWidth() / Math.max(rect.width, 1);
     const scaleY = engine.getRenderHeight() / Math.max(rect.height, 1);
-    const pick = scene.pick((event.clientX - rect.left) * scaleX, (event.clientY - rect.top) * scaleY);
-    if (pick?.hit && openBook(pick.pickedMesh)) return;
-    openNearestBook();
+    const pick = scene.pick((clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY);
+    if (pick?.hit && openBook(pick.pickedMesh)) return true;
+    return openNearestBook();
   };
+  const onCanvasPointer = (event: PointerEvent) => {
+    if (event.button !== 0) return;
+    inspectAt(event.clientX, event.clientY);
+  };
+  const onCanvasClick = (event: MouseEvent) => inspectAt(event.clientX, event.clientY);
   canvas.addEventListener("pointerdown", onCanvasPointer);
+  canvas.addEventListener("click", onCanvasClick);
   const onKeyDown = (event: KeyboardEvent) => {
     if (!["e", "E", "Enter", " "].includes(event.key)) return;
     event.preventDefault();
@@ -271,8 +276,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   window.addEventListener("keydown", onKeyDown);
 
   const openNearestBook = () => {
-    const candidates = scene.meshes.filter((mesh) => mesh.name.startsWith("book-") && !mesh.name.startsWith("book-label-") && !mesh.name.startsWith("book-band-") && mesh.metadata?.book);
-    const nearest = candidates.sort((a, b) => Vector3.DistanceSquared(a.getAbsolutePosition(), camera.position) - Vector3.DistanceSquared(b.getAbsolutePosition(), camera.position))[0];
+      const candidates = scene.meshes.filter((mesh) => mesh.name.startsWith("book-") && !mesh.name.startsWith("book-label-") && !mesh.name.startsWith("book-band-") && mesh.metadata?.book);
+    if (!candidates.length) return false;
+    const nearest = candidates.reduce((closest, candidate) => Vector3.DistanceSquared(candidate.getAbsolutePosition(), camera.position) < Vector3.DistanceSquared(closest.getAbsolutePosition(), camera.position) ? candidate : closest);
     return openBook(nearest);
   };
 
@@ -289,6 +295,6 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
   }
 
-  const dispose = () => { window.removeEventListener("keydown", onKeyDown); canvas.removeEventListener("pointerdown", onCanvasPointer); scene.onPointerObservable.clear(); scene.dispose(); };
+  const dispose = () => { window.removeEventListener("keydown", onKeyDown); canvas.removeEventListener("pointerdown", onCanvasPointer); canvas.removeEventListener("click", onCanvasClick); scene.onPointerObservable.clear(); scene.dispose(); };
   return { scene, dispose, openNearestBook };
 }
