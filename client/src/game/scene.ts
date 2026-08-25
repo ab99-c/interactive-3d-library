@@ -12,9 +12,6 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
-import { ActionManager } from "@babylonjs/core/Actions/actionManager";
-import { ExecuteCodeAction } from "@babylonjs/core/Actions/directActions";
-import { PointerEventTypes } from "@babylonjs/core/Events/pointerEvents";
 import "@babylonjs/core/Collisions/collisionCoordinator";
 // Register Ray before scene picking APIs are used; Babylon otherwise logs a side-effect warning at runtime.
 import "@babylonjs/core/Culling/ray";
@@ -204,9 +201,8 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       bookParts.forEach((target) => {
         target.rotation.y = bookLean;
         target.metadata = { book: bookInfo, format: format.name, bookParts, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookPulled: false };
-        target.isPickable = true;
-        target.actionManager = new ActionManager(scene);
-        target.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => window.dispatchEvent(new CustomEvent("library:book", { detail: bookInfo }))));
+        // Only the main volume is pickable; decorative binding parts move with it but do not create duplicate hits.
+        target.isPickable = target === book;
       });
       shadow.addShadowCaster(book);
     }
@@ -366,6 +362,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   let activeBookId: string | null = null;
   let activePullObserver: any = null;
   let audioContext: AudioContext | null = null;
+  const emitBookState = () => window.dispatchEvent(new CustomEvent("library:book-state", { detail: { active: Boolean(activeBookParts), bookId: activeBookId } }));
   const getAudioContext = () => {
     const AudioContextConstructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextConstructor) return null;
@@ -404,6 +401,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
     activeBookParts = null;
     activeBookId = null;
+    emitBookState();
     return true;
   };
   const pullBookOut = (parts: any[]) => {
@@ -423,6 +421,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const startedAt = performance.now();
     activeBookParts = parts;
     activeBookId = parts.find((part) => part.metadata?.book)?.metadata?.book?.id ?? null;
+    emitBookState();
     playBookSound("pull");
     parts.forEach((part) => { part.metadata = { ...part.metadata, bookPulled: true }; });
     activePullObserver = scene.onBeforeRenderObservable.add(() => {
@@ -482,13 +481,6 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
     return closest;
   };
-  const onPointer = (pointerInfo: any) => {
-    const directMesh = pointerInfo?.pickInfo?.pickedMesh;
-    if (directMesh && openBook(directMesh)) return;
-    const pickedBook = pickBookAt(scene.pointerX, scene.pointerY);
-    if (pickedBook) openBook(pickedBook);
-  };
-  scene.onPointerObservable.add(onPointer, PointerEventTypes.POINTERPICK);
   const inspectAt = (clientX: number, clientY: number) => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = engine.getRenderWidth() / Math.max(rect.width, 1);
@@ -499,12 +491,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     if (pickedBook) return openBook(pickedBook);
     return false;
   };
-  const onCanvasPointer = (event: PointerEvent) => {
-    if (event.button !== 0) return;
-    inspectAt(event.clientX, event.clientY);
-  };
   const onCanvasClick = (event: MouseEvent) => inspectAt(event.clientX, event.clientY);
-  canvas.addEventListener("pointerdown", onCanvasPointer);
   canvas.addEventListener("click", onCanvasClick);
   const onKeyDown = (event: KeyboardEvent) => {
     const key = event.key.toLowerCase();
@@ -522,8 +509,13 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const onKeyUp = (event: KeyboardEvent) => {
     pressedKeys.delete(event.key.toLowerCase());
   };
+  const onWindowBlur = () => {
+    pressedKeys.clear();
+    touchMove.set(0, 0, 0);
+  };
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("blur", onWindowBlur);
 
   const openNearestBook = () => {
     const candidates = scene.meshes.filter((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book);
@@ -565,7 +557,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
   }
 
-  const dispose = () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); canvas.removeEventListener("pointerdown", onCanvasPointer); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
+  const dispose = () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
   const setTouchMove = (x: number, y: number) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, y)); };
   return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, hasActiveBook, getBookScreenRects, setTouchMove };
 }

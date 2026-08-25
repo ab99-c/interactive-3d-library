@@ -9,6 +9,7 @@ export default function GameCanvas() {
   const [showHelp, setShowHelp] = useState(true);
   const [started, setStarted] = useState(false);
   const [bookRects, setBookRects] = useState<BookScreenRect[]>([]);
+  const bookRectsRef = useRef<BookScreenRect[]>([]);
   const [hasActiveBook, setHasActiveBook] = useState(false);
   const openNearestBookRef = useRef<() => boolean>(() => false);
   const openBookByIdRef = useRef<(bookId: string) => boolean>(() => false);
@@ -26,6 +27,11 @@ export default function GameCanvas() {
     const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, adaptToDeviceRatio: true });
     let handle: GameHandle | null = null;
     let disposed = false;
+    const onBookState = (event: Event) => {
+      const detail = (event as CustomEvent<{ active?: boolean }>).detail;
+      setHasActiveBook(Boolean(detail?.active));
+    };
+    window.addEventListener("library:book-state", onBookState);
     createGameScene(engine, canvas).then((nextHandle) => {
       if (disposed) { nextHandle.dispose(); return; }
       handle = nextHandle;
@@ -50,7 +56,19 @@ export default function GameCanvas() {
         return returned;
       };
       setTouchMoveRef.current = nextHandle.setTouchMove;
-      engine.runRenderLoop(() => { nextHandle.scene.render(); setBookRects(nextHandle.getBookScreenRects()); });
+      engine.runRenderLoop(() => {
+        nextHandle.scene.render();
+        const nextRects = nextHandle.getBookScreenRects();
+        const previousRects = bookRectsRef.current;
+        const changed = previousRects.length !== nextRects.length || nextRects.some((rect, index) => {
+          const previous = previousRects[index];
+          return !previous || previous.meshName !== rect.meshName || previous.x !== rect.x || previous.y !== rect.y || previous.width !== rect.width || previous.height !== rect.height;
+        });
+        if (changed) {
+          bookRectsRef.current = nextRects;
+          setBookRects(nextRects);
+        }
+      });
       setStarted(true);
     });
     const onResize = () => engine.resize();
@@ -64,6 +82,8 @@ export default function GameCanvas() {
       openBookByMeshNameRef.current = () => false;
       returnActiveBookRef.current = () => false;
       setTouchMoveRef.current = () => undefined;
+      window.removeEventListener("library:book-state", onBookState);
+      bookRectsRef.current = [];
       setBookRects([]);
       setHasActiveBook(false);
       handle?.dispose();

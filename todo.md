@@ -178,3 +178,10 @@
 - [x] Keep the shelf rows populated after scaling down the volumes.
 - [x] Preserve readable spine details and unique book picking.
 - [x] Verify the new scale visually and save a checkpoint.
+
+## Recording error-fix pass
+
+- [x] Trace duplicate pointer/click paths and touch-vs-joystick conflicts.
+- [x] Harden one-book state and prevent repeated pull/return events.
+- [x] Stabilize desktop keyboard movement and mobile touch movement.
+- [x] Verify all recorded flows on desktop and mobile before checkpointing.
