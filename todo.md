@@ -115,3 +115,10 @@
 - [x] Apply format-specific width, height, thickness, cover, page block, and title-plate dimensions.
 - [x] Arrange the varied books naturally while preserving shelf clearance and reliable picking.
 - [x] Run checks and verify the scene, then save a checkpoint.
+
+## Restore PC keyboard movement
+
+- [x] Inspect keyboard focus and camera input ownership on desktop.
+- [x] Restore WASD and arrow-key movement without requiring a canvas click.
+- [x] Preserve passive mouse-look, book clicks, mobile joystick, and room bounds.
+- [x] Run checks and verify desktop movement, then save a checkpoint.

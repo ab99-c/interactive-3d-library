@@ -2,7 +2,6 @@
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
 import { UniversalCamera } from "@babylonjs/core/Cameras/universalCamera";
-import { FreeCameraKeyboardMoveInput } from "@babylonjs/core/Cameras/Inputs/freeCameraKeyboardMoveInput";
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
@@ -200,7 +199,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   camera.attachControl(canvas, true);
   // Mouse-look tuning: keyboard input stays with Babylon, while passive mouse movement turns the view without click or pointer lock.
   camera.inputs.removeByType("FreeCameraMouseInput");
-  if (!camera.inputs.attached.keyboard) camera.inputs.add(new FreeCameraKeyboardMoveInput());
+  camera.inputs.removeByType("FreeCameraKeyboardMoveInput");
   // Movement tuning: responsive starts/stops, comfortable walking speed, and easier mouse look in every direction.
   camera.speed = 0.3;
   camera.angularSensibility = 2500;
@@ -212,6 +211,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   let lastMouseX: number | null = null;
   let lastMouseY: number | null = null;
   const touchMove = new Vector3(0, 0, 0);
+  const pressedKeys = new Set<string>();
   const onMouseMove = (event: MouseEvent) => {
     const deltaX = event.movementX || (lastMouseX === null ? 0 : event.clientX - lastMouseX);
     const deltaY = event.movementY || (lastMouseY === null ? 0 : event.clientY - lastMouseY);
@@ -253,15 +253,23 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   canvas.addEventListener("touchend", onTouchEnd, { passive: false });
   canvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
   scene.onBeforeRenderObservable.add(() => {
-    if (Math.abs(touchMove.x) < 0.001 && Math.abs(touchMove.z) < 0.001) return;
+    let moveX = touchMove.x;
+    let moveZ = touchMove.z;
+    if (pressedKeys.has("w") || pressedKeys.has("arrowup")) moveZ += 1;
+    if (pressedKeys.has("s") || pressedKeys.has("arrowdown")) moveZ -= 1;
+    if (pressedKeys.has("a") || pressedKeys.has("arrowleft")) moveX -= 1;
+    if (pressedKeys.has("d") || pressedKeys.has("arrowright")) moveX += 1;
+    const length = Math.hypot(moveX, moveZ);
+    if (length < 0.001) return;
+    if (length > 1) { moveX /= length; moveZ /= length; }
     const forward = camera.getDirection(Vector3.Forward());
     forward.y = 0;
     if (forward.lengthSquared() > 0.001) forward.normalize();
     const right = camera.getDirection(Vector3.Right());
     right.y = 0;
     if (right.lengthSquared() > 0.001) right.normalize();
-    camera.cameraDirection.addInPlace(forward.scale(touchMove.z * camera.speed));
-    camera.cameraDirection.addInPlace(right.scale(touchMove.x * camera.speed));
+    camera.cameraDirection.addInPlace(forward.scale(moveZ * camera.speed));
+    camera.cameraDirection.addInPlace(right.scale(moveX * camera.speed));
   });
   // Keep every control scheme inside the playable library floor, including the mobile joystick.
   const roomBounds = { minX: -10.3, maxX: 10.3, minY: 1.15, maxY: 4.7, minZ: -11.9, maxZ: 10.2 };
@@ -463,13 +471,23 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   canvas.addEventListener("pointerdown", onCanvasPointer);
   canvas.addEventListener("click", onCanvasClick);
   const onKeyDown = (event: KeyboardEvent) => {
+    const key = event.key.toLowerCase();
+    if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
+      pressedKeys.add(key);
+      event.preventDefault();
+      return;
+    }
     if (!["e", "E", "Enter", " "].includes(event.key)) return;
     event.preventDefault();
     const centerBook = pickBookAt(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2);
     if (centerBook && openBook(centerBook)) return;
     openNearestBook();
   };
+  const onKeyUp = (event: KeyboardEvent) => {
+    pressedKeys.delete(event.key.toLowerCase());
+  };
   window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
 
   const openNearestBook = () => {
     const candidates = scene.meshes.filter((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book);
@@ -511,7 +529,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
   }
 
-  const dispose = () => { window.removeEventListener("keydown", onKeyDown); canvas.removeEventListener("pointerdown", onCanvasPointer); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
+  const dispose = () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); canvas.removeEventListener("pointerdown", onCanvasPointer); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
   const setTouchMove = (x: number, y: number) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, y)); };
   return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, hasActiveBook, getBookScreenRects, setTouchMove };
 }
