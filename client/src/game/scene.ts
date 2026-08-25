@@ -129,31 +129,34 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
   const bookColors = [COLORS.brass, new Color3(0.34, 0.12, 0.09), COLORS.olive, new Color3(0.08, 0.14, 0.2), COLORS.ivory];
   [0.72, 1.72, 2.72, 3.72].forEach((y, row) => {
     for (let i = 0; i < 8; i += 1) {
-      const bookWidth = 0.32 + (i % 3) * 0.045;
+      const bookWidth = 0.3 + (i % 3) * 0.045;
       const bookHeight = 0.7 + (i % 2) * 0.12;
+      const bookDepth = 0.18 + (i % 3) * 0.025;
+      const bookLean = ((i % 5) - 2) * 0.018;
       const bookInfo = BOOK_CATALOG[(row + i) % BOOK_CATALOG.length];
       const bookMaterial = material(scene, `book-mat-${row}-${i}`, bookColors[(i + row) % bookColors.length]);
       const bookPosition = new Vector3(-1.7 + i * 0.45, y + 0.4, -0.1);
-      const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: 0.82 }, bookPosition, bookMaterial, false);
+      const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
       book.parent = root;
-      const pages = box(scene, `book-pages-${row}-${i}`, { width: Math.max(bookWidth * 0.68, 0.2), height: bookHeight * 0.82, depth: 0.72 }, new Vector3(bookPosition.x + 0.035, bookPosition.y, bookPosition.z + 0.04), material(scene, `book-pages-mat-${row}-${i}`, new Color3(0.92, 0.83, 0.63)), false);
+      const pages = box(scene, `book-pages-${row}-${i}`, { width: Math.max(bookWidth * 0.68, 0.2), height: bookHeight * 0.82, depth: bookDepth * 0.78 }, new Vector3(bookPosition.x + 0.035, bookPosition.y, bookPosition.z + 0.012), material(scene, `book-pages-mat-${row}-${i}`, new Color3(0.92, 0.83, 0.63)), false);
       pages.parent = root;
-      const coverTop = box(scene, `book-cover-top-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: 0.86 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.48, bookPosition.z), bookMaterial, false);
+      const coverTop = box(scene, `book-cover-top-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.48, bookPosition.z), bookMaterial, false);
       coverTop.parent = root;
-      const coverBottom = box(scene, `book-cover-bottom-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: 0.86 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.48, bookPosition.z), bookMaterial, false);
+      const coverBottom = box(scene, `book-cover-bottom-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.48, bookPosition.z), bookMaterial, false);
       coverBottom.parent = root;
       const titlePlate = MeshBuilder.CreatePlane(`book-title-${row}-${i}`, { width: Math.max(bookWidth * 0.9, 0.26), height: bookHeight * 0.84, sideOrientation: Mesh.DOUBLESIDE }, scene);
-      titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + 0.535);
+      titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.012);
       titlePlate.material = createTitleMaterial(scene, bookInfo, titleMaterials);
       titlePlate.parent = root;
       const labelMaterial = i % 3 === 0 ? brass : material(scene, `book-label-mat-${row}-${i}`, COLORS.ivory);
-      const spineLabel = box(scene, `book-label-${row}-${i}`, { width: bookWidth * 0.72, height: 0.055, depth: 0.025 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.26, bookPosition.z + 0.555), labelMaterial, false);
+      const spineLabel = box(scene, `book-label-${row}-${i}`, { width: bookWidth * 0.72, height: 0.055, depth: 0.025 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.26, bookPosition.z + bookDepth * 0.5 + 0.032), labelMaterial, false);
       spineLabel.parent = root;
-      const spineBand = box(scene, `book-band-${row}-${i}`, { width: bookWidth * 0.9, height: 0.035, depth: 0.03 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.32, bookPosition.z + 0.56), brass, false);
+      const spineBand = box(scene, `book-band-${row}-${i}`, { width: bookWidth * 0.9, height: 0.035, depth: 0.03 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.32, bookPosition.z + bookDepth * 0.5 + 0.035), brass, false);
       spineBand.parent = root;
       const bookParts = [book, pages, coverTop, coverBottom, titlePlate, spineLabel, spineBand];
       bookParts.forEach((target) => {
-        target.metadata = { book: bookInfo, bookParts, bookRestPosition: target.position.clone(), bookPulled: false };
+        target.rotation.y = bookLean;
+        target.metadata = { book: bookInfo, bookParts, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookPulled: false };
         target.isPickable = true;
         target.actionManager = new ActionManager(scene);
         target.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => window.dispatchEvent(new CustomEvent("library:book", { detail: bookInfo }))));
@@ -338,7 +341,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     if (!activeBookParts) return false;
     activeBookParts.forEach((part) => {
       const restPosition = part.metadata?.bookRestPosition;
+      const restRotation = part.metadata?.bookRestRotation;
       if (restPosition) part.position = restPosition.clone();
+      if (restRotation) part.rotation = restRotation.clone();
       part.metadata = { ...part.metadata, bookPulled: false };
     });
     activeBookParts = null;

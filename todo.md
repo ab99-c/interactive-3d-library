@@ -94,3 +94,10 @@
 - [x] Clamp camera position inside safe floor and wall boundaries for touch and keyboard movement.
 - [x] Preserve book picking, mouse-look, and joystick behavior.
 - [x] Run checks and verify mobile and desktop boundaries, then save a checkpoint.
+
+## Realistic book proportions and placement
+
+- [x] Inspect current book dimensions, cover/page offsets, and shelf clearance.
+- [x] Refine book proportions so each mesh reads as a real book rather than a cube.
+- [x] Add natural variation in thickness, height, tilt, and spacing while keeping titles readable.
+- [x] Run checks and verify the shelves and book interactions, then save a checkpoint.
