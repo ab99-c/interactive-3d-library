@@ -40,7 +40,11 @@ button { font: inherit; }
 .book-hotspot:hover span, .book-hotspot:focus-visible span { opacity: 1; }
 .inspect-button { padding: 10px 13px; font-size: 9px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
 .inspect-button span { margin-left: 12px; font-size: 14px; }
-.inspect-button:active, .help-button:active, .enter-button:active { transform: scale(.97); }
+.return-button { padding: 10px 13px; color: #d8b47c; font-size: 9px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+.return-button span { margin-left: 12px; font-size: 14px; }
+.return-button:disabled { cursor: not-allowed; opacity: .35; border-color: rgba(244,234,213,.14); color: rgba(244,234,213,.38); }
+.return-button:not(:disabled):hover { border-color: #c99452; background: rgba(201,148,82,.16); }
+.inspect-button:active, .return-button:not(:disabled):active, .help-button:active, .enter-button:active { transform: scale(.97); }
 .welcome-card { left: 8vw; top: 50%; transform: translateY(-45%); width: min(430px, 41vw); padding: 27px 29px 31px; background: linear-gradient(135deg, rgba(14,10,7,.86), rgba(14,10,7,.45)); border-left: 2px solid #c99452; backdrop-filter: blur(4px); box-shadow: 0 18px 60px rgba(0,0,0,.26); animation: card-in .6s cubic-bezier(.23,1,.32,1) both; }
 .eyebrow { color: #c99452; font-size: 9px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; }
 .welcome-card h1 { font-family: 'DM Serif Display', serif; font-size: clamp(43px, 5vw, 68px); font-weight: 400; line-height: .96; letter-spacing: -.03em; margin: 17px 0 18px; text-shadow: 0 4px 24px rgba(0,0,0,.5); }

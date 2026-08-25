@@ -26,7 +26,7 @@ import "@babylonjs/core/Shaders/shadowMap.fragment";
 
 export type BookInfo = { id: string; title: string; category: string; description: string };
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
-export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; getBookScreenRects: () => BookScreenRect[] };
+export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[] };
 
 const COLORS = {
   walnut: new Color3(0.18, 0.09, 0.045),
@@ -235,26 +235,52 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
 
   let activeBookParts: any[] | null = null;
   let activePullObserver: any = null;
+  let audioContext: AudioContext | null = null;
+  const getAudioContext = () => {
+    const AudioContextConstructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextConstructor) return null;
+    if (!audioContext) audioContext = new AudioContextConstructor();
+    if (audioContext.state === "suspended") void audioContext.resume();
+    return audioContext;
+  };
+  const playBookSound = (kind: "pull" | "return") => {
+    const context = getAudioContext();
+    if (!context) return;
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = kind === "pull" ? "triangle" : "sine";
+    oscillator.frequency.setValueAtTime(kind === "pull" ? 180 : 300, now);
+    oscillator.frequency.exponentialRampToValueAtTime(kind === "pull" ? 420 : 150, now + 0.18);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(kind === "pull" ? 0.055 : 0.04, now + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.24);
+  };
   const returnActiveBookToShelf = () => {
     if (activePullObserver) {
       scene.onBeforeRenderObservable.remove(activePullObserver);
       activePullObserver = null;
     }
-    if (!activeBookParts) return;
+    if (!activeBookParts) return false;
     activeBookParts.forEach((part) => {
       const restPosition = part.metadata?.bookRestPosition;
       if (restPosition) part.position = restPosition.clone();
       part.metadata = { ...part.metadata, bookPulled: false };
     });
     activeBookParts = null;
+    return true;
   };
   const pullBookOut = (parts: any[]) => {
     if (!parts?.length || activeBookParts === parts) return;
-    returnActiveBookToShelf();
+    if (returnActiveBookToShelf()) playBookSound("return");
     const startPositions = parts.map((part) => part.position.clone());
     const pullDistance = 0.72;
     const startedAt = performance.now();
     activeBookParts = parts;
+    playBookSound("pull");
     parts.forEach((part) => { part.metadata = { ...part.metadata, bookPulled: true }; });
     activePullObserver = scene.onBeforeRenderObservable.add(() => {
       const progress = Math.min((performance.now() - startedAt) / 360, 1);
@@ -348,6 +374,12 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     return openBook(target);
   };
   const openBookByMeshName = (meshName: string) => openBook(scene.getMeshByName(meshName));
+  const returnActiveBook = () => {
+    const returned = returnActiveBookToShelf();
+    if (returned) playBookSound("return");
+    return returned;
+  };
+  const hasActiveBook = () => Boolean(activeBookParts);
   const getBookScreenRects = (): BookScreenRect[] => {
     const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
     return scene.meshes.filter((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book).map((mesh) => {
@@ -372,5 +404,5 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   }
 
   const dispose = () => { window.removeEventListener("keydown", onKeyDown); canvas.removeEventListener("pointerdown", onCanvasPointer); canvas.removeEventListener("click", onCanvasClick); scene.onPointerObservable.clear(); scene.dispose(); };
-  return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, getBookScreenRects };
+  return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, hasActiveBook, getBookScreenRects };
 }

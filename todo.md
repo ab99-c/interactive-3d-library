@@ -15,3 +15,12 @@
 - [x] Run TypeScript and production build checks.
 - [x] Verify the local page and browser console no longer report duplicate-key warnings.
 - [x] Save a stable checkpoint and report the repaired state.
+
+## Return control and sound effects
+
+- [x] Re-read the Babylon game implementation guidance and inspect the current active-book API.
+- [x] Add a Return book method that restores the active book and clears its active state.
+- [x] Add lightweight browser-native pull and return sound effects without external assets.
+- [x] Add and style a visible Return book HUD button with disabled state when no book is active.
+- [x] Run TypeScript and production build checks.
+- [x] Verify the control, sounds, and scene visually, then save a checkpoint.
