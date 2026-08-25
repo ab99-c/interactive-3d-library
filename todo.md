@@ -247,3 +247,9 @@
 - [x] Use the click side to turn the adjacent page in the matching direction.
 - [x] Preserve exact page clicks, Arabic controls, close, return, and mobile touch behavior.
 - [x] Run checks and verify both sides before checkpointing.
+
+## Left page flips right
+
+- [x] Confirm left-page clicks use a visible left-to-right motion.
+- [x] Preserve right-page right-to-left motion and the full-book hit area.
+- [x] Run checks and verify both directions before checkpointing.
