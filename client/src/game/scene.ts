@@ -16,6 +16,8 @@ import { ActionManager } from "@babylonjs/core/Actions/actionManager";
 import { ExecuteCodeAction } from "@babylonjs/core/Actions/directActions";
 import { PointerEventTypes } from "@babylonjs/core/Events/pointerEvents";
 import "@babylonjs/core/Collisions/collisionCoordinator";
+// Register Ray before scene picking APIs are used; Babylon otherwise logs a side-effect warning at runtime.
+import "@babylonjs/core/Culling/ray";
 // Register Babylon's built-in shader sources in the bundle; otherwise Vite may serve index.html for /src/Shaders/*.fx.
 import "@babylonjs/core/Shaders/default.vertex";
 import "@babylonjs/core/Shaders/default.fragment";
@@ -111,7 +113,7 @@ function createTitleMaterial(scene: Scene, book: BookInfo, cache: Map<string, St
   return titleMaterial;
 }
 
-function addShelf(scene: Scene, x: number, z: number, rotationY: number, wood: StandardMaterial, olive: StandardMaterial, brass: StandardMaterial, shadow: ShadowGenerator, titleMaterials: Map<string, StandardMaterial>) {
+function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotationY: number, wood: StandardMaterial, olive: StandardMaterial, brass: StandardMaterial, shadow: ShadowGenerator, titleMaterials: Map<string, StandardMaterial>) {
   const root = new Mesh("shelf-root", scene);
   root.position = new Vector3(x, 0, z);
   root.rotation.y = rotationY;
@@ -131,7 +133,7 @@ function addShelf(scene: Scene, x: number, z: number, rotationY: number, wood: S
       const bookInfo = BOOK_CATALOG[(row + i) % BOOK_CATALOG.length];
       const bookMaterial = material(scene, `book-mat-${row}-${i}`, bookColors[(i + row) % bookColors.length]);
       const bookPosition = new Vector3(-1.7 + i * 0.45, y + 0.4, -0.1);
-      const book = box(scene, `book-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: 0.82 }, bookPosition, bookMaterial, false);
+      const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: 0.82 }, bookPosition, bookMaterial, false);
       book.parent = root;
       const pages = box(scene, `book-pages-${row}-${i}`, { width: Math.max(bookWidth * 0.68, 0.2), height: bookHeight * 0.82, depth: 0.72 }, new Vector3(bookPosition.x + 0.035, bookPosition.y, bookPosition.z + 0.04), material(scene, `book-pages-mat-${row}-${i}`, new Color3(0.92, 0.83, 0.63)), false);
       pages.parent = root;
@@ -211,11 +213,11 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   box(scene, "left-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(-12, 3.5, 0), wall);
   box(scene, "right-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(12, 3.5, 0), wall);
   box(scene, "ceiling", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, 7, 0), woodLight, false);
-  addShelf(scene, -6.8, -5.8, 0, wood, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 6.8, -5.8, 0, wood, olive, brass, shadow, titleMaterials);
-  addShelf(scene, -6.8, 1.0, 0, wood, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 6.8, 1.0, 0, wood, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 0, -10.8, Math.PI / 2, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 0, -6.8, -5.8, 0, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 1, 6.8, -5.8, 0, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 2, -6.8, 1.0, 0, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 3, 6.8, 1.0, 0, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 4, 0, -10.8, Math.PI / 2, wood, olive, brass, shadow, titleMaterials);
 
   const table = box(scene, "reading-table", { width: 4.8, height: 0.26, depth: 2.2 }, new Vector3(0, 2, 0), woodLight);
   shadow.addShadowCaster(table);
@@ -273,7 +275,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const firstBookHit = hits.find((hit) => hit.hit && hit.pickedMesh);
     if (firstBookHit?.pickedMesh) return firstBookHit.pickedMesh;
     const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
-    const screenCandidates = scene.meshes.filter((mesh) => /^book-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book);
+    const screenCandidates = scene.meshes.filter((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book);
     let closest: any = null;
     let closestDistance = Number.POSITIVE_INFINITY;
     screenCandidates.forEach((mesh) => {
@@ -317,19 +319,19 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   window.addEventListener("keydown", onKeyDown);
 
   const openNearestBook = () => {
-    const candidates = scene.meshes.filter((mesh) => /^book-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book);
+    const candidates = scene.meshes.filter((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book);
     if (!candidates.length) return false;
     const nearest = candidates.reduce((closest, candidate) => Vector3.DistanceSquared(candidate.getAbsolutePosition(), camera.position) < Vector3.DistanceSquared(closest.getAbsolutePosition(), camera.position) ? candidate : closest);
     return openBook(nearest);
   };
   const openBookById = (bookId: string) => {
-    const target = scene.meshes.find((mesh) => /^book-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book?.id === bookId);
+    const target = scene.meshes.find((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book?.id === bookId);
     return openBook(target);
   };
   const openBookByMeshName = (meshName: string) => openBook(scene.getMeshByName(meshName));
   const getBookScreenRects = (): BookScreenRect[] => {
     const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
-    return scene.meshes.filter((mesh) => /^book-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book).map((mesh) => {
+    return scene.meshes.filter((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book).map((mesh) => {
       const projected = Vector3.Project(mesh.getAbsolutePosition(), Matrix.Identity(), scene.getTransformMatrix(), viewport);
       const distance = Vector3.Distance(mesh.getAbsolutePosition(), camera.position);
       const scale = Math.min(2.4, Math.max(0.7, 4.2 / Math.max(distance, 1)));
