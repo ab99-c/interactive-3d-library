@@ -181,6 +181,13 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     if (pointerInfo?.pickInfo?.hit || pickedMesh) openBook(pickedMesh);
   };
   scene.onPointerObservable.add(onPointer, PointerEventTypes.POINTERPICK);
+  const onCanvasPointer = (event: PointerEvent) => {
+    if (event.button !== 0) return;
+    const rect = canvas.getBoundingClientRect();
+    const pick = scene.pick(event.clientX - rect.left, event.clientY - rect.top);
+    if (pick?.hit) openBook(pick.pickedMesh);
+  };
+  canvas.addEventListener("pointerdown", onCanvasPointer);
   const onKeyDown = (event: KeyboardEvent) => {
     if (!["e", "E", "Enter", " "].includes(event.key)) return;
     event.preventDefault();
@@ -208,6 +215,6 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
   }
 
-  const dispose = () => { window.removeEventListener("keydown", onKeyDown); scene.onPointerObservable.clear(); scene.dispose(); };
+  const dispose = () => { window.removeEventListener("keydown", onKeyDown); canvas.removeEventListener("pointerdown", onCanvasPointer); scene.onPointerObservable.clear(); scene.dispose(); };
   return { scene, dispose, openNearestBook };
 }
