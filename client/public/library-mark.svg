@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Quiet Study Hall">
+  <rect width="64" height="64" rx="14" fill="#120c08"/>
+  <path d="M13 18c9-2 15 1 19 7v26c-5-6-11-8-19-6V18Z" fill="#f4ead5"/>
+  <path d="M51 18c-9-2-15 1-19 7v26c5-6 11-8 19-6V18Z" fill="#d8b47c"/>
+  <path d="M32 25v26M13 18c8-2 14 0 19 7 5-7 11-9 19-7" fill="none" stroke="#c99452" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M21 13h22v6H21z" fill="#c99452"/>
+</svg>
