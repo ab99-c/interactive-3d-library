@@ -233,3 +233,10 @@
 - [x] Resize both physical reading pages to a near-square proportion.
 - [x] Preserve RTL page turning, book pull, and return behavior.
 - [x] Run checks and verify desktop and mobile before checkpointing.
+
+## Direction-aware page clicks
+
+- [x] Identify the physical left and right page meshes and current turn state.
+- [x] Make right-page clicks turn right-to-left and left-page clicks turn left-to-right.
+- [x] Keep Arabic controls, closing, return, and direct book interaction intact.
+- [x] Run checks and verify both page directions before checkpointing.
