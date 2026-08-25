@@ -183,16 +183,18 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       frontCover.parent = root;
       // Closed books carry a hidden physical reading spread that unfolds in front of the cover.
       const readingPageMaterial = material(scene, `book-reading-pages-${shelfIndex}-${row}-${i}`, new Color3(0.91, 0.82, 0.62));
-      const readingTexture = new DynamicTexture(`book-reading-text-${shelfIndex}-${row}-${i}`, { width: 256, height: 512 }, scene, true);
+      const readingTexture = new DynamicTexture(`book-reading-text-${shelfIndex}-${row}-${i}`, { width: 512, height: 512 }, scene, true);
       const readingContext = readingTexture.getContext() as unknown as CanvasRenderingContext2D;
-      readingContext.fillStyle = "#ead9ad"; readingContext.fillRect(0, 0, 256, 512);
+      readingContext.fillStyle = "#ead9ad"; readingContext.fillRect(0, 0, 512, 512);
       readingContext.direction = "rtl"; readingContext.textAlign = "right"; readingContext.fillStyle = "#4a2a18";
-      readingContext.font = "bold 23px Noto Sans Arabic"; readingContext.fillText(bookInfo.spineTitle, 226, 54);
-      readingContext.font = "16px Noto Sans Arabic";
-      for (let line = 0; line < 9; line += 1) { readingContext.fillText("ــــــــــــــــــــــــــــــــــ", 226, 104 + line * 38); }
+      readingContext.font = "bold 28px Noto Sans Arabic"; readingContext.fillText(bookInfo.spineTitle, 462, 58);
+      readingContext.font = "18px Noto Sans Arabic";
+      for (let line = 0; line < 9; line += 1) { readingContext.fillText("ــــــــــــــــــــــــــــــــــــــــــــــــ", 462, 112 + line * 40); }
       readingTexture.update(); readingPageMaterial.diffuseTexture = readingTexture;
-      const openPageWidth = Math.max(bookWidth * 1.18, 0.23);
-      const openPageHeight = Math.max(bookHeight * 1.48, 0.64);
+      // The reading spread uses square pages, like a compact illuminated manuscript.
+      const openPageSize = Math.max(bookHeight * 1.02, 0.48);
+      const openPageWidth = openPageSize;
+      const openPageHeight = openPageSize;
       const openLeftPage = box(scene, `book-open-left-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.12), readingPageMaterial, false);
       const openRightPage = box(scene, `book-open-right-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.018 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.125), readingPageMaterial, false);
       const turningPage = box(scene, `book-turning-page-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, depth: 0.014 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.14), readingPageMaterial, false);

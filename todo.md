@@ -226,3 +226,10 @@
 - [x] Trace event routing and opened-book state for the selected mesh.
 - [x] Fix the open and RTL page-turn animation without breaking return behavior.
 - [x] Run checks, verify the recording-driven flow, and save a checkpoint.
+
+## Square opened-book pages
+
+- [x] Inspect the current open-page width and height.
+- [x] Resize both physical reading pages to a near-square proportion.
+- [x] Preserve RTL page turning, book pull, and return behavior.
+- [x] Run checks and verify desktop and mobile before checkpointing.
