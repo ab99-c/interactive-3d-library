@@ -108,3 +108,10 @@
 - [ ] Confirm whether realistic book geometry is present in the served source.
 - [ ] Fix any stale-build, deployment, or geometry issue causing the unchanged appearance.
 - [ ] Run checks, verify visually, and save a corrected checkpoint.
+
+## Standard book formats
+
+- [x] Map Pocket, A5, Trade Paperback, B5, A4, square, planner, and notebook formats to game-scale proportions.
+- [x] Apply format-specific width, height, thickness, cover, page block, and title-plate dimensions.
+- [x] Arrange the varied books naturally while preserving shelf clearance and reliable picking.
+- [x] Run checks and verify the scene, then save a checkpoint.

@@ -29,6 +29,17 @@ export type BookInfo = { id: string; title: string; category: string; descriptio
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
 export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[]; setTouchMove: (x: number, y: number) => void };
 
+const BOOK_FORMATS = [
+  { name: "Pocket", width: 0.29, height: 0.70, depth: 0.16 },
+  { name: "A5", width: 0.32, height: 0.84, depth: 0.19 },
+  { name: "Trade Paperback", width: 0.36, height: 0.88, depth: 0.20 },
+  { name: "B5", width: 0.38, height: 0.90, depth: 0.22 },
+  { name: "A4 Reference", width: 0.40, height: 0.94, depth: 0.22 },
+  { name: "Square", width: 0.40, height: 0.64, depth: 0.18 },
+  { name: "Planner", width: 0.34, height: 0.88, depth: 0.21 },
+  { name: "Notebook", width: 0.36, height: 0.82, depth: 0.19 },
+];
+
 const COLORS = {
   walnut: new Color3(0.18, 0.09, 0.045),
   walnutLight: new Color3(0.34, 0.18, 0.08),
@@ -129,9 +140,10 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
   const bookColors = [COLORS.brass, new Color3(0.34, 0.12, 0.09), COLORS.olive, new Color3(0.08, 0.14, 0.2), COLORS.ivory];
   [0.72, 1.72, 2.72, 3.72].forEach((y, row) => {
     for (let i = 0; i < 8; i += 1) {
-      const bookWidth = 0.3 + (i % 3) * 0.045;
-      const bookHeight = 0.7 + (i % 2) * 0.12;
-      const bookDepth = 0.18 + (i % 3) * 0.025;
+      const format = BOOK_FORMATS[(shelfIndex + row + i) % BOOK_FORMATS.length];
+      const bookWidth = format.width;
+      const bookHeight = format.height;
+      const bookDepth = format.depth;
       const bookLean = ((i % 5) - 2) * 0.018;
       const bookInfo = BOOK_CATALOG[(row + i) % BOOK_CATALOG.length];
       const bookMaterial = material(scene, `book-mat-${row}-${i}`, bookColors[(i + row) % bookColors.length]);
@@ -156,7 +168,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const bookParts = [book, pages, coverTop, coverBottom, titlePlate, spineLabel, spineBand];
       bookParts.forEach((target) => {
         target.rotation.y = bookLean;
-        target.metadata = { book: bookInfo, bookParts, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookPulled: false };
+        target.metadata = { book: bookInfo, format: format.name, bookParts, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookPulled: false };
         target.isPickable = true;
         target.actionManager = new ActionManager(scene);
         target.actionManager.registerAction(new ExecuteCodeAction(ActionManager.OnPickTrigger, () => window.dispatchEvent(new CustomEvent("library:book", { detail: bookInfo }))));
