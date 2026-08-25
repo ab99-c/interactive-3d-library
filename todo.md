@@ -185,3 +185,10 @@
 - [x] Harden one-book state and prevent repeated pull/return events.
 - [x] Stabilize desktop keyboard movement and mobile touch movement.
 - [x] Verify all recorded flows on desktop and mobile before checkpointing.
+
+## Align books inside shelf bays
+
+- [x] Inspect shelf depth, board heights, book local positions, and lean transforms.
+- [x] Move the books inward and down so each volume is supported by its shelf board.
+- [x] Keep rows evenly spaced, reduce protrusion, and preserve unique picking and pull/return behavior.
+- [x] Verify alignment visually and run checks before saving a checkpoint.

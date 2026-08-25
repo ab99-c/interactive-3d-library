@@ -159,7 +159,9 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const leatherColor = bookColors[(i + row) % bookColors.length];
       const bookMaterial = material(scene, `book-mat-${shelfIndex}-${row}-${i}`, leatherColor);
       const leatherMaterial = material(scene, `book-leather-${shelfIndex}-${row}-${i}`, leatherColor, BOOK_LEATHER_TEXTURE);
-      const bookPosition = new Vector3(-2.00 + i * 0.30, y + 0.4, -0.1);
+      // Place the book directly on the board below this row, with only a tiny clearance.
+      const shelfTopY = y - 0.17 + 0.08;
+      const bookPosition = new Vector3(-2.00 + i * 0.30, shelfTopY + bookHeight * 0.5 + 0.008, -0.04);
       const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
       book.parent = root;
       const roundedSpine = MeshBuilder.CreateCylinder(`book-rounded-spine-${shelfIndex}-${row}-${i}`, { diameter: Math.min(bookDepth * 0.9, 0.28), height: bookHeight * 0.94, tessellation: 16 }, scene);
