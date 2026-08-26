@@ -337,3 +337,10 @@
 - [x] Trace shelf creation and rendering conditions in the source.
 - [x] Fix the production-only shelf visibility failure.
 - [x] Rebuild, push, redeploy, verify production, and save a checkpoint.
+
+## Rebuild filled shelf bays
+
+- [ ] Inspect shelf boards, side frames, book local depth, and row heights.
+- [ ] Make the shelf boards and side frames visibly surround every book row.
+- [ ] Seat books on each board and move them inward so they do not float in front of the wall.
+- [ ] Build, push, redeploy, and verify the filled shelves on Vercel.

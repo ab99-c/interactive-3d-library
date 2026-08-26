@@ -142,6 +142,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
   root.position = new Vector3(x, 0, z);
   root.rotation.y = rotationY;
   const parts = [
+    box(scene, "shelf-back", { width: 4.45, height: 4.7, depth: 0.10 }, new Vector3(0, 2.35, -0.56), wood, false),
     box(scene, "shelf-side", { width: 0.25, height: 4.7, depth: 1.2 }, new Vector3(-2.1, 2.35, 0), wood),
     box(scene, "shelf-side", { width: 0.25, height: 4.7, depth: 1.2 }, new Vector3(2.1, 2.35, 0), wood),
     box(scene, "shelf-top", { width: 4.45, height: 0.24, depth: 1.2 }, new Vector3(0, 4.62, 0), wood),
@@ -385,11 +386,11 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   box(scene, "right-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(12, 3.5, 0), wall);
   box(scene, "ceiling", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, 7, 0), woodLight, false);
   // Keep the shelf banks inside the tighter production camera framing so they remain visible on Vercel as well as locally.
-  addShelf(scene, 0, -5.8, -5.2, 0, wood, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 1, 5.8, -5.2, 0, wood, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 2, -5.8, 1.2, 0, wood, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 3, 5.8, 1.2, 0, wood, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 4, 0, -10.2, Math.PI / 2, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 0, -5.8, -5.2, 0, woodLight, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 1, 5.8, -5.2, 0, woodLight, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 2, -5.8, 1.2, 0, woodLight, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 3, 5.8, 1.2, 0, woodLight, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 4, 0, -10.2, Math.PI / 2, woodLight, olive, brass, shadow, titleMaterials);
 
   const table = box(scene, "reading-table", { width: 4.8, height: 0.26, depth: 2.2 }, new Vector3(0, 2, 0), woodLight);
   shadow.addShadowCaster(table);
