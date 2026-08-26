@@ -333,7 +333,7 @@
 
 ## Persistent Vercel shelves failure
 
-- [ ] Collect live runtime and bundle evidence from the production URL.
-- [ ] Trace shelf creation and rendering conditions in the source.
-- [ ] Fix the production-only shelf visibility failure.
-- [ ] Rebuild, push, redeploy, verify production, and save a checkpoint.
+- [x] Collect live runtime and bundle evidence from the production URL.
+- [x] Trace shelf creation and rendering conditions in the source.
+- [x] Fix the production-only shelf visibility failure.
+- [x] Rebuild, push, redeploy, verify production, and save a checkpoint.
