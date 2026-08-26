@@ -326,7 +326,7 @@
 
 ## Vercel shelves missing
 
-- [ ] Compare the live Vercel deployment with local scene initialization and assets.
-- [ ] Identify and fix the production-only shelves rendering failure.
-- [ ] Rebuild and redeploy the corrected production version.
-- [ ] Verify shelves and books on the live Vercel URL before checkpointing.
+- [x] Compare the live Vercel deployment with local scene initialization and assets.
+- [x] Identify and fix the production-only shelves rendering failure.
+- [x] Rebuild and redeploy the corrected production version.
+- [x] Verify shelves and books on the live Vercel URL before checkpointing.
