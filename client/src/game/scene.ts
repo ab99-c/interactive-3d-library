@@ -9,10 +9,12 @@ import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
 import "@babylonjs/core/Collisions/collisionCoordinator";
+// Style: Quiet Study Hall — walnut, ivory, olive, and brass; first-person details stay tactile, quiet, and low-poly.
 // Register Ray before scene picking APIs are used; Babylon otherwise logs a side-effect warning at runtime.
 import "@babylonjs/core/Culling/ray";
 // Register Babylon's built-in shader sources in the bundle; otherwise Vite may serve index.html for /src/Shaders/*.fx.
@@ -107,6 +109,81 @@ function box(scene: Scene, name: string, size: { width: number; height: number; 
   mesh.checkCollisions = collidable;
   mesh.receiveShadows = true;
   return mesh;
+}
+
+type FirstPersonHands = {
+  root: TransformNode;
+  left: TransformNode;
+  right: TransformNode;
+  dispose: () => void;
+};
+
+function createFirstPersonHands(scene: Scene, camera: UniversalCamera): FirstPersonHands {
+  const root = new TransformNode("first-person-hands", scene);
+  root.parent = camera;
+  const skin = material(scene, "hand-skin", new Color3(0.48, 0.25, 0.13));
+  const sleeve = material(scene, "hand-sleeve", COLORS.walnutLight);
+  const handParts: Mesh[] = [];
+
+  const createHand = (side: -1 | 1, label: string) => {
+    const hand = new TransformNode(`hand-${label}`, scene);
+    hand.parent = root;
+    hand.position = new Vector3(side * 0.42, -0.38, 0.94);
+    hand.scaling = new Vector3(0.6, 0.6, 0.6);
+    hand.rotation = new Vector3(-0.13, side * 0.08, side * 0.11);
+
+    const wrist = MeshBuilder.CreateCylinder(`hand-${label}-wrist`, { height: 0.18, diameterTop: 0.08, diameterBottom: 0.1, tessellation: 8 }, scene);
+    wrist.parent = hand;
+    wrist.position = new Vector3(0, -0.13, 0);
+    wrist.material = sleeve;
+    wrist.isPickable = false;
+    wrist.receiveShadows = false;
+    handParts.push(wrist);
+
+    const palm = MeshBuilder.CreateSphere(`hand-${label}-palm`, { segments: 8, diameter: 1 }, scene);
+    palm.parent = hand;
+    palm.scaling = new Vector3(0.1, 0.12, 0.075);
+    palm.position = new Vector3(0, 0.02, 0);
+    palm.material = skin;
+    palm.isPickable = false;
+    palm.receiveShadows = false;
+    handParts.push(palm);
+
+    for (let fingerIndex = 0; fingerIndex < 4; fingerIndex += 1) {
+      const finger = MeshBuilder.CreateCylinder(`hand-${label}-finger-${fingerIndex}`, { height: 0.08, diameter: 0.022, tessellation: 6 }, scene);
+      finger.parent = hand;
+      finger.position = new Vector3((fingerIndex - 1.5) * 0.039, 0.145, 0.012);
+      finger.rotation.z = side * (0.035 + Math.abs(fingerIndex - 1.5) * 0.012);
+      finger.material = skin;
+      finger.isPickable = false;
+      finger.receiveShadows = false;
+      handParts.push(finger);
+    }
+
+    const thumb = MeshBuilder.CreateCylinder(`hand-${label}-thumb`, { height: 0.08, diameter: 0.034, tessellation: 6 }, scene);
+    thumb.parent = hand;
+    thumb.position = new Vector3(side * 0.105, 0.02, 0.015);
+    thumb.rotation.z = -side * 0.48;
+    thumb.material = skin;
+    thumb.isPickable = false;
+    thumb.receiveShadows = false;
+    handParts.push(thumb);
+    return hand;
+  };
+
+  const left = createHand(-1, "left");
+  const right = createHand(1, "right");
+  return {
+    root,
+    left,
+    right,
+    dispose: () => {
+      handParts.forEach((part) => part.dispose(false, true));
+      skin.dispose();
+      sleeve.dispose();
+      root.dispose(false, true);
+    },
+  };
 }
 
 function createTitleMaterial(scene: Scene, book: BookInfo, cache: Map<string, StandardMaterial>) {
@@ -370,6 +447,32 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   canvas.addEventListener("touchmove", onTouchMove, { passive: false });
   canvas.addEventListener("touchend", onTouchEnd, { passive: false });
   canvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
+  const hands = createFirstPersonHands(scene, camera);
+  let movementAmount = 0;
+  let handMotionPhase = 0;
+  let handInteraction = 0;
+  let handInteractionTarget = 0;
+  const handMotionObserver = scene.onBeforeRenderObservable.add(() => {
+    const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
+    const walkBlend = movementAmount;
+    handMotionPhase += deltaSeconds * (2.2 + walkBlend * 9.5);
+    handInteraction += (handInteractionTarget - handInteraction) * Math.min(1, deltaSeconds * 9);
+    const bob = Math.abs(Math.sin(handMotionPhase)) * 0.028 * walkBlend;
+    const sway = Math.sin(handMotionPhase * 0.5) * 0.024 * walkBlend;
+    const reach = handInteraction;
+    hands.left.position.x = -0.42 - reach * 0.11 + sway;
+    hands.left.position.y = -0.38 + bob + reach * 0.08;
+    hands.left.position.z = 0.94 + reach * 0.12;
+    hands.left.rotation.x = -0.13 - reach * 0.18 + Math.sin(handMotionPhase) * 0.035 * walkBlend;
+    hands.left.rotation.y = -0.08 - reach * 0.12;
+    hands.left.rotation.z = -0.11 + sway * 0.75;
+    hands.right.position.x = 0.42 + reach * 0.11 + sway;
+    hands.right.position.y = -0.38 + bob + reach * 0.08;
+    hands.right.position.z = 0.94 + reach * 0.12;
+    hands.right.rotation.x = -0.13 - reach * 0.18 + Math.sin(handMotionPhase + Math.PI) * 0.035 * walkBlend;
+    hands.right.rotation.y = 0.08 + reach * 0.12;
+    hands.right.rotation.z = 0.11 + sway * 0.75;
+  });
   scene.onBeforeRenderObservable.add(() => {
     let moveX = touchMove.x;
     let moveZ = touchMove.z;
@@ -378,6 +481,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     if (pressedKeys.has("a") || pressedKeys.has("arrowleft")) moveX -= 1;
     if (pressedKeys.has("d") || pressedKeys.has("arrowright")) moveX += 1;
     const length = Math.hypot(moveX, moveZ);
+    const targetMovement = Math.min(1, length);
+    const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
+    movementAmount += (targetMovement - movementAmount) * Math.min(1, deltaSeconds * 12);
     if (length < 0.001) return;
     if (length > 1) { moveX /= length; moveZ /= length; }
     const forward = camera.getDirection(Vector3.Forward());
@@ -514,7 +620,11 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
       scene.onBeforeRenderObservable.remove(activeTurnObserver);
       activeTurnObserver = null;
     }
-    if (!activeBookParts) return false;
+    if (!activeBookParts) {
+      handInteractionTarget = 0;
+      return false;
+    }
+    handInteractionTarget = 0;
     activeBookParts.forEach((part) => {
       const restPosition = part.metadata?.bookRestPosition;
       const restRotation = part.metadata?.bookRestRotation;
@@ -560,6 +670,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         pages.forEach((page, index) => { page.position = pageTargets[index].clone(); });
         scene.onBeforeRenderObservable.remove(activeOpenObserver);
         activeOpenObserver = null;
+        handInteractionTarget = 0.28;
       }
     });
   };
@@ -571,6 +682,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const leftPage = activeBookParts.find((part) => part.metadata?.readingPage && part.name.includes("open-left"));
     const pageState = activeBookParts[0]?.metadata?.pageState;
     if (!turningPage || !rightPage || !leftPage || !pageState) return false;
+    handInteractionTarget = 0.72;
     if (!hayyPages.length) {
       void loadHayyPages().then((loadedPages) => {
         if (activeBookParts?.[0]?.metadata?.pageState === pageState) {
@@ -605,6 +717,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         pageState.pageIndex = nextPageIndex;
         pageState.pageRenderers.left?.(nextPageIndex);
         pageState.pageRenderers.right?.(nextPageIndex + 1);
+        handInteractionTarget = 0.42;
         playBookSound("pull");
       }
     });
@@ -631,6 +744,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const startedAt = performance.now();
     activeBookParts = parts;
     activeBookId = parts.find((part) => part.metadata?.book)?.metadata?.book?.id ?? null;
+    handInteractionTarget = 1;
     emitBookState();
     playBookSound("pull");
     parts.forEach((part) => { part.metadata = { ...part.metadata, bookPulled: true }; });
@@ -648,6 +762,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         });
         scene.onBeforeRenderObservable.remove(activePullObserver);
         activePullObserver = null;
+        handInteractionTarget = 0.44;
         openBookSpread(parts);
       }
     });
@@ -780,7 +895,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
   }
 
-  const dispose = () => { window.clearTimeout(progressiveLoadTimer); window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
+  const dispose = () => { window.clearTimeout(progressiveLoadTimer); scene.onBeforeRenderObservable.remove(handMotionObserver); hands.dispose(); window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
   const setTouchMove = (x: number, y: number) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, y)); };
   return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, turnActivePage, hasActiveBook, getBookScreenRects, setTouchMove, setPerformanceMode: applyPerformanceMode };
 }
