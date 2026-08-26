@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 
 const source = fs.readFileSync("client/src/game/hayy-text-source.txt", "utf8")
   .replace(/\r/g, "")
@@ -27,9 +28,7 @@ for (const word of words) {
 }
 if (current) pages.push(current);
 
-const arabicDigits = (value) => String(value).replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]);
 const outputPath = process.env.HAYY_PAGES_OUTPUT ?? "/home/ubuntu/webdev-static-assets/hayy-pages.json";
-fs.mkdirSync(new URL(".", `file://${outputPath}`).pathname, { recursive: true });
+fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, JSON.stringify({ pageCount: pages.length, pages }));
-console.log(`Generated ${pages.length} pages from ${body.length} characters.`);
-console.log(`Page range: ١–${arabicDigits(pages.length)}`);
+console.log(`Exported ${pages.length} pages / ${body.length} characters to ${outputPath}`);

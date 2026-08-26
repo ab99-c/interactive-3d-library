@@ -1,7 +1,7 @@
 // Quiet Study Hall UI: واجهة نحاسية خفيفة فوق عالم المكتبة، لا تنافس المشهد وتظهر عند الحاجة.
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { Engine as BabylonEngine } from "@babylonjs/core/Engines/engine";
-import type { BookScreenRect, GameHandle } from "@/game/scene";
+import type { BookScreenRect, GameHandle, PerformanceMode } from "@/game/scene";
 
 export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -11,6 +11,8 @@ export default function GameCanvas() {
   const [bookRects, setBookRects] = useState<BookScreenRect[]>([]);
   const bookRectsRef = useRef<BookScreenRect[]>([]);
   const [hasActiveBook, setHasActiveBook] = useState(false);
+  const [performanceMode, setPerformanceMode] = useState<PerformanceMode>(() => (window.matchMedia("(max-width: 720px)").matches || (navigator.hardwareConcurrency ?? 8) <= 4) ? "light" : "cinematic");
+  const setPerformanceModeRef = useRef<(mode: PerformanceMode) => void>(() => undefined);
   const openNearestBookRef = useRef<() => boolean>(() => false);
   const openBookByMeshNameRef = useRef<(meshName: string) => boolean>(() => false);
   const returnActiveBookRef = useRef<() => boolean>(() => false);
@@ -60,6 +62,8 @@ export default function GameCanvas() {
       };
       turnActivePageRef.current = (direction) => nextHandle.turnActivePage(direction);
       setTouchMoveRef.current = nextHandle.setTouchMove;
+      setPerformanceModeRef.current = nextHandle.setPerformanceMode;
+      nextHandle.setPerformanceMode(performanceMode);
       if (!engine) return;
       engine.runRenderLoop(() => {
         nextHandle.scene.render();
@@ -87,6 +91,7 @@ export default function GameCanvas() {
       returnActiveBookRef.current = () => false;
       turnActivePageRef.current = () => false;
       setTouchMoveRef.current = () => undefined;
+      setPerformanceModeRef.current = () => undefined;
       window.removeEventListener("library:book-state", onBookState);
       bookRectsRef.current = [];
       setBookRects([]);
@@ -134,7 +139,7 @@ export default function GameCanvas() {
       {!started && <div className="loading-overlay" role="status" aria-live="polite"><div className="loading-mark" aria-hidden="true">۞</div><strong>يجري تجهيز القاعة</strong><span>لحظات ونفتح الرفوف أمامك</span></div>}
       <div className="hud-topline"><div className="brand-lockup"><img src="/manus-storage/library-mark_0613fe33.webp" alt="" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/library-mark.svg"; }} /><span>قاعة الدراسة الهادئة</span></div><div className="status-pill"><i /> {started ? "مفتوحة للاستكشاف" : "يجري تجهيز القاعة"}</div></div>
       <div className="mobile-controls" aria-label="عناصر التحكم باللمس"><div ref={joystickRef} className="touch-joystick" onPointerDown={onJoystickPointerDown} onPointerMove={onJoystickPointerMove} onPointerUp={resetJoystick} onPointerCancel={resetJoystick}><div ref={joystickKnobRef} className="touch-joystick-knob" /></div></div>
-      <div className="hud-bottom"><div className="crosshair" aria-hidden="true">+</div><div className="controls"><span><b>W A S D</b> تحرّك</span><span><b>حرّك الفأرة</b> لتدوير المشهد</span><span><b>نقر / E</b> للتفاعل</span></div><div className="hud-actions"><button className="inspect-button" onClick={() => openNearestBookRef.current()}>فحص أقرب كتاب <span>↗</span></button><div className="page-actions" aria-label="أزرار الكتاب"><button className="page-turn-button page-turn-left" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("ltr")}>اليسرى <span>→</span></button><button className="return-button" disabled={!hasActiveBook} onClick={() => returnActiveBookRef.current()}>إرجاع الكتاب <span>↩</span></button><button className="page-turn-button page-turn-right" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("rtl")}>اليمنى <span>←</span></button></div><button className="help-button" onClick={() => setShowHelp((value) => !value)}>{showHelp ? "إخفاء الدليل" : "إظهار الدليل"}</button></div></div>
+      <div className="hud-bottom"><div className="crosshair" aria-hidden="true">+</div><div className="controls"><span><b>W A S D</b> تحرّك</span><span><b>حرّك الفأرة</b> لتدوير المشهد</span><span><b>نقر / E</b> للتفاعل</span></div><div className="hud-actions"><button className="inspect-button" onClick={() => openNearestBookRef.current()}>فحص أقرب كتاب <span>↗</span></button><div className="page-actions" aria-label="أزرار الكتاب"><button className="page-turn-button page-turn-left" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("ltr")}>اليسرى <span>→</span></button><button className="return-button" disabled={!hasActiveBook} onClick={() => returnActiveBookRef.current()}>إرجاع الكتاب <span>↩</span></button><button className="page-turn-button page-turn-right" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("rtl")}>اليمنى <span>←</span></button></div><button className="help-button" onClick={() => setShowHelp((value) => !value)}>{showHelp ? "إخفاء الدليل" : "إظهار الدليل"}</button><button className="help-button performance-button" onClick={() => { const nextMode = performanceMode === "light" ? "cinematic" : "light"; setPerformanceMode(nextMode); setPerformanceModeRef.current(nextMode); }} aria-label="تبديل جودة العرض">{performanceMode === "light" ? "أداء خفيف" : "جودة سينمائية"}</button></div></div>
       {started && <div className="book-hotspots" aria-label="كتب قابلة للتفاعل">{bookRects.map((rect) => <button key={rect.meshName} className="book-hotspot" style={{ left: rect.x - rect.width / 2, top: rect.y - rect.height / 2, width: rect.width, height: rect.height }} aria-label={`فتح ${rect.title}`} title={rect.title} onClick={() => { setShowHelp(false); openBookByMeshNameRef.current(rect.meshName); }}><span>{rect.title}</span></button>)}</div>}
       {showHelp && <section className="welcome-card"><div className="eyebrow">غرفة للفضوليين</div><h1>اختر رفاً،<br /><em>ودع المكان يروي حكايته.</em></h1><p>تجوّل بهدوء بين الرفوف. كل كتاب يقود إلى حكاية خفية في هذه القاعة.</p><div className="welcome-actions"><button className="enter-button" onClick={() => setShowHelp(false)}>ادخل إلى المكتبة <span>↗</span></button><button className="enter-button sample-book-button" onClick={() => { setShowHelp(false); window.setTimeout(() => openNearestBookRef.current(), 80); }}>افتح كتاباً مقترحاً <span>↗</span></button></div></section>}
       <div className="corner-note">المجلد 01<br /><span>أرشيف الاكتشافات الصغيرة</span></div>

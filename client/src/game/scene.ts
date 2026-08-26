@@ -20,11 +20,38 @@ import "@babylonjs/core/Shaders/default.vertex";
 import "@babylonjs/core/Shaders/default.fragment";
 import "@babylonjs/core/Shaders/shadowMap.vertex";
 import "@babylonjs/core/Shaders/shadowMap.fragment";
-import { HAYY_PAGES, HAYY_PAGE_COUNT, toArabicPageNumber } from "./hayy-pages";
+type HayyPagesPayload = { pageCount: number; pages: string[] };
 
+const HAYY_PAGES_URL = "/manus-storage/hayy-pages_d0ff7ea1.json";
+const FALLBACK_HAYY_PAGE_COUNT = 387;
+let hayyPages: readonly string[] = [];
+let hayyPagesPromise: Promise<readonly string[]> | null = null;
+
+const toArabicPageNumber = (value: number) => String(value).replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]);
+const loadHayyPages = () => {
+  if (!hayyPagesPromise) {
+    hayyPagesPromise = fetch(HAYY_PAGES_URL, { cache: "force-cache" })
+      .then((response) => {
+        if (!response.ok) throw new Error(`تعذر تحميل صفحات حي بن يقظان: ${response.status}`);
+        return response.json() as Promise<HayyPagesPayload>;
+      })
+      .then((payload) => {
+        if (!Array.isArray(payload.pages) || !payload.pages.length) throw new Error("بيانات صفحات الكتاب غير صالحة");
+        hayyPages = payload.pages;
+        return hayyPages;
+      })
+      .catch((error) => {
+        hayyPagesPromise = null;
+        throw error;
+      });
+  }
+  return hayyPagesPromise;
+};
+
+export type PerformanceMode = "cinematic" | "light";
 export type BookInfo = { id: string; title: string; category: string; description: string; spineTitle: string; volume: string };
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
-export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; turnActivePage: (direction: "rtl" | "ltr") => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[]; setTouchMove: (x: number, y: number) => void };
+export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; turnActivePage: (direction: "rtl" | "ltr") => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[]; setTouchMove: (x: number, y: number) => void; setPerformanceMode: (mode: PerformanceMode) => void };
 
 const BOOK_FORMATS = [
   { name: "Pocket", width: 0.17, height: 0.43, depth: 0.12 },
@@ -196,9 +223,10 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
           pageContext.direction = "rtl"; pageContext.textAlign = "right"; pageContext.fillStyle = "#3a2014";
           pageContext.font = "bold 30px Noto Sans Arabic"; pageContext.fillText("حي بن يقظان", 462, 64);
           pageContext.font = "bold 18px Noto Sans Arabic";
-          const text = HAYY_PAGES[Math.max(0, Math.min(pageIndex, HAYY_PAGE_COUNT - 1))];
-          const lines = text.match(/.{1,28}/g)?.slice(0, 8) ?? [];
-          lines.forEach((line, lineIndex) => pageContext.fillText(line.trim(), 462, 122 + lineIndex * 38));
+          const pageCount = hayyPages.length || FALLBACK_HAYY_PAGE_COUNT;
+          const text = hayyPages[Math.max(0, Math.min(pageIndex, pageCount - 1))] ?? "يتم تحميل صفحات حي بن يقظان…";
+          const lines: string[] = (text.match(/.{1,28}/g) ?? []).slice(0, 8);
+          lines.forEach((line: string, lineIndex: number) => pageContext.fillText(line.trim(), 462, 122 + lineIndex * 38));
           pageContext.strokeStyle = "#c49a5a"; pageContext.lineWidth = 2; pageContext.beginPath(); pageContext.moveTo(52, 420); pageContext.lineTo(460, 420); pageContext.stroke();
           pageContext.textAlign = "center"; pageContext.font = "bold 23px serif"; pageContext.fillText(toArabicPageNumber(pageIndex + 1), 256, 466);
           // Babylon's visible page face mirrors this UV direction; flip only the texture, not the RTL text layout.
@@ -242,10 +270,10 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const frameRight = box(scene, `book-frame-right-${row}-${i}`, { width: 0.018, height: bookHeight * 0.76, depth: 0.022 }, new Vector3(bookPosition.x + bookWidth * 0.38, bookPosition.y, frontZ), brass, false);
       [frameTop, frameBottom, frameLeft, frameRight].forEach((frame) => { frame.parent = root; });
       const bookParts = [book, roundedSpine, spineStrip, pages, coverTop, coverBottom, frontCover, openLeftPage, openRightPage, turningPage, titlePlate, spineLabel, spineBand, bindingBandTop, bindingBandMid, bindingBandBottom, frameTop, frameBottom, frameLeft, frameRight];
-      const pageState = { pageIndex: 0, pageRenderers };
+      const pageState = { pageIndex: 0, pageCount: FALLBACK_HAYY_PAGE_COUNT, pageRenderers };
       bookParts.forEach((target) => {
         target.rotation.y = bookLean;
-        target.metadata = { book: bookInfo, format: format.name, openPageWidth, openPageHeight, bookParts, pageState, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, readingPage: target === openLeftPage || target === openRightPage, pageSide: target === openLeftPage ? "left" : target === openRightPage ? "right" : undefined, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate || target === spineLabel || target === spineBand || target === frameTop || target === frameBottom || target === frameLeft || target === frameRight };
+        target.metadata = { book: bookInfo, format: format.name, openPageWidth, openPageHeight, bookParts, pageState, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, bookDetail: target !== book && target !== openLeftPage && target !== openRightPage && target !== turningPage, readingPage: target === openLeftPage || target === openRightPage, pageSide: target === openLeftPage ? "left" : target === openRightPage ? "right" : undefined, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate || target === spineLabel || target === spineBand || target === frameTop || target === frameBottom || target === frameLeft || target === frameRight };
         // Only the main volume is pickable; decorative binding parts move with it but do not create duplicate hits.
         target.isPickable = target === book || target === openLeftPage || target === openRightPage;
       });
@@ -257,11 +285,22 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
   shelfLight.diffuse = COLORS.brass;
   shelfLight.intensity = 0.12;
   shelfLight.range = 5;
+  root.metadata = { shelfIndex, shelfPosition: root.position.clone() };
   return root;
 }
 
 export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement): Promise<GameHandle> {
   const scene = new Scene(engine);
+  let performanceMode: PerformanceMode = (window.matchMedia("(max-width: 720px)").matches || (navigator.hardwareConcurrency ?? 8) <= 4) ? "light" : "cinematic";
+  const applyPerformanceMode = (mode: PerformanceMode) => {
+    performanceMode = mode;
+    engine.setHardwareScalingLevel(mode === "light" ? 1.35 : 1);
+    engine.resize();
+    scene.skipPointerMovePicking = mode === "light";
+    const shadowMap = shadow.getShadowMap();
+    if (shadowMap) shadowMap.refreshRate = mode === "light" ? 4 : 1;
+    shadow.blurKernel = mode === "light" ? 8 : 24;
+  };
   scene.clearColor = new Color4(0.035, 0.028, 0.024, 1);
   scene.collisionsEnabled = true;
   scene.gravity = new Vector3(0, -0.11, 0);
@@ -370,6 +409,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   aisleLight.diffuse = new Color3(1, 0.78, 0.5); aisleLight.intensity = 1.7; aisleLight.range = 15;
   const shadow = new ShadowGenerator(1024, ceilingLight);
   shadow.useBlurExponentialShadowMap = true; shadow.blurKernel = 24;
+  applyPerformanceMode(performanceMode);
 
   const wood = material(scene, "walnut", COLORS.walnut, "/manus-storage/walnut-shelf-texture_c5b61c55.png");
   const woodLight = material(scene, "wood-light", COLORS.walnutLight);
@@ -385,15 +425,37 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   box(scene, "left-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(-12, 3.5, 0), wall);
   box(scene, "right-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(12, 3.5, 0), wall);
   box(scene, "ceiling", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, 7, 0), woodLight, false);
+  const shelfRoots: Mesh[] = [];
+  const addTrackedShelf = (shelfIndex: number, x: number, z: number, rotationY: number) => {
+    const root = addShelf(scene, shelfIndex, x, z, rotationY, woodLight, olive, brass, shadow, titleMaterials);
+    shelfRoots.push(root);
+    return root;
+  };
   // Keep the shelf banks inside the tighter production camera framing so they remain visible on Vercel as well as locally.
-  addShelf(scene, 0, -5.8, -5.2, 0, woodLight, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 1, 5.8, -5.2, 0, woodLight, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 2, -5.8, 1.2, 0, woodLight, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 3, 5.8, 1.2, 0, woodLight, olive, brass, shadow, titleMaterials);
+  addTrackedShelf(0, -5.8, -5.2, 0);
+  addTrackedShelf(1, 5.8, -5.2, 0);
+  addTrackedShelf(2, -5.8, 1.2, 0);
+  addTrackedShelf(3, 5.8, 1.2, 0);
   // Stage the distant back wall after the player-facing shelves are ready, keeping first paint responsive on mobile.
   const progressiveLoadTimer = window.setTimeout(() => {
-    if (!scene.isDisposed) addShelf(scene, 4, 0, -10.2, Math.PI / 2, woodLight, olive, brass, shadow, titleMaterials);
+    if (!scene.isDisposed) addTrackedShelf(4, 0, -10.2, Math.PI / 2);
   }, 220);
+  let lastDetailUpdate = 0;
+  scene.onBeforeRenderObservable.add(() => {
+    const now = performance.now();
+    const updateInterval = performanceMode === "light" ? 180 : 90;
+    if (now - lastDetailUpdate < updateInterval) return;
+    lastDetailUpdate = now;
+    const detailRadius = performanceMode === "light" ? 5.2 : 7.6;
+    const detailRadiusSquared = detailRadius * detailRadius;
+    shelfRoots.forEach((root) => {
+      const nearby = Vector3.DistanceSquared(root.getAbsolutePosition(), camera.globalPosition) <= detailRadiusSquared;
+      root.getChildMeshes().forEach((part) => {
+        if (!part.metadata?.bookDetail) return;
+        part.isVisible = nearby || Boolean(part.metadata.bookPulled || part.metadata.bookOpened);
+      });
+    });
+  });
 
   const table = box(scene, "reading-table", { width: 4.8, height: 0.26, depth: 2.2 }, new Vector3(0, 2, 0), woodLight);
   shadow.addShadowCaster(table);
@@ -474,6 +536,13 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
       pageState.pageIndex = 0;
       pageState.pageRenderers.left?.(0);
       pageState.pageRenderers.right?.(1);
+      void loadHayyPages().then((loadedPages) => {
+        pageState.pageCount = loadedPages.length;
+        if (activeBookParts === parts) {
+          pageState.pageRenderers.left?.(pageState.pageIndex);
+          pageState.pageRenderers.right?.(pageState.pageIndex + 1);
+        }
+      }).catch(() => undefined);
     }
     if (!pages.length) return;
     const center = parts[0].position.clone().add(new Vector3(0, 0, 0.12));
@@ -502,8 +571,20 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const leftPage = activeBookParts.find((part) => part.metadata?.readingPage && part.name.includes("open-left"));
     const pageState = activeBookParts[0]?.metadata?.pageState;
     if (!turningPage || !rightPage || !leftPage || !pageState) return false;
+    if (!hayyPages.length) {
+      void loadHayyPages().then((loadedPages) => {
+        if (activeBookParts?.[0]?.metadata?.pageState === pageState) {
+          pageState.pageCount = loadedPages.length;
+          pageState.pageRenderers.left?.(pageState.pageIndex);
+          pageState.pageRenderers.right?.(pageState.pageIndex + 1);
+          turnActivePage(direction);
+        }
+      }).catch(() => undefined);
+      return true;
+    }
+    const pageCount = pageState.pageCount || hayyPages.length || FALLBACK_HAYY_PAGE_COUNT;
     const nextPageIndex = direction === "rtl" ? pageState.pageIndex + 2 : pageState.pageIndex - 2;
-    if (nextPageIndex < 0 || nextPageIndex + 1 >= HAYY_PAGE_COUNT) return false;
+    if (nextPageIndex < 0 || nextPageIndex + 1 >= pageCount) return false;
     const start = (direction === "rtl" ? rightPage : leftPage).position.clone();
     const end = (direction === "rtl" ? leftPage : rightPage).position.clone();
     const startedAt = performance.now();
@@ -701,5 +782,5 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
 
   const dispose = () => { window.clearTimeout(progressiveLoadTimer); window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
   const setTouchMove = (x: number, y: number) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, y)); };
-  return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, turnActivePage, hasActiveBook, getBookScreenRects, setTouchMove };
+  return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, turnActivePage, hasActiveBook, getBookScreenRects, setTouchMove, setPerformanceMode: applyPerformanceMode };
 }

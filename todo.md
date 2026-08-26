@@ -358,3 +358,12 @@
 - [ ] Add progressive loading for library areas or distant detail.
 - [ ] Add a lightweight Arabic loading screen during Babylon initialization.
 - [ ] Rebuild, verify desktop/mobile interactions, and checkpoint the upgrade.
+
+
+## ترقيات الأداء الجديدة
+
+- [x] تحويل بيانات صفحات حي بن يقظان إلى أصل JSON كسول خارج حزمة Babylon.js.
+- [x] جعل تفاصيل الرفوف البعيدة تتوقف أو تخف حسب بُعد اللاعب مع الحفاظ على الكتب القابلة للتفاعل.
+- [x] إضافة وضع أداء خفيف للهاتف لتقليل device pixel ratio والظلال وجودة العرض.
+- [x] فحص سطح المكتب والهاتف ومراجعة سجلات التشغيل بعد التغييرات.
+- [ ] تشغيل pnpm check وpnpm build ثم commit وpush إلى GitHub والتحقق من Vercel قبل التسليم.
