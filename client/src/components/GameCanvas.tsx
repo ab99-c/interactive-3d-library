@@ -1,7 +1,7 @@
 // Quiet Study Hall UI: واجهة نحاسية خفيفة فوق عالم المكتبة، لا تنافس المشهد وتظهر عند الحاجة.
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Engine } from "@babylonjs/core/Engines/engine";
-import { createGameScene, type BookScreenRect, type GameHandle } from "@/game/scene";
+import type { Engine as BabylonEngine } from "@babylonjs/core/Engines/engine";
+import type { BookScreenRect, GameHandle } from "@/game/scene";
 
 export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -24,7 +24,7 @@ export default function GameCanvas() {
     const canvas = canvasRef.current;
     if (!canvas || startedRef.current) return;
     startedRef.current = true;
-    const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, adaptToDeviceRatio: true });
+    let engine: BabylonEngine | null = null;
     let handle: GameHandle | null = null;
     let disposed = false;
     const onBookState = (event: Event) => {
@@ -32,7 +32,15 @@ export default function GameCanvas() {
       setHasActiveBook(Boolean(detail?.active));
     };
     window.addEventListener("library:book-state", onBookState);
-    createGameScene(engine, canvas).then((nextHandle) => {
+    Promise.all([
+      import("@babylonjs/core/Engines/engine"),
+      import("@/game/scene"),
+    ]).then(([{ Engine }, { createGameScene }]) => {
+      if (disposed) return;
+      engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, adaptToDeviceRatio: true });
+      return createGameScene(engine, canvas);
+    }).then((nextHandle) => {
+      if (!nextHandle) return;
       if (disposed) { nextHandle.dispose(); return; }
       handle = nextHandle;
       openNearestBookRef.current = () => {
@@ -52,6 +60,7 @@ export default function GameCanvas() {
       };
       turnActivePageRef.current = (direction) => nextHandle.turnActivePage(direction);
       setTouchMoveRef.current = nextHandle.setTouchMove;
+      if (!engine) return;
       engine.runRenderLoop(() => {
         nextHandle.scene.render();
         const nextRects = nextHandle.getBookScreenRects();
@@ -67,7 +76,7 @@ export default function GameCanvas() {
       });
       setStarted(true);
     });
-    const onResize = () => engine.resize();
+    const onResize = () => engine?.resize();
     window.addEventListener("resize", onResize);
     
     return () => {
@@ -83,7 +92,7 @@ export default function GameCanvas() {
       setBookRects([]);
       setHasActiveBook(false);
       handle?.dispose();
-      engine.dispose();
+      engine?.dispose();
       startedRef.current = false;
     };
   }, []);

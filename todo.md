@@ -344,3 +344,10 @@
 - [x] Make the shelf boards and side frames visibly surround every book row.
 - [x] Seat books on each board and move them inward so they do not float in front of the wall.
 - [x] Build, push, redeploy, and verify the filled shelves on Vercel.
+
+## Loading performance
+
+- [x] Measure the current bundle size and startup cost.
+- [x] Reduce avoidable initial work and defer non-critical scene details.
+- [x] Optimize texture and page-content loading without breaking visual quality.
+- [x] Rebuild, verify desktop/mobile responsiveness, and checkpoint the result.
