@@ -309,3 +309,17 @@
 - [x] Commit the latest stable library changes.
 - [x] Push the commit to the intended GitHub repository.
 - [x] Verify the remote commit and report the GitHub URL.
+
+## Deploy linked Vercel project
+
+- [ ] Discover the existing Vercel project linked to `ab99-c/interactive-3d-library`.
+- [ ] Trigger the latest GitHub `main` deployment without creating a duplicate project.
+- [ ] Verify the production URL and deployment status.
+- [ ] Report the live URL or the exact remaining account action.
+
+## Match desktop to mobile reference
+
+- [x] Inspect desktop-only HUD spacing, control order, and camera framing.
+- [x] Adjust desktop visual composition to match the supplied reference.
+- [x] Keep mobile layout and physical book interactions unchanged.
+- [x] Run checks and verify both responsive layouts before checkpointing.

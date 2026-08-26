@@ -26,7 +26,7 @@ button { font: inherit; }
 .help-button { padding: 10px 13px; font-size: 9px; letter-spacing: .13em; text-transform: uppercase; }
 @media (max-width: 720px) { .inspect-button { padding: 10px 11px; font-size: 8px; } .inspect-button span { margin-left: 6px; } .book-picker { top: 67px; right: 18px; left: 18px; width: auto; } .book-picker-list button { font-size: 8px; } }
 .help-button:hover, .enter-button:hover, .inspect-button:hover { background: #c99452; color: #1a0e07; transform: translateY(-2px); }
-.hud-actions { display: flex; align-items: center; gap: 10px; pointer-events: auto; }
+.hud-actions { display: flex; align-items: center; justify-content: center; gap: 10px; max-width: 700px; flex-wrap: wrap; pointer-events: auto; }
 .page-actions { display: flex; align-items: center; gap: 8px; direction: ltr; }
 .book-picker { position: absolute; z-index: 2; top: 78px; right: 30px; width: min(390px, 42vw); padding: 11px 13px 13px; background: rgba(12,8,5,.78); border: 1px solid rgba(201,148,82,.38); box-shadow: 0 12px 32px rgba(0,0,0,.24); backdrop-filter: blur(8px); pointer-events: auto; }
 .book-picker-label { display: block; margin-bottom: 9px; color: rgba(244,234,213,.48); font-size: 8px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }

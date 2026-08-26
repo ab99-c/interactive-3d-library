@@ -268,9 +268,11 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   scene.fogDensity = 0.018;
   scene.fogColor = new Color3(0.07, 0.055, 0.04);
 
-  const camera = new UniversalCamera("player-camera", new Vector3(0, 1.75, 10), scene);
+  const camera = new UniversalCamera("player-camera", new Vector3(0, 1.75, 8.6), scene);
   scene.activeCamera = camera;
   camera.minZ = 0.1;
+  // Keep desktop framing close to the mobile composition: a tighter, readable vertical view instead of a distant wide room shot.
+  camera.fov = 0.78;
   camera.rotation.y = Math.PI;
   camera.attachControl(canvas, true);
   // Mouse-look tuning: keyboard input stays with Babylon, while passive mouse movement turns the view without click or pointer lock.
