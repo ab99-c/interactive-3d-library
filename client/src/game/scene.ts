@@ -384,11 +384,12 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   box(scene, "left-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(-12, 3.5, 0), wall);
   box(scene, "right-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(12, 3.5, 0), wall);
   box(scene, "ceiling", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, 7, 0), woodLight, false);
-  addShelf(scene, 0, -6.8, -5.8, 0, wood, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 1, 6.8, -5.8, 0, wood, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 2, -6.8, 1.0, 0, wood, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 3, 6.8, 1.0, 0, wood, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 4, 0, -10.8, Math.PI / 2, wood, olive, brass, shadow, titleMaterials);
+  // Keep the shelf banks inside the tighter production camera framing so they remain visible on Vercel as well as locally.
+  addShelf(scene, 0, -5.8, -5.2, 0, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 1, 5.8, -5.2, 0, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 2, -5.8, 1.2, 0, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 3, 5.8, 1.2, 0, wood, olive, brass, shadow, titleMaterials);
+  addShelf(scene, 4, 0, -10.2, Math.PI / 2, wood, olive, brass, shadow, titleMaterials);
 
   const table = box(scene, "reading-table", { width: 4.8, height: 0.26, depth: 2.2 }, new Vector3(0, 2, 0), woodLight);
   shadow.addShadowCaster(table);

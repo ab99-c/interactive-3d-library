@@ -330,3 +330,10 @@
 - [x] Identify and fix the production-only shelves rendering failure.
 - [x] Rebuild and redeploy the corrected production version.
 - [x] Verify shelves and books on the live Vercel URL before checkpointing.
+
+## Persistent Vercel shelves failure
+
+- [ ] Collect live runtime and bundle evidence from the production URL.
+- [ ] Trace shelf creation and rendering conditions in the source.
+- [ ] Fix the production-only shelf visibility failure.
+- [ ] Rebuild, push, redeploy, verify production, and save a checkpoint.
