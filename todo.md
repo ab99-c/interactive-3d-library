@@ -323,3 +323,10 @@
 - [x] Adjust desktop visual composition to match the supplied reference.
 - [x] Keep mobile layout and physical book interactions unchanged.
 - [x] Run checks and verify both responsive layouts before checkpointing.
+
+## Vercel shelves missing
+
+- [ ] Compare the live Vercel deployment with local scene initialization and assets.
+- [ ] Identify and fix the production-only shelves rendering failure.
+- [ ] Rebuild and redeploy the corrected production version.
+- [ ] Verify shelves and books on the live Vercel URL before checkpointing.
