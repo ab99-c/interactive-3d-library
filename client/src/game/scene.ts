@@ -22,19 +22,19 @@ import "@babylonjs/core/Shaders/shadowMap.vertex";
 import "@babylonjs/core/Shaders/shadowMap.fragment";
 type HayyPagesPayload = { pageCount: number; pages: string[] };
 
-const HAYY_PAGES_URL = "/manus-storage/hayy-pages_d0ff7ea1.json";
 const FALLBACK_HAYY_PAGE_COUNT = 387;
+const HAYY_PAGE_FALLBACKS = [
+  "ذكر سلفنا الصالح أن حي بن يقظان نشأ في جزيرة منفردة، فتأمل العالم من حوله بعين الباحث الهادئ.",
+  "وكان يطلب حقيقة الأشياء بالنظر والتجربة، حتى صار لكل سؤال عنده طريق من التأمل والمعرفة.",
+];
 let hayyPages: readonly string[] = [];
 let hayyPagesPromise: Promise<readonly string[]> | null = null;
 
 const toArabicPageNumber = (value: number) => String(value).replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]);
 const loadHayyPages = () => {
   if (!hayyPagesPromise) {
-    hayyPagesPromise = fetch(HAYY_PAGES_URL, { cache: "force-cache" })
-      .then((response) => {
-        if (!response.ok) throw new Error(`تعذر تحميل صفحات حي بن يقظان: ${response.status}`);
-        return response.json() as Promise<HayyPagesPayload>;
-      })
+    hayyPagesPromise = import("./hayy-pages-data.json")
+      .then((module) => module.default as HayyPagesPayload)
       .then((payload) => {
         if (!Array.isArray(payload.pages) || !payload.pages.length) throw new Error("بيانات صفحات الكتاب غير صالحة");
         hayyPages = payload.pages;
@@ -224,7 +224,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
           pageContext.font = "bold 30px Noto Sans Arabic"; pageContext.fillText("حي بن يقظان", 462, 64);
           pageContext.font = "bold 18px Noto Sans Arabic";
           const pageCount = hayyPages.length || FALLBACK_HAYY_PAGE_COUNT;
-          const text = hayyPages[Math.max(0, Math.min(pageIndex, pageCount - 1))] ?? "يتم تحميل صفحات حي بن يقظان…";
+          const text = hayyPages[Math.max(0, Math.min(pageIndex, pageCount - 1))] ?? HAYY_PAGE_FALLBACKS[Math.min(pageIndex, HAYY_PAGE_FALLBACKS.length - 1)] ?? "حي بن يقظان — صفحات الكتاب قيد التحضير.";
           const lines: string[] = (text.match(/.{1,28}/g) ?? []).slice(0, 8);
           lines.forEach((line: string, lineIndex: number) => pageContext.fillText(line.trim(), 462, 122 + lineIndex * 38));
           pageContext.strokeStyle = "#c49a5a"; pageContext.lineWidth = 2; pageContext.beginPath(); pageContext.moveTo(52, 420); pageContext.lineTo(460, 420); pageContext.stroke();

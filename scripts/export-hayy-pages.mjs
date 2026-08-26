@@ -28,7 +28,7 @@ for (const word of words) {
 }
 if (current) pages.push(current);
 
-const outputPath = process.env.HAYY_PAGES_OUTPUT ?? "/home/ubuntu/webdev-static-assets/hayy-pages.json";
+const outputPath = process.env.HAYY_PAGES_OUTPUT ?? "client/src/game/hayy-pages-data.json";
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, JSON.stringify({ pageCount: pages.length, pages }));
 console.log(`Exported ${pages.length} pages / ${body.length} characters to ${outputPath}`);
