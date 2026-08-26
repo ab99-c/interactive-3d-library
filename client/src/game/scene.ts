@@ -37,7 +37,7 @@ const BOOK_FORMATS = [
   { name: "Notebook", width: 0.20, height: 0.48, depth: 0.14 },
 ];
 
-const BOOK_LEATHER_TEXTURE = "/manus-storage/arabic-leather-book-cover-texture_f389a004.png";
+const BOOK_LEATHER_TEXTURE = "/manus-storage/arabic-leather-book-cover-texture_9c54e343.webp";
 
 const COLORS = {
   walnut: new Color3(0.18, 0.09, 0.045),
@@ -390,7 +390,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   addShelf(scene, 1, 5.8, -5.2, 0, woodLight, olive, brass, shadow, titleMaterials);
   addShelf(scene, 2, -5.8, 1.2, 0, woodLight, olive, brass, shadow, titleMaterials);
   addShelf(scene, 3, 5.8, 1.2, 0, woodLight, olive, brass, shadow, titleMaterials);
-  addShelf(scene, 4, 0, -10.2, Math.PI / 2, woodLight, olive, brass, shadow, titleMaterials);
+  // Stage the distant back wall after the player-facing shelves are ready, keeping first paint responsive on mobile.
+  const progressiveLoadTimer = window.setTimeout(() => {
+    if (!scene.isDisposed) addShelf(scene, 4, 0, -10.2, Math.PI / 2, woodLight, olive, brass, shadow, titleMaterials);
+  }, 220);
 
   const table = box(scene, "reading-table", { width: 4.8, height: 0.26, depth: 2.2 }, new Vector3(0, 2, 0), woodLight);
   shadow.addShadowCaster(table);
@@ -696,7 +699,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
   }
 
-  const dispose = () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
+  const dispose = () => { window.clearTimeout(progressiveLoadTimer); window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
   const setTouchMove = (x: number, y: number) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, y)); };
   return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, turnActivePage, hasActiveBook, getBookScreenRects, setTouchMove };
 }

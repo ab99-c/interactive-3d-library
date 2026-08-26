@@ -351,3 +351,10 @@
 - [x] Reduce avoidable initial work and defer non-critical scene details.
 - [x] Optimize texture and page-content loading without breaking visual quality.
 - [x] Rebuild, verify desktop/mobile responsiveness, and checkpoint the result.
+
+## Performance upgrades 1-2-3
+
+- [ ] Compress and resize heavy leather and wood textures while preserving visual clarity.
+- [ ] Add progressive loading for library areas or distant detail.
+- [ ] Add a lightweight Arabic loading screen during Babylon initialization.
+- [ ] Rebuild, verify desktop/mobile interactions, and checkpoint the upgrade.
