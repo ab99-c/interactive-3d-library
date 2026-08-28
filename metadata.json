@@ -1,0 +1,6 @@
+{
+  "name": "Interactive 3D Library",
+  "description": "An interactive 3D quiet study hall and library experience with 3D books and scene navigation powered by Babylon.js and React.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
