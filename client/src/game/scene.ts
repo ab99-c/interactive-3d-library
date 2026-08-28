@@ -253,7 +253,13 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
     ...[0.55, 1.55, 2.55, 3.55].map((y) => box(scene, "shelf-board", { width: 4.35, height: 0.16, depth: 1.12 }, new Vector3(0, y, 0), wood)),
     box(scene, "shelf-marker", { width: 0.7, height: 0.28, depth: 0.05 }, new Vector3(0, 4.25, -0.62), olive, false),
   ];
-  parts.forEach((part) => { part.parent = root; shadow.addShadowCaster(part); });
+  // One simple collision volume avoids snagging on individual boards while keeping the shelf bank solid.
+  const shelfCollider = box(scene, "shelf-collider", { width: 4.58, height: 4.72, depth: 1.28 }, new Vector3(0, 2.35, 0), wood);
+  shelfCollider.parent = root;
+  shelfCollider.isVisible = false;
+  shelfCollider.isPickable = false;
+  shelfCollider.receiveShadows = false;
+  parts.forEach((part) => { part.parent = root; part.checkCollisions = false; shadow.addShadowCaster(part); });
       const bookColors = [new Color3(0.34, 0.075, 0.045), new Color3(0.24, 0.075, 0.035), new Color3(0.32, 0.11, 0.055), new Color3(0.075, 0.17, 0.12), new Color3(0.28, 0.055, 0.075)];
       [0.72, 1.72, 2.72, 3.72].forEach((y, row) => {
     for (let i = 0; i < 14; i += 1) {
@@ -449,16 +455,17 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   canvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
   const hands = createFirstPersonHands(scene, camera);
   let movementAmount = 0;
+  let isRunning = false;
   let handMotionPhase = 0;
   let handInteraction = 0;
   let handInteractionTarget = 0;
   const handMotionObserver = scene.onBeforeRenderObservable.add(() => {
     const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
     const walkBlend = movementAmount;
-    handMotionPhase += deltaSeconds * (2.2 + walkBlend * 9.5);
+    handMotionPhase += deltaSeconds * (2.2 + walkBlend * (isRunning ? 12.5 : 9.5));
     handInteraction += (handInteractionTarget - handInteraction) * Math.min(1, deltaSeconds * 9);
-    const bob = Math.abs(Math.sin(handMotionPhase)) * 0.028 * walkBlend;
-    const sway = Math.sin(handMotionPhase * 0.5) * 0.024 * walkBlend;
+    const bob = Math.abs(Math.sin(handMotionPhase)) * 0.028 * walkBlend * (isRunning ? 1.22 : 1);
+    const sway = Math.sin(handMotionPhase * 0.5) * 0.024 * walkBlend * (isRunning ? 1.16 : 1);
     const reach = handInteraction;
     hands.left.position.x = -0.42 - reach * 0.11 + sway;
     hands.left.position.y = -0.38 + bob + reach * 0.08;
@@ -473,6 +480,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     hands.right.rotation.y = 0.08 + reach * 0.12;
     hands.right.rotation.z = 0.11 + sway * 0.75;
   });
+  const movementVelocity = new Vector3(0, 0, 0);
   scene.onBeforeRenderObservable.add(() => {
     let moveX = touchMove.x;
     let moveZ = touchMove.z;
@@ -481,10 +489,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     if (pressedKeys.has("a") || pressedKeys.has("arrowleft")) moveX -= 1;
     if (pressedKeys.has("d") || pressedKeys.has("arrowright")) moveX += 1;
     const length = Math.hypot(moveX, moveZ);
-    const targetMovement = Math.min(1, length);
     const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
-    movementAmount += (targetMovement - movementAmount) * Math.min(1, deltaSeconds * 12);
-    if (length < 0.001) return;
+    const hasMovementInput = length >= 0.001;
     if (length > 1) { moveX /= length; moveZ /= length; }
     const forward = camera.getDirection(Vector3.Forward());
     forward.y = 0;
@@ -492,8 +498,17 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const right = camera.getDirection(Vector3.Right());
     right.y = 0;
     if (right.lengthSquared() > 0.001) right.normalize();
-    camera.cameraDirection.addInPlace(forward.scale(moveZ * camera.speed));
-    camera.cameraDirection.addInPlace(right.scale(moveX * camera.speed));
+    isRunning = hasMovementInput && (pressedKeys.has("shift") || Math.hypot(touchMove.x, touchMove.z) > 0.84);
+    const walkSpeed = 2.7;
+    const targetSpeed = hasMovementInput ? (isRunning ? 4.15 : walkSpeed) : 0;
+    const desiredVelocity = hasMovementInput ? forward.scale(moveZ * targetSpeed).addInPlace(right.scale(moveX * targetSpeed)) : Vector3.Zero();
+    const response = Math.min(1, deltaSeconds * (hasMovementInput ? 13 : 17));
+    movementVelocity.x += (desiredVelocity.x - movementVelocity.x) * response;
+    movementVelocity.z += (desiredVelocity.z - movementVelocity.z) * response;
+    movementAmount += (Math.min(1, movementVelocity.length() / walkSpeed) - movementAmount) * Math.min(1, deltaSeconds * 12);
+    if (movementVelocity.lengthSquared() > 0.000001) camera.cameraDirection.addInPlace(movementVelocity.scale(deltaSeconds));
+    const targetFov = isRunning ? 0.82 : 0.78;
+    camera.fov += (targetFov - camera.fov) * Math.min(1, deltaSeconds * 7);
   });
   // Keep every control scheme inside the playable library floor, including the mobile joystick.
   const roomBounds = { minX: -10.3, maxX: 10.3, minY: 1.15, maxY: 4.7, minZ: -11.9, maxZ: 10.2 };
@@ -563,9 +578,13 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
   });
 
-  const table = box(scene, "reading-table", { width: 4.8, height: 0.26, depth: 2.2 }, new Vector3(0, 2, 0), woodLight);
+  const table = box(scene, "reading-table", { width: 4.8, height: 0.26, depth: 2.2 }, new Vector3(0, 2, 0), woodLight, false);
   shadow.addShadowCaster(table);
-  [-1.8, 1.8].forEach((x) => [-0.72, 0.72].forEach((z) => box(scene, "table-leg", { width: 0.22, height: 2, depth: 0.22 }, new Vector3(x, 1, z), woodLight)));
+  [-1.8, 1.8].forEach((x) => [-0.72, 0.72].forEach((z) => box(scene, "table-leg", { width: 0.22, height: 2, depth: 0.22 }, new Vector3(x, 1, z), woodLight, false)));
+  const tableCollider = box(scene, "reading-table-collider", { width: 4.95, height: 2.05, depth: 2.35 }, new Vector3(0, 1.02, 0), woodLight);
+  tableCollider.isVisible = false;
+  tableCollider.isPickable = false;
+  tableCollider.receiveShadows = false;
   box(scene, "catalog", { width: 1.1, height: 0.13, depth: 0.75 }, new Vector3(0, 2.2, 0), ivory, false);
   const tableLamp = new PointLight("reading-lamp", new Vector3(0, 3.3, 0), scene);
   tableLamp.diffuse = COLORS.brass; tableLamp.intensity = 1.2; tableLamp.range = 6;
@@ -833,7 +852,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   canvas.addEventListener("click", onCanvasClick);
   const onKeyDown = (event: KeyboardEvent) => {
     const key = event.key.toLowerCase();
-    if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
+    if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "shift"].includes(key)) {
       pressedKeys.add(key);
       event.preventDefault();
       return;
