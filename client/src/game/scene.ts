@@ -25,6 +25,7 @@ import "@babylonjs/core/Shaders/shadowMap.fragment";
 type HayyPagesPayload = { pageCount: number; pages: string[] };
 
 const FALLBACK_HAYY_PAGE_COUNT = 387;
+const HAYY_PAGE_STORAGE_KEY = "quiet-study-hall:hayy-page-index";
 const HAYY_PAGE_FALLBACKS = [
   "ذكر سلفنا الصالح أن حي بن يقظان نشأ في جزيرة منفردة، فتأمل العالم من حوله بعين الباحث الهادئ.",
   "وكان يطلب حقيقة الأشياء بالنظر والتجربة، حتى صار لكل سؤال عنده طريق من التأمل والمعرفة.",
@@ -33,6 +34,26 @@ let hayyPages: readonly string[] = [];
 let hayyPagesPromise: Promise<readonly string[]> | null = null;
 
 const toArabicPageNumber = (value: number) => String(value).replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]);
+const clampSpreadPageIndex = (value: number, pageCount: number) => {
+  const maxSpreadStart = Math.max(0, pageCount - 2);
+  const clamped = Math.max(0, Math.min(Math.floor(value), maxSpreadStart));
+  return clamped - (clamped % 2);
+};
+const readSavedPageIndex = (pageCount: number) => {
+  try {
+    const stored = Number.parseInt(window.localStorage.getItem(HAYY_PAGE_STORAGE_KEY) ?? "0", 10);
+    return clampSpreadPageIndex(Number.isFinite(stored) ? stored : 0, pageCount);
+  } catch {
+    return 0;
+  }
+};
+const savePageIndex = (pageIndex: number) => {
+  try {
+    window.localStorage.setItem(HAYY_PAGE_STORAGE_KEY, String(pageIndex));
+  } catch {
+    // Reading remains available when storage is disabled by the browser.
+  }
+};
 const loadHayyPages = () => {
   if (!hayyPagesPromise) {
     hayyPagesPromise = import("./hayy-pages-data.json")
@@ -305,11 +326,17 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
           pageContext.strokeStyle = "#9a6b35"; pageContext.lineWidth = 7; pageContext.strokeRect(16, 16, 480, 480);
           pageContext.direction = "rtl"; pageContext.textAlign = "right"; pageContext.fillStyle = "#3a2014";
           pageContext.font = "bold 30px Noto Sans Arabic"; pageContext.fillText("حي بن يقظان", 462, 64);
+          pageContext.fillStyle = "#745032"; pageContext.font = "500 13px Noto Sans Arabic"; pageContext.fillText("أبو بكر ابن طفيل — نص من الملك العام", 462, 90);
           pageContext.font = "bold 18px Noto Sans Arabic";
           const pageCount = hayyPages.length || FALLBACK_HAYY_PAGE_COUNT;
           const text = hayyPages[Math.max(0, Math.min(pageIndex, pageCount - 1))] ?? HAYY_PAGE_FALLBACKS[Math.min(pageIndex, HAYY_PAGE_FALLBACKS.length - 1)] ?? "حي بن يقظان — صفحات الكتاب قيد التحضير.";
           const lines: string[] = (text.match(/.{1,28}/g) ?? []).slice(0, 8);
-          lines.forEach((line: string, lineIndex: number) => pageContext.fillText(line.trim(), 462, 122 + lineIndex * 38));
+          lines.forEach((line: string, lineIndex: number) => pageContext.fillText(line.trim(), 462, 138 + lineIndex * 34));
+          if (!hayyPages.length) {
+            pageContext.fillStyle = "#8e6b43"; pageContext.font = "500 12px Noto Sans Arabic";
+            pageContext.fillText("يجري تجهيز بقية صفحات الكتاب…", 462, 404);
+            pageContext.fillStyle = "#3a2014";
+          }
           pageContext.strokeStyle = "#c49a5a"; pageContext.lineWidth = 2; pageContext.beginPath(); pageContext.moveTo(52, 420); pageContext.lineTo(460, 420); pageContext.stroke();
           pageContext.textAlign = "center"; pageContext.font = "bold 23px serif"; pageContext.fillText(toArabicPageNumber(pageIndex + 1), 256, 466);
           // Babylon's visible page face mirrors this UV direction; flip only the texture, not the RTL text layout.
@@ -379,6 +406,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     performanceMode = mode;
     engine.setHardwareScalingLevel(mode === "light" ? 1.35 : 1);
     engine.resize();
+    camera.fov = mode === "light" ? 0.92 : 0.78;
     scene.skipPointerMovePicking = mode === "light";
     const shadowMap = shadow.getShadowMap();
     if (shadowMap) shadowMap.refreshRate = mode === "light" ? 4 : 1;
@@ -507,7 +535,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     movementVelocity.z += (desiredVelocity.z - movementVelocity.z) * response;
     movementAmount += (Math.min(1, movementVelocity.length() / walkSpeed) - movementAmount) * Math.min(1, deltaSeconds * 12);
     if (movementVelocity.lengthSquared() > 0.000001) camera.cameraDirection.addInPlace(movementVelocity.scale(deltaSeconds));
-    const targetFov = isRunning ? 0.82 : 0.78;
+    const targetFov = performanceMode === "light" ? (isRunning ? 0.96 : 0.92) : (isRunning ? 0.82 : 0.78);
     camera.fov += (targetFov - camera.fov) * Math.min(1, deltaSeconds * 7);
   });
   // Keep every control scheme inside the playable library floor, including the mobile joystick.
@@ -561,6 +589,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const progressiveLoadTimer = window.setTimeout(() => {
     if (!scene.isDisposed) addTrackedShelf(4, 0, -10.2, Math.PI / 2);
   }, 220);
+  // Keep the 174 KB literary text out of the initial scene chunk while warming it shortly after the room appears.
+  const pagePreloadTimer = window.setTimeout(() => {
+    void loadHayyPages().catch(() => undefined);
+  }, 900);
   let lastDetailUpdate = 0;
   scene.onBeforeRenderObservable.add(() => {
     const now = performance.now();
@@ -662,11 +694,12 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const closedCoverParts = parts.filter((part) => part.metadata?.closedCover);
     const pageState = parts[0]?.metadata?.pageState;
     if (pageState) {
-      pageState.pageIndex = 0;
-      pageState.pageRenderers.left?.(0);
-      pageState.pageRenderers.right?.(1);
+      pageState.pageIndex = readSavedPageIndex(hayyPages.length || FALLBACK_HAYY_PAGE_COUNT);
+      pageState.pageRenderers.left?.(pageState.pageIndex);
+      pageState.pageRenderers.right?.(pageState.pageIndex + 1);
       void loadHayyPages().then((loadedPages) => {
         pageState.pageCount = loadedPages.length;
+        pageState.pageIndex = clampSpreadPageIndex(pageState.pageIndex, loadedPages.length);
         if (activeBookParts === parts) {
           pageState.pageRenderers.left?.(pageState.pageIndex);
           pageState.pageRenderers.right?.(pageState.pageIndex + 1);
@@ -734,6 +767,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         scene.onBeforeRenderObservable.remove(activeTurnObserver);
         activeTurnObserver = null;
         pageState.pageIndex = nextPageIndex;
+        savePageIndex(nextPageIndex);
         pageState.pageRenderers.left?.(nextPageIndex);
         pageState.pageRenderers.right?.(nextPageIndex + 1);
         handInteractionTarget = 0.42;
@@ -904,17 +938,35 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const demo = new URLSearchParams(window.location.search).has("demo");
   if (demo) {
     let t = 0;
+    let demoBookOpened = false;
     scene.onBeforeRenderObservable.add(() => {
       t += engine.getDeltaTime() / 1000;
-      camera.position.x = Math.sin(t * 0.16) * 4.2;
-      camera.position.z = 7.5 - t * 0.12;
-      camera.rotation.y = Math.sin(t * 0.16) * 0.24;
-      camera.rotation.x = -0.04;
-      if (camera.position.z < -6) { camera.position.z = 7.5; t = 0; }
+      if (!demoBookOpened) {
+        camera.position.x = Math.sin(t * 0.16) * 4.2;
+        camera.position.z = 7.5 - t * 0.12;
+        camera.rotation.y = Math.PI + Math.sin(t * 0.16) * 0.24;
+        camera.rotation.x = -0.04;
+        if (t >= 0.08) demoBookOpened = openNearestBook();
+        return;
+      }
+      const readingPages = activeBookParts?.filter((part) => part.metadata?.readingPage && part.isVisible) ?? [];
+      if (readingPages.length >= 2 && t >= 0.9) {
+        const leftPage = readingPages[0].getAbsolutePosition();
+        const rightPage = readingPages[1].getAbsolutePosition();
+        const readingTarget = Vector3.Center(leftPage, rightPage);
+        // Open-page planes face the positive Z side; use that exact face for a readable deterministic demo view.
+        const readingDistance = window.matchMedia("(max-width: 720px)").matches ? 2.25 : 1.45;
+        const readingPosition = readingTarget.add(new Vector3(0, 0, readingDistance));
+        camera.position = Vector3.Lerp(camera.position, readingPosition, Math.min(1, engine.getDeltaTime() / 1000 * 6));
+        camera.cameraDirection.copyFromFloats(0, 0, 0);
+        camera.setTarget(readingTarget);
+      }
     });
   }
 
-  const dispose = () => { window.clearTimeout(progressiveLoadTimer); scene.onBeforeRenderObservable.remove(handMotionObserver); hands.dispose(); window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
+  const dispose = () => { window.clearTimeout(progressiveLoadTimer); window.clearTimeout(pagePreloadTimer); scene.onBeforeRenderObservable.remove(handMotionObserver); hands.dispose(); window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
   const setTouchMove = (x: number, y: number) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, y)); };
+  // Resolve scene creation only after the initial textures and shaders are ready, so the warm entry card never hands off to an empty black frame.
+  await scene.whenReadyAsync();
   return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, turnActivePage, hasActiveBook, getBookScreenRects, setTouchMove, setPerformanceMode: applyPerformanceMode };
 }
