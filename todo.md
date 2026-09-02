@@ -391,3 +391,9 @@
 - [x] تطبيق تصادمات خفيفة مع الرفوف والطاولة مع الحفاظ على الوصول للكتب.
 - [x] اختبار الحاسوب والهاتف وربط حركة اليدين بالحركة الجديدة.
 - [ ] تشغيل pnpm check وpnpm build ثم commit وpush والتحقق من Vercel قبل التسليم.
+
+## حقوق الملكية والنسبة
+
+- [x] إضافة LICENSE باسم Abdel Aziz بصيغة All Rights Reserved.
+- [x] إضافة إشعارات الحقوق إلى README ووسوم HTML وواجهة المكتبة وconsole.
+- [ ] تشغيل pnpm check وpnpm build ثم commit وpush والتحقق من Vercel قبل التسليم.

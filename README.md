@@ -1,5 +1,7 @@
 # Quiet Study Hall — 3D Library
 
+© 2026 Abdel Aziz. All Rights Reserved. See [LICENSE](./LICENSE) — this is proprietary software; no reuse or redistribution is permitted without written permission.
+
 تجربة مكتبة 3D تفاعلية بحال لعبة، مبنية بــ React وBabylon.js. اللاعب يقدر يتحرك داخل القاعة باستعمال `W A S D` أو الأسهم، ينظر بالماوس، وينقر على الكتب باش يفتح بطاقة معلومات قصيرة.
 
 ## التشغيل المحلي

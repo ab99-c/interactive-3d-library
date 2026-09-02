@@ -145,6 +145,7 @@ export default function GameCanvas() {
       {started && <div className="book-hotspots" aria-label="كتب قابلة للتفاعل">{bookRects.map((rect) => <button key={rect.meshName} className="book-hotspot" style={{ left: rect.x - rect.width / 2, top: rect.y - rect.height / 2, width: rect.width, height: rect.height }} aria-label={`فتح ${rect.title}`} title={rect.title} onClick={() => { setShowHelp(false); openBookByMeshNameRef.current(rect.meshName); }}><span>{rect.title}</span></button>)}</div>}
       {showHelp && <section className="welcome-card"><div className="eyebrow">غرفة للفضوليين</div><h1>اختر رفاً،<br /><em>ودع المكان يروي حكايته.</em></h1><p>تجوّل بهدوء بين الرفوف. كل كتاب يقود إلى حكاية خفية في هذه القاعة.</p><div className="welcome-actions"><button className="enter-button" onClick={() => setShowHelp(false)}>ادخل إلى المكتبة <span>↗</span></button><button className="enter-button sample-book-button" onClick={() => { setShowHelp(false); window.setTimeout(() => openNearestBookRef.current(), 80); }}>افتح كتاباً مقترحاً <span>↗</span></button></div></section>}
       <div className="corner-note">المجلد 01<br /><span>أرشيف الاكتشافات الصغيرة</span></div>
+      <div className="copyright-note">© {new Date().getFullYear()} Abdel Aziz — جميع الحقوق محفوظة<br /><span>All Rights Reserved. Unauthorized copying, deployment, or reuse of this work or its source code is prohibited.</span></div>
     </main>
   );
 }
