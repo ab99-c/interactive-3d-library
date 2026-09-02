@@ -417,4 +417,4 @@
 
 - [x] مراجعة إعداد outputDirectory في Vercel ومطابقته مع مجلد بناء Vite الفعلي.
 - [x] تصحيح إعداد النشر وإعادة تشغيل pnpm check وpnpm build محلياً.
-- [ ] حفظ commit الإصلاح ورفعه إلى GitHub ثم التحقق من deployment وHTTP 200 في Vercel.
+- [x] حفظ commit الإصلاح ورفعه إلى GitHub ثم التحقق من deployment وHTTP 200 في Vercel.
