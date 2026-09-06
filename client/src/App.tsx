@@ -4,17 +4,5 @@ import "./orientation.css";
 import "./library-polish.css";
 
 export default function App() {
-  return (
-    <>
-      <GameCanvas />
-      <div className="orientation-lock" aria-live="polite">
-        <div className="orientation-lock-card">
-          <div className="orientation-lock-icon" aria-hidden="true" />
-          <strong>أدر الهاتف بالعرض</strong>
-          <span>المكتبة ثلاثية الأبعاد مصممة لتملأ شاشة الهاتف في الوضع الأفقي.</span>
-          <small>↻ ثم استمتع باستكشاف المكتبة</small>
-        </div>
-      </div>
-    </>
-  );
+  return <GameCanvas />;
 }
