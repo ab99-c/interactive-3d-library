@@ -1,103 +1,50 @@
 /* Mobile orientation: keep the 3D library full-screen and guide portrait users to landscape. */
-.orientation-lock {
-  display: none;
-}
+.orientation-lock { display: none; }
 
 @media (max-width: 720px) and (orientation: portrait) {
   .orientation-lock {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    display: grid;
-    place-items: center;
-    padding: 24px;
-    background: #090706;
-    color: #f4ead5;
-    text-align: center;
-    direction: rtl;
-    font-family: 'Noto Sans Arabic', sans-serif;
+    position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center;
+    padding: 24px; background: #090706; color: #f4ead5; text-align: center;
+    direction: rtl; font-family: 'Noto Sans Arabic', sans-serif;
   }
-
   .orientation-lock-card {
-    width: min(92vw, 390px);
-    padding: 28px 24px;
-    border: 1px solid rgba(201,148,82,.55);
-    background: rgba(20,12,7,.94);
-    box-shadow: 0 20px 70px rgba(0,0,0,.55);
+    width: min(92vw, 390px); padding: 28px 24px; border: 1px solid rgba(201,148,82,.55);
+    background: rgba(20,12,7,.94); box-shadow: 0 20px 70px rgba(0,0,0,.55);
   }
-
   .orientation-lock-icon {
-    width: 74px;
-    height: 50px;
-    margin: 0 auto 20px;
-    border: 2px solid #c99452;
-    border-radius: 7px;
-    position: relative;
-    transform: rotate(90deg);
+    width: 74px; height: 50px; margin: 0 auto 20px; border: 2px solid #c99452;
+    border-radius: 7px; position: relative; transform: rotate(90deg);
   }
-
-  .orientation-lock-icon::after {
-    content: '';
-    position: absolute;
-    inset: 7px;
-    border: 1px solid rgba(216,180,124,.45);
-    border-radius: 3px;
-  }
-
-  .orientation-lock-card strong {
-    display: block;
-    font-family: 'Noto Serif Arabic', serif;
-    font-size: 23px;
-    font-weight: 500;
-    margin-bottom: 9px;
-  }
-
-  .orientation-lock-card span {
-    display: block;
-    color: rgba(244,234,213,.68);
-    font-size: 12px;
-    line-height: 1.8;
-  }
-
-  .orientation-lock-card small {
-    display: block;
-    margin-top: 16px;
-    color: #d8b47c;
-    font-size: 10px;
-    letter-spacing: .08em;
-  }
+  .orientation-lock-icon::after { content: ''; position: absolute; inset: 7px; border: 1px solid rgba(216,180,124,.45); border-radius: 3px; }
+  .orientation-lock-card strong { display: block; font-family: 'Noto Serif Arabic', serif; font-size: 23px; font-weight: 500; margin-bottom: 9px; }
+  .orientation-lock-card span { display: block; color: rgba(244,234,213,.68); font-size: 12px; line-height: 1.8; }
+  .orientation-lock-card small { display: block; margin-top: 16px; color: #d8b47c; font-size: 10px; letter-spacing: .08em; }
 }
 
 @media (max-width: 720px) and (orientation: landscape) {
-  .library-game,
-  .game-canvas {
-    width: 100vw;
-    height: 100dvh;
-    min-height: 100dvh;
-  }
+  .library-game, .game-canvas { width: 100vw; height: 100dvh; min-height: 100dvh; }
+  .hud-topline { top: max(8px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); }
+  .hud-bottom { left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); }
+  .welcome-card { top: 50%; right: 4vw; width: min(360px, 43vw); max-height: 76dvh; overflow: auto; padding: 20px 22px 23px; }
+  .welcome-card h1 { font-size: clamp(30px, 5vw, 48px); margin: 10px 0 12px; }
+  .welcome-card p { font-size: 11px; margin-bottom: 16px; }
+  .loading-overlay { width: 100vw; height: 100dvh; }
+  .loading-copy { padding: 20px 28px; }
+  .loading-overlay strong { font-size: 20px; }
+  .loading-overlay::after { inset: auto 7vw 8vh; height: 15vh; }
+  .mobile-controls { display: block; left: max(14px, env(safe-area-inset-left)); bottom: max(66px, calc(env(safe-area-inset-bottom) + 48px)); }
+  .touch-joystick { width: 96px; height: 96px; }
+  .touch-joystick-knob { width: 39px; height: 39px; }
+  .controls { display: none; }
+  .hud-actions { gap: 6px; max-width: 55vw; }
+  .inspect-button, .help-button, .return-button, .page-turn-button { padding: 8px 9px; font-size: 8px; }
+  .inspect-button span, .return-button span, .page-turn-button span { margin-left: 5px; font-size: 11px; }
+  .corner-note, .copyright-note { display: none; }
+  .book-picker { top: 55px; right: 10px; left: 10px; width: auto; max-width: 430px; }
+}
 
-  .hud-topline {
-    top: max(10px, env(safe-area-inset-top));
-    left: max(14px, env(safe-area-inset-left));
-    right: max(14px, env(safe-area-inset-right));
-  }
-
-  .hud-bottom {
-    left: max(14px, env(safe-area-inset-left));
-    right: max(14px, env(safe-area-inset-right));
-    bottom: max(10px, env(safe-area-inset-bottom));
-  }
-
-  .welcome-card {
-    top: 50%;
-    right: 5vw;
-    width: min(390px, 45vw);
-    max-height: 78dvh;
-    overflow: auto;
-  }
-
-  .loading-overlay {
-    width: 100vw;
-    height: 100dvh;
-  }
+@media (max-height: 430px) and (orientation: landscape) {
+  .hud-topline { transform: scale(.88); transform-origin: top right; }
+  .hud-bottom { transform: scale(.88); transform-origin: bottom right; }
+  .mobile-controls { transform: scale(.82); transform-origin: bottom left; }
 }
