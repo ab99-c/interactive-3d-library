@@ -1,46 +1,103 @@
-/* Mobile orientation: keep the 3D library full-screen and guide portrait users to landscape. */
-.orientation-lock { display: none; }
+/* Responsive mobile layout: the 3D library remains usable in portrait and landscape. */
+.orientation-lock { display: none !important; }
 
-@media (max-width: 720px) and (orientation: portrait) {
-  .orientation-lock {
-    position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center;
-    padding: 24px; background: #090706; color: #f4ead5; text-align: center;
-    direction: rtl; font-family: 'Noto Sans Arabic', sans-serif;
+@media (max-width: 720px) {
+  .library-game, .game-canvas {
+    width: 100vw;
+    height: 100dvh;
+    min-height: 100dvh;
   }
-  .orientation-lock-card {
-    width: min(92vw, 390px); padding: 28px 24px; border: 1px solid rgba(201,148,82,.55);
-    background: rgba(20,12,7,.94); box-shadow: 0 20px 70px rgba(0,0,0,.55);
+
+  .hud-topline {
+    top: max(8px, env(safe-area-inset-top));
+    left: max(10px, env(safe-area-inset-left));
+    right: max(10px, env(safe-area-inset-right));
   }
-  .orientation-lock-icon {
-    width: 74px; height: 50px; margin: 0 auto 20px; border: 2px solid #c99452;
-    border-radius: 7px; position: relative; transform: rotate(90deg);
+
+  .hud-bottom {
+    left: max(10px, env(safe-area-inset-left));
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
   }
-  .orientation-lock-icon::after { content: ''; position: absolute; inset: 7px; border: 1px solid rgba(216,180,124,.45); border-radius: 3px; }
-  .orientation-lock-card strong { display: block; font-family: 'Noto Serif Arabic', serif; font-size: 23px; font-weight: 500; margin-bottom: 9px; }
-  .orientation-lock-card span { display: block; color: rgba(244,234,213,.68); font-size: 12px; line-height: 1.8; }
-  .orientation-lock-card small { display: block; margin-top: 16px; color: #d8b47c; font-size: 10px; letter-spacing: .08em; }
+
+  .mobile-controls {
+    display: block;
+    left: max(12px, env(safe-area-inset-left));
+    bottom: max(58px, calc(env(safe-area-inset-bottom) + 48px));
+  }
+
+  .touch-joystick {
+    width: 88px;
+    height: 88px;
+  }
+
+  .touch-joystick-knob {
+    width: 36px;
+    height: 36px;
+  }
+
+  .controls,
+  .corner-note,
+  .copyright-note,
+  .crosshair {
+    display: none;
+  }
+
+  .hud-actions {
+    gap: 5px;
+    max-width: 58vw;
+  }
+
+  .inspect-button, .help-button, .return-button, .page-turn-button {
+    min-height: 34px;
+    padding: 7px 8px;
+    font-size: 8px;
+  }
+
+  .inspect-button span, .return-button span, .page-turn-button span {
+    margin-left: 4px;
+    font-size: 10px;
+  }
+
+  .welcome-card {
+    top: 50%;
+    right: 8px;
+    width: min(390px, calc(100vw - 16px));
+    max-height: 78dvh;
+    overflow: auto;
+    padding: 18px 18px 20px;
+  }
+
+  .welcome-card h1 {
+    font-size: clamp(28px, 8vw, 44px);
+    margin: 10px 0 11px;
+  }
+
+  .welcome-card p {
+    font-size: 10px;
+    line-height: 1.8;
+    margin-bottom: 14px;
+  }
+
+  .book-picker {
+    top: max(52px, calc(env(safe-area-inset-top) + 44px));
+    right: 8px;
+    left: 8px;
+    width: auto;
+    max-width: 430px;
+  }
 }
 
-@media (max-width: 720px) and (orientation: landscape) {
-  .library-game, .game-canvas { width: 100vw; height: 100dvh; min-height: 100dvh; }
-  .hud-topline { top: max(8px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); }
-  .hud-bottom { left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); }
-  .welcome-card { top: 50%; right: 4vw; width: min(360px, 43vw); max-height: 76dvh; overflow: auto; padding: 20px 22px 23px; }
-  .welcome-card h1 { font-size: clamp(30px, 5vw, 48px); margin: 10px 0 12px; }
-  .welcome-card p { font-size: 11px; margin-bottom: 16px; }
-  .loading-overlay { width: 100vw; height: 100dvh; }
-  .loading-copy { padding: 20px 28px; }
-  .loading-overlay strong { font-size: 20px; }
-  .loading-overlay::after { inset: auto 7vw 8vh; height: 15vh; }
-  .mobile-controls { display: block; left: max(14px, env(safe-area-inset-left)); bottom: max(66px, calc(env(safe-area-inset-bottom) + 48px)); }
-  .touch-joystick { width: 96px; height: 96px; }
-  .touch-joystick-knob { width: 39px; height: 39px; }
-  .controls { display: none; }
-  .hud-actions { gap: 6px; max-width: 55vw; }
-  .inspect-button, .help-button, .return-button, .page-turn-button { padding: 8px 9px; font-size: 8px; }
-  .inspect-button span, .return-button span, .page-turn-button span { margin-left: 5px; font-size: 11px; }
-  .corner-note, .copyright-note { display: none; }
-  .book-picker { top: 55px; right: 10px; left: 10px; width: auto; max-width: 430px; }
+@media (max-width: 720px) and (orientation: portrait) {
+  .welcome-card {
+    width: min(390px, calc(100vw - 20px));
+    right: 10px;
+    max-height: 70dvh;
+  }
+
+  .mobile-controls {
+    bottom: max(68px, calc(env(safe-area-inset-bottom) + 56px));
+  }
 }
 
 @media (max-height: 430px) and (orientation: landscape) {
