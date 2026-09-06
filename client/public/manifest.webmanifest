@@ -1,0 +1,12 @@
+{
+  "name": "قاعة الدراسة الهادئة — مكتبة ثلاثية الأبعاد",
+  "short_name": "المكتبة 3D",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/?source=pwa",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#090706",
+  "theme_color": "#090706",
+  "description": "مكتبة ثلاثية الأبعاد تفاعلية للتجول بين الرفوف واستكشاف الكتب."
+}
