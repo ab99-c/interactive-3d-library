@@ -72,7 +72,16 @@ const loadHayyPages = () => {
 };
 
 export type PerformanceMode = "cinematic" | "light";
-export type BookInfo = { id: string; title: string; category: string; description: string; spineTitle: string; volume: string };
+export type BookInfo = {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  spineTitle: string;
+  volume: string;
+  author?: string;
+  pages?: string[];
+};
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
 export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; turnActivePage: (direction: "rtl" | "ltr") => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[]; setTouchMove: (x: number, y: number) => void; setPerformanceMode: (mode: PerformanceMode) => void };
 
@@ -87,8 +96,6 @@ const BOOK_FORMATS = [
   { name: "Notebook", width: 0.20, height: 0.48, depth: 0.14 },
 ];
 
-const BOOK_LEATHER_TEXTURE = "/manus-storage/arabic-leather-book-cover-texture_9c54e343.webp";
-
 const COLORS = {
   walnut: new Color3(0.18, 0.09, 0.045),
   walnutLight: new Color3(0.34, 0.18, 0.08),
@@ -99,26 +106,267 @@ const COLORS = {
 };
 
 export const BOOK_CATALOG: BookInfo[] = [
-  { id: "hayy-ibn-yaqdhan", title: "حي بن يقظان", category: "الفلسفة", description: "رحلة فكرية كلاسيكية عن الإنسان والطبيعة والبحث عن الحقيقة.", spineTitle: "حي بن يقظان", volume: "١" },
-  { id: "atlas", title: "Atlas of Quiet Places", category: "الاستكشاف", description: "خرائط لأماكن لا تظهر إلا لمن يمشي ببطء.", spineTitle: "موسوعة السكينة", volume: "٢" },
-  { id: "craft", title: "The Craft of Light", category: "التصميم", description: "ملاحظات عن الضوء، الظل، واللحظة التي يصير فيها المكان ذاكرة.", spineTitle: "صناعة النور", volume: "٣" },
-  { id: "garden", title: "A Garden in Winter", category: "الأدب", description: "حكاية قصيرة عن بذرة خبأها أحدهم بين صفحات كتاب.", spineTitle: "حديقة الشتاء", volume: "٤" },
-  { id: "voices", title: "Voices Between Shelves", category: "المقالات", description: "أصوات القراء، بعد أن يغادر الجميع وتبقى المصابيح مضاءة.", spineTitle: "أصوات الرفوف", volume: "٥" },
+  {
+    id: "ibn-battuta",
+    title: "تحفة النظار في غرائب الأمصار",
+    spineTitle: "رحلة ابن بطوطة",
+    author: "ابن بطوطة الطنجي",
+    category: "الرحلات والتراث",
+    volume: "١",
+    description: "أعظم رحلة استكشافية جغرافية في العصر الوسيط انطلقت من طنجة وجابت العالم.",
+    pages: [
+      "خرجتُ من طنجة مسقط رأسي معتمداً حج بيت الله الحرام وزيارة قبر الرسول عليه الصلاة والسلام، منفرداً عن رفيق آنس به.",
+      "وكان خروجي من طنجة في يوم الخميس الثاني من رجب سنة خمس وعشرين وسبعمائة، ولم أبلغ الثانية والعشرين من عمري.",
+      "ثم سرت إلى مدينة فاس حرسها الله، فدخلت أزقتها العتيقة وجوامعها الكبرى، ورأيت من حسن عمرانها وجمال أسواقها ما يبهج النفس.",
+      "وقصدت بلاد المشرق والهند والصين، وكلما حللت بأرض لقيت أهلها بالبشر والمحبة، فكانت الأرض كلها لي وطناً واسعاً.",
+    ],
+  },
+  {
+    id: "ibn-khaldun",
+    title: "مقدمة ابن خلدون",
+    spineTitle: "مقدمة ابن خلدون",
+    author: "عبد الرحمن بن خلدون",
+    category: "العمران والاجتماع",
+    volume: "٢",
+    description: "التأسيس العلمي الأول لعلم الاجتماع البشري وفلسفة التاريخ وحركة الحضارات.",
+    pages: [
+      "إن فن التاريخ من الفنون التي تتداولها الأمم والأجيال، وتشد إليها الركائب، وتسمو إلى معرفته النفوس النبيلة.",
+      "إذ هو في ظاهره لا يزيد على أخبار عن الأيام والدول، وفي باطنه نظر وتحقيق، وتعليل للكائنات ومباديها دقيق.",
+      "واعلم أن الاجتماع الإنساني ضروري؛ فالإنسان مدني بالطبع، ولا بد له من التعاون لسد حاجات معاشه وعمارة الأرض.",
+      "وعلى قدر تماسك العصبية والعدل يزدهر العمران، فإذا تطرق الظلم وانحلت العزائم آذنت الحضارة بالزوال والغروب.",
+    ],
+  },
+  {
+    id: "ibn-rushd",
+    title: "فصل المقال فيما بين الحكمة والشريعة",
+    spineTitle: "فصل المقال",
+    author: "ابن رشد القرطبي",
+    category: "الفلسفة والبرهان",
+    volume: "٣",
+    description: "دفاع عقلاني فلسفي رصين يبرهن على التوافق التام بين الحكمة العقلية والنص الشرعي.",
+    pages: [
+      "فإن الغرض من هذا القول أن نفحص، على جهة النظر، هل النظر في الفلسفة وعلوم المنطق مباح بالشرع أم مأمور به؟",
+      "فنقول: إن كان فعل الفلسفة ليس شيئاً أكثر من النظر في الموجودات واعتبارها، فإن الشرع دعا إلى ذلك وحث عليه.",
+      "فقال تعالى: {فاعتبروا يا أولي الأبصار}، وهذا برهان على وجوب استعمال العقل والنظر في آيات الكون لمعرفة الحق.",
+      "وإذا كانت الحكمة حقاً، والشريعة حقاً، فإن الحق لا يضاد الحق، بل يوافقه ويشهد له بالدليل القاطع.",
+    ],
+  },
+  {
+    id: "ibn-hazm",
+    title: "طوق الحمامة في الألفة والأُلاَّف",
+    spineTitle: "طوق الحمامة",
+    author: "ابن حزم الأندلسي",
+    category: "الأدب والوجدانيات",
+    volume: "٤",
+    description: "رسالة أدبية ونفسية فريدة في تحليل المحبة وطبائع القلوب في الأندلس.",
+    pages: [
+      "الحب - أعزك الله - أوله هزل وآخره جد، دقت معانيه عن أن توصف، فلا تدرك حقيقته إلا بالمعاناة وتأمل أحوال القلوب.",
+      "وقد اختلف الناس في ماهيته، والذي أذهب إليه أنه اتصال بين أجزاء النفوس المقسومة في أصل عنصرها الرفيع.",
+      "وللحب علامات يقفوها الفطن: فأولها إدمان النظر؛ فالعين مرآة النفس المعبرة عن مكنون السرائر ومكامن الصدق.",
+      "وترى المحب إذا دنا ممن يحب أخذته روعة وسكينة، فإن نقاء الود سلطان قاهر يعلو فوق مظاهر التكلف.",
+    ],
+  },
+  {
+    id: "kalila-wa-dimna",
+    title: "كليلة ودمنة",
+    spineTitle: "كليلة ودمنة",
+    author: "عبد الله بن المقفع",
+    category: "الحكم والأمثال",
+    volume: "٥",
+    description: "حكم سياسية وإنسانية خالدة صيغت بأسلوب رمزي ساحر على ألسنة الحيوان والطير.",
+    pages: [
+      "هذا كتاب كليلة ودمنة، وضعه الحكماء أمثالاً نطقوا بها على ألسن البهائم والطير، صيانةً للحكمة واجتذاباً للعقول.",
+      "فينبغي لمن قرأ هذا الكتاب أن يعرف باطن غايته، ولا يقف عند ظاهر حكاياته دون تدبر مغازيها الخفية.",
+      "قال دمنة: لا يستصغرن عاقل شأن أحد، فإن الحبة الصغيرة تنبت شجرة باسقة، وإن الحكمة قد تلتقط من كل موضع.",
+      "وما من عمل أحمد عاقبة ولا أبقى ذكراً من الصدق والوفاء ومشاورة ذوي الألباب في كل نازلة وخطة.",
+    ],
+  },
+  {
+    id: "alf-layla",
+    title: "ألف ليلة وليلة",
+    spineTitle: "ألف ليلة وليلة",
+    author: "روائع التراث الشعبي",
+    category: "الأساطير والقصص",
+    volume: "٦",
+    description: "موسوعة الخيال الإنساني الكبرى والرحلة الليلية المشوقة في حكايات الشرق الساحر.",
+    pages: [
+      "بلغني أيها الملك السعيد، ذو الرأي الرشيد، أن ملكاً كان في سالف الزمان حكيماً عادلاً تحبه الرعية وتطيعه الآفاق.",
+      "وكانت شهرزاد قد قرأت كتب الأوائل وتواريخ الأمم وأخبار الشعراء، وكانت ذات فصاحة وعقل وحكمة نادرة.",
+      "فقالت: إني عازمة على مداواة النفوس بحسن الحديث، وسرد عجائب البلدان وما فيها من عبر وسير.",
+      "وأدرك شهرزاد الصباح، فسكتت عن الكلام المباح، فتشوق الملك لسماع البقية فتركها لليلة القابلة طلباً للحكمة.",
+    ],
+  },
+  {
+    id: "diwan-al-mutanabbi",
+    title: "ديوان المتنبي",
+    spineTitle: "ديوان المتنبي",
+    author: "أبو الطيب المتنبي",
+    category: "الشعر العربي",
+    volume: "٧",
+    description: "روائع شعر الحكمة والفخر والطموح الإنساني الذي شغل الناس وملأ الدنيا.",
+    pages: [
+      "على قدر أهل العزم تأتي العزائمُ ... وتأتي على قدر الكرام المكارمُ\nوتعظم في عين الصغير صغارها ... وتصغر في عين العظيم العظائمُ.",
+      "الخيل والليل والبيداء تعرفني ... والسيف والرمح والقرطاس والقلمُ\nصحبتُ في الفلوات الوحش منفرداً ... حتى تعجب مني القور والأكمُ.",
+      "أعز مكان في الدنى سرج سابحٍ ... وخير جليس في الزمان كتابُ\nوما الدهر إلا من رواة قصائدي ... إذا قلتُ شعراً أصبح الدهر منشداً.",
+      "ذو العقل يشقى في النعيم بعقله ... وأخو الجهالة في الشقاوة ينعمُ\nوإذا كانت النفوس كباراً ... تعبت في مرادها الأجسامُ.",
+    ],
+  },
+  {
+    id: "ibn-sina",
+    title: "القانون في الطب",
+    spineTitle: "القانون في الطب",
+    author: "ابن سينا (الشيخ الرئيس)",
+    category: "الطب والشفاء",
+    volume: "٨",
+    description: "المرجع الطبي العالمي الخالد في تشريح البدن وحفظ الصحة وتدبير العلل.",
+    pages: [
+      "الطب علم يُتعرف منه أحوال بدن الإنسان من جهة ما يصح ويزول عن الصحة، لحفظ الصحة واسترداد العافية.",
+      "وأسباب الصحة والمرض تدور على الهواء، والماكول والمشروب، والعمل والراحة، والنوم وتوازن حركات النفس.",
+      "واعلم أن الغم والهم يورثان علل البدن، كما أن صفاء الروح واعتدال العيش ينعشان القوة ويدفعان السقم.",
+      "والحكيم الحاذق من رعى قوانين الطبيعة، واكتفى بالغذاء والراحة والتدبير اللطيف ما أمكنه ذلك.",
+    ],
+  },
+  {
+    id: "al-manadhir",
+    title: "كتاب المناظر",
+    spineTitle: "كتاب المناظر",
+    author: "الحسن بن الهيثم",
+    category: "البصريات والفيزياء",
+    volume: "٩",
+    description: "ثورة المنهج العلمي التجريبي في دراسة الضوء والعدسات وانعكاسات البصر.",
+    pages: [
+      "إن الشكوك هي طريق اليقين، والباحث عن الحق ليس هو من يقلد السابقين، بل من يتهم ظنه فيهم ويتفحص براهينهم.",
+      "وقد برهنا بالتجربة أن الإبصار يتم بورود أشعة الضوء من الأجسام المضيئة أو المنعكسة إلى العين لا العكس.",
+      "واختبرنا مسار الأشعة في الخطوط المستقيمة عبر الثقوب والبيوت المظلمة، فشاهدنا انطباع الصور الهندسية بدقة.",
+      "فالواجب على ناظر العلوم أن يجعل التجربة والبرهان الرياضي حَكمه الأول ومرشده في كل مسألة.",
+    ],
+  },
+  {
+    id: "al-jabr",
+    title: "كتاب الجبر والمقابلة",
+    spineTitle: "الجبر والمقابلة",
+    author: "محمد بن موسى الخوارزمي",
+    category: "الرياضيات والحساب",
+    volume: "١٠",
+    description: "الكتاب المؤسس لعلم الجبر في العالم، مقدماً حل المعادلات والحسابات الهندسية.",
+    pages: [
+      "ألفتُ من كتاب الجبر والمقابلة كتاباً مختصراً، حاصراً للطيف الحساب وجليله، لما يلزم الناس من الحاجة إليه.",
+      "ووجدت الأعداد التي يحتاج إليها في حساب الجبر ثلاثة أضرب: جذور، وأموال، وعدد مفرد لا ينسب إليها.",
+      "فالجذر كل شيء مضروب في نفسه، والمال ما اجتمع من ضرب الجذر في نفسه، والعدد هو المفرد المجرد.",
+      "وقد جعلنا لكل مسألة برهاناً بالأشكال الهندسية، ليقف المتأمل على علل الحساب ويسهل عليه استخراج المجهول.",
+    ],
+  },
+  {
+    id: "hayy-ibn-yaqdhan",
+    title: "حي بن يقظان",
+    spineTitle: "حي بن يقظان",
+    author: "ابن طفيل الأندلسي",
+    category: "الفلسفة والتأمل",
+    volume: "١١",
+    description: "رحلة فكرية كلاسيكية عن الإنسان والطبيعة والبحث عن الحقيقة بالتجربة والتأمل.",
+    pages: [
+      "ذكر سلفنا الصالح أن حي بن يقظان نشأ في جزيرة منفردة، فتأمل العالم من حوله بعين الباحث المتأمل.",
+      "وكان يطلب حقيقة الأشياء بالنظر والتجربة، حتى صار لكل سؤال عنده طريق من التأمل والمعرفة الصافية.",
+      "وتدرج في معرفة عناصر الطبيعة ونظام الكون، حتى أدرك وحدة الوجود وعظمة الصانع المدبر الحكيم.",
+      "فعاش في أنس الحكمة وسكينة الفكر، شاهداً على أن العقل السليم يهتدي إلى النور بفطرته النقية.",
+    ],
+  },
+  {
+    id: "al-bukhala",
+    title: "كتاب البخلاء",
+    spineTitle: "البخلاء للجاحظ",
+    author: "عمرو بن بحر الجاحظ",
+    category: "الأدب والنوادر",
+    volume: "١٢",
+    description: "تحفة أدبية ساخرة تصور طبائع الناس ونوادرهم الاجتماعية بأسلوب لغوي ساحر.",
+    pages: [
+      "ينبغي لمن قرأ كتابنا هذا أن يعلم أنا لم نودعه إلا ظرف الأخبار، ونوادر الكلام، ولطائف حيل التدبير.",
+      "قال أبو عثمان: ولقد رأيت من مذاهبهم في حفظ المال ما يستجلب الضحك ويشحذ الفطنة والذكاء في آن.",
+      "وكان أحدهم يقول: الدرهم درع المروءة، وحصن الأيام، وذخر المغارم، فلا تضيع منه شيئاً فتكون من النادمين.",
+      "وليس إعجابنا بحيلهم بأعظم من إعجابنا بفصاحة ألسنتهم وحسن دفاعهم عن مذاهبهم بالحجج الطريفة المبتكرة.",
+    ],
+  },
+  {
+    id: "maqamat-al-hariri",
+    title: "مقامات الحريري",
+    spineTitle: "مقامات الحريري",
+    author: "القاسم بن علي الحريري",
+    category: "البلاغة والبيان",
+    volume: "١٣",
+    description: "قمة الفصاحة والبلاغة العربية في سرد مغامرات أبي زيد السروجي اللغوية والقصصية.",
+    pages: [
+      "حدث الحارث بن همام قال: ألممتُ بصنعاء اليمن، وجرابي نفاض، فطفقت أجوب شوارعها كالهائم المستطلع.",
+      "فإذا أنا برجل عذب المنطق، ساحر البيان، قد انثال الناس عليه كالفراش المتهافت على المصباح المنير.",
+      "فأنشأ ينشد أبياتاً في صروف الدهر، تلعب بالألباب وتفيض حكمة وفصاحة لا عهد للمتقدمين بمثلها.",
+      "فعلمت أنه أبو زيد السروجي، صاحب النوادر والفرائد التي لا تنقضي عجائبها على مر العصور.",
+    ],
+  },
+  {
+    id: "suwar-al-kawakib",
+    title: "صور الكواكب الثابتة",
+    spineTitle: "صور الكواكب",
+    author: "عبد الرحمن الصوفي",
+    category: "الفلك والنجوم",
+    volume: "١٤",
+    description: "الأطلس الفلكي المصور البديع لرصد نجوم السماء والأبراج السماوية بدقة متناهية.",
+    pages: [
+      "ذكرنا في هذا الكتاب مواضع الكواكب الثابتة في السماء، وأقدارها وألوانها وصورها على ما حققناه بالرصد والعيان.",
+      "وقد رسمنا لكل كوكبة صورتين: إحداهما كما تُرى في القبة السماوية، والأخرى كما تُرى على الكرة المصنوعة.",
+      "وتتبعنا منازل القمر وأسماء النجوم عند العرب، فبيّنا مواقع الثريا وسهيل والشعرى والعيوق في مساراتها.",
+      "فسبحان من زين السماء بالنجوم الزاهرة، وجعلها معالم يهتدي بها السائرون في ظلمات البر والبحر.",
+    ],
+  },
+  {
+    id: "ikhwan-al-safa",
+    title: "رسائل إخوان الصفا",
+    spineTitle: "إخوان الصفا",
+    author: "جماعة إخوان الصفا",
+    category: "الموسوعات الفلسفية",
+    volume: "١٥",
+    description: "موسوعة العلوم الطبيعية والرياضية والفلسفية الشاملة التي تبحث في انسجام الكون.",
+    pages: [
+      "اعلم يا أخي أن أول درجات الحكمة رياضة الفكر بالعلوم الرياضية، فإن الحساب مدخل إلى الهندسة والنظام.",
+      "ومن الهندسة يرتقي العقل إلى علم الفلك والموسيقى، فيدرك التناغم البديع المبثوث في أرجاء الوجود.",
+      "وقد جعلنا رسائلنا سبيلاً لتنوير النفوس، لترتفع من تدبر المحسوسات إلى استيعاب المعاني الروحية السامية.",
+      "فإن غاية المعرفة هي إشاعة المحبة والتضامن، ونشر الفضيلة والعدل والارتقاء بالإنسان إلى كماله المنشود.",
+    ],
+  },
+  {
+    id: "tawq-al-anwar",
+    title: "أصوات الرفوف وسكينة المكان",
+    spineTitle: "أصوات الرفوف",
+    author: "أرشيف قاعة الدراسة",
+    category: "التأمل والسكينة",
+    volume: "١٦",
+    description: "تأملات هادئة بين خشب الرفوف ونور المصابيح في خبايا المعرفة وأسرار القراءة الهادئة.",
+    pages: [
+      "في هذا الركن الدافئ من المكتبة، حيث يتسلل الضوء النحاسي بهدوء، تتنفس الكتب عبق القرون وتنتظر من يصغي.",
+      "ليس الكتاب مجرد صفحات مصفوفة، بل هو نبض عقول عبرت الزمان، يربط بين قلم خَطَّ في قرطبة وقارئ في قاعتنا اليوم.",
+      "كل رف في هذه القاعة يحمل قبساً من الحكمة الإنسانية، وكل لحظة تأمل توقظ فكرة جديدة في سكون الروح.",
+      "اقرأ بتمهل ودع المكان يروي حكايته؛ فإن أعظم كنز يظفر به الباحث هو صفاء القلب ونور المعرفة المتجدد.",
+    ],
+  },
 ];
 
 function material(scene: Scene, name: string, color: Color3, textureUrl?: string) {
+  const existing = scene.getMaterialByName(name);
+  if (existing instanceof StandardMaterial) return existing;
   const mat = new StandardMaterial(name, scene);
   mat.diffuseColor = color;
   mat.ambientColor = color.scale(0.38);
   mat.emissiveColor = color.scale(0.045);
   mat.specularColor = new Color3(0.12, 0.09, 0.06);
-  if (textureUrl) {
-    const texture = new Texture(textureUrl, scene);
-    texture.uScale = 2;
-    texture.vScale = 2;
-    mat.diffuseTexture = texture;
-    mat.bumpTexture = texture;
-    mat.bumpTexture.level = 0.22;
+  if (textureUrl && !textureUrl.startsWith("/manus-storage")) {
+    try {
+      const texture = new Texture(textureUrl, scene);
+      texture.uScale = 2;
+      texture.vScale = 2;
+      mat.diffuseTexture = texture;
+      mat.bumpTexture = texture;
+      mat.bumpTexture.level = 0.22;
+    } catch {
+      // Fall back gracefully to procedural color
+    }
   }
   return mat;
 }
@@ -142,53 +390,190 @@ type FirstPersonHands = {
 function createFirstPersonHands(scene: Scene, camera: UniversalCamera): FirstPersonHands {
   const root = new TransformNode("first-person-hands", scene);
   root.parent = camera;
-  const skin = material(scene, "hand-skin", new Color3(0.48, 0.25, 0.13));
-  const sleeve = material(scene, "hand-sleeve", COLORS.walnutLight);
+
+  // Realistic human skin tone with warm undertones and soft natural specular
+  const skin = material(scene, "realistic-hand-skin", new Color3(0.80, 0.62, 0.50));
+  skin.specularColor = new Color3(0.18, 0.14, 0.12);
+  skin.ambientColor = new Color3(0.46, 0.28, 0.22);
+
+  // Keratin fingernails
+  const nailMat = material(scene, "realistic-nail-mat", new Color3(0.92, 0.78, 0.70));
+  nailMat.specularColor = new Color3(0.45, 0.40, 0.36);
+
+  // Scholar's midnight robe with gold embroidery cuff
+  const sleeve = material(scene, "scholar-sleeve-cloth", new Color3(0.11, 0.13, 0.19));
+  const goldCuff = material(scene, "scholar-cuff-gold", new Color3(0.85, 0.68, 0.32));
+
   const handParts: Mesh[] = [];
 
   const createHand = (side: -1 | 1, label: string) => {
     const hand = new TransformNode(`hand-${label}`, scene);
     hand.parent = root;
-    hand.position = new Vector3(side * 0.42, -0.38, 0.94);
-    hand.scaling = new Vector3(0.6, 0.6, 0.6);
-    hand.rotation = new Vector3(-0.13, side * 0.08, side * 0.11);
+    hand.position = new Vector3(side * 0.38, -0.34, 0.88);
+    hand.scaling = new Vector3(0.66, 0.66, 0.66);
+    hand.rotation = new Vector3(-0.16, side * 0.09, side * 0.13);
 
-    const wrist = MeshBuilder.CreateCylinder(`hand-${label}-wrist`, { height: 0.18, diameterTop: 0.08, diameterBottom: 0.1, tessellation: 8 }, scene);
+    // 1. Forearm in scholarly cloth sleeve
+    const arm = MeshBuilder.CreateCylinder(`hand-${label}-arm`, { height: 0.32, diameterTop: 0.12, diameterBottom: 0.16, tessellation: 16 }, scene);
+    arm.parent = hand;
+    arm.position = new Vector3(0, -0.19, -0.06);
+    arm.rotation.x = 0.22;
+    arm.material = sleeve;
+    arm.isPickable = false;
+    arm.receiveShadows = false;
+    handParts.push(arm);
+
+    // 2. Gold embroidered cuff ring
+    const cuffRing = MeshBuilder.CreateTorus(`hand-${label}-cuff-gold`, { diameter: 0.13, thickness: 0.016, tessellation: 24 }, scene);
+    cuffRing.parent = hand;
+    cuffRing.position = new Vector3(0, -0.065, -0.02);
+    cuffRing.rotation.x = 0.22;
+    cuffRing.material = goldCuff;
+    cuffRing.isPickable = false;
+    cuffRing.receiveShadows = false;
+    handParts.push(cuffRing);
+
+    // 3. Anatomical Wrist
+    const wrist = MeshBuilder.CreateBox(`hand-${label}-wrist-base`, { width: 0.088, height: 0.055, depth: 0.046 }, scene);
     wrist.parent = hand;
-    wrist.position = new Vector3(0, -0.13, 0);
-    wrist.material = sleeve;
+    wrist.position = new Vector3(0, -0.035, 0);
+    wrist.material = skin;
     wrist.isPickable = false;
     wrist.receiveShadows = false;
     handParts.push(wrist);
 
-    const palm = MeshBuilder.CreateSphere(`hand-${label}-palm`, { segments: 8, diameter: 1 }, scene);
+    // 4. Palm - Sculpted main body
+    const palm = MeshBuilder.CreateBox(`hand-${label}-palm-body`, { width: 0.108, height: 0.118, depth: 0.044 }, scene);
     palm.parent = hand;
-    palm.scaling = new Vector3(0.1, 0.12, 0.075);
-    palm.position = new Vector3(0, 0.02, 0);
+    palm.position = new Vector3(0, 0.046, 0.005);
     palm.material = skin;
     palm.isPickable = false;
     palm.receiveShadows = false;
     handParts.push(palm);
 
-    for (let fingerIndex = 0; fingerIndex < 4; fingerIndex += 1) {
-      const finger = MeshBuilder.CreateCylinder(`hand-${label}-finger-${fingerIndex}`, { height: 0.08, diameter: 0.022, tessellation: 6 }, scene);
-      finger.parent = hand;
-      finger.position = new Vector3((fingerIndex - 1.5) * 0.039, 0.145, 0.012);
-      finger.rotation.z = side * (0.035 + Math.abs(fingerIndex - 1.5) * 0.012);
-      finger.material = skin;
-      finger.isPickable = false;
-      finger.receiveShadows = false;
-      handParts.push(finger);
-    }
+    // Thenar eminence (thumb base muscle mound)
+    const thenar = MeshBuilder.CreateSphere(`hand-${label}-thenar`, { segments: 10, diameter: 1 }, scene);
+    thenar.parent = hand;
+    thenar.scaling = new Vector3(0.048, 0.068, 0.042);
+    thenar.position = new Vector3(side * 0.038, 0.025, 0.016);
+    thenar.material = skin;
+    thenar.isPickable = false;
+    thenar.receiveShadows = false;
+    handParts.push(thenar);
 
-    const thumb = MeshBuilder.CreateCylinder(`hand-${label}-thumb`, { height: 0.08, diameter: 0.034, tessellation: 6 }, scene);
-    thumb.parent = hand;
-    thumb.position = new Vector3(side * 0.105, 0.02, 0.015);
-    thumb.rotation.z = -side * 0.48;
-    thumb.material = skin;
-    thumb.isPickable = false;
-    thumb.receiveShadows = false;
-    handParts.push(thumb);
+    // Hypothenar mound (pinky side)
+    const hypothenar = MeshBuilder.CreateSphere(`hand-${label}-hypothenar`, { segments: 8, diameter: 1 }, scene);
+    hypothenar.parent = hand;
+    hypothenar.scaling = new Vector3(0.034, 0.062, 0.038);
+    hypothenar.position = new Vector3(-side * 0.040, 0.028, 0.012);
+    hypothenar.material = skin;
+    hypothenar.isPickable = false;
+    hypothenar.receiveShadows = false;
+    handParts.push(hypothenar);
+
+    // 5. Articulated 4 Fingers (Index, Middle, Ring, Pinky) with natural resting curvature
+    const fingerSpecs = [
+      { name: "index", posX: side * 0.034, length1: 0.044, length2: 0.032, length3: 0.024, thickness: 0.021, curl: 0.28 },
+      { name: "middle", posX: side * 0.011, length1: 0.048, length2: 0.036, length3: 0.026, thickness: 0.022, curl: 0.24 },
+      { name: "ring", posX: -side * 0.012, length1: 0.044, length2: 0.032, length3: 0.024, thickness: 0.020, curl: 0.32 },
+      { name: "pinky", posX: -side * 0.034, length1: 0.036, length2: 0.026, length3: 0.020, thickness: 0.018, curl: 0.38 },
+    ];
+
+    fingerSpecs.forEach((f) => {
+      // Knuckle (Metacarpophalangeal joint)
+      const knuckle = MeshBuilder.CreateSphere(`hand-${label}-knuckle-${f.name}`, { segments: 8, diameter: f.thickness * 1.15 }, scene);
+      knuckle.parent = hand;
+      knuckle.position = new Vector3(f.posX, 0.106, 0.006);
+      knuckle.material = skin;
+      knuckle.isPickable = false;
+      handParts.push(knuckle);
+
+      // Phalanx 1 (Proximal)
+      const p1 = MeshBuilder.CreateCylinder(`hand-${label}-${f.name}-p1`, { height: f.length1, diameter: f.thickness, tessellation: 10 }, scene);
+      p1.parent = hand;
+      p1.position = new Vector3(f.posX, 0.106 + f.length1 * 0.48, 0.008 + f.curl * 0.012);
+      p1.rotation.x = f.curl * 0.55;
+      p1.material = skin;
+      p1.isPickable = false;
+      handParts.push(p1);
+
+      // Joint 1
+      const joint1 = MeshBuilder.CreateSphere(`hand-${label}-${f.name}-j1`, { segments: 8, diameter: f.thickness * 1.05 }, scene);
+      joint1.parent = hand;
+      joint1.position = new Vector3(f.posX, 0.106 + f.length1 * 0.94, 0.016 + f.curl * 0.025);
+      joint1.material = skin;
+      joint1.isPickable = false;
+      handParts.push(joint1);
+
+      // Phalanx 2 (Intermediate)
+      const p2 = MeshBuilder.CreateCylinder(`hand-${label}-${f.name}-p2`, { height: f.length2, diameter: f.thickness * 0.92, tessellation: 10 }, scene);
+      p2.parent = hand;
+      p2.position = new Vector3(f.posX, 0.106 + f.length1 * 0.94 + f.length2 * 0.46, 0.028 + f.curl * 0.052);
+      p2.rotation.x = f.curl * 1.15;
+      p2.material = skin;
+      p2.isPickable = false;
+      handParts.push(p2);
+
+      // Joint 2
+      const joint2 = MeshBuilder.CreateSphere(`hand-${label}-${f.name}-j2`, { segments: 8, diameter: f.thickness * 0.95 }, scene);
+      joint2.parent = hand;
+      joint2.position = new Vector3(f.posX, 0.106 + f.length1 * 0.94 + f.length2 * 0.92, 0.042 + f.curl * 0.082);
+      joint2.material = skin;
+      joint2.isPickable = false;
+      handParts.push(joint2);
+
+      // Phalanx 3 (Distal fingertip)
+      const p3 = MeshBuilder.CreateCylinder(`hand-${label}-${f.name}-p3`, { height: f.length3, diameterTop: f.thickness * 0.65, diameterBottom: f.thickness * 0.88, tessellation: 10 }, scene);
+      p3.parent = hand;
+      p3.position = new Vector3(f.posX, 0.106 + f.length1 * 0.94 + f.length2 * 0.92 + f.length3 * 0.44, 0.056 + f.curl * 0.115);
+      p3.rotation.x = f.curl * 1.65;
+      p3.material = skin;
+      p3.isPickable = false;
+      handParts.push(p3);
+
+      // Fingernail
+      const nail = MeshBuilder.CreateBox(`hand-${label}-${f.name}-nail`, { width: f.thickness * 0.62, height: f.length3 * 0.48, depth: 0.004 }, scene);
+      nail.parent = hand;
+      nail.position = new Vector3(f.posX, 0.106 + f.length1 * 0.94 + f.length2 * 0.92 + f.length3 * 0.48, 0.056 + f.curl * 0.115 - f.thickness * 0.38);
+      nail.rotation.x = f.curl * 1.65;
+      nail.material = nailMat;
+      nail.isPickable = false;
+      handParts.push(nail);
+    });
+
+    // 6. Realistic Thumb (Opposed, 2 articulated phalanges + nail)
+    const thumbKnuckle = MeshBuilder.CreateSphere(`hand-${label}-thumb-knuckle`, { segments: 8, diameter: 0.034 }, scene);
+    thumbKnuckle.parent = hand;
+    thumbKnuckle.position = new Vector3(side * 0.054, 0.036, 0.022);
+    thumbKnuckle.material = skin;
+    thumbKnuckle.isPickable = false;
+    handParts.push(thumbKnuckle);
+
+    const thumbP1 = MeshBuilder.CreateCylinder(`hand-${label}-thumb-p1`, { height: 0.046, diameter: 0.027, tessellation: 10 }, scene);
+    thumbP1.parent = hand;
+    thumbP1.position = new Vector3(side * 0.076, 0.058, 0.032);
+    thumbP1.rotation = new Vector3(0.24, -side * 0.32, -side * 0.58);
+    thumbP1.material = skin;
+    thumbP1.isPickable = false;
+    handParts.push(thumbP1);
+
+    const thumbP2 = MeshBuilder.CreateCylinder(`hand-${label}-thumb-p2`, { height: 0.038, diameterTop: 0.021, diameterBottom: 0.026, tessellation: 10 }, scene);
+    thumbP2.parent = hand;
+    thumbP2.position = new Vector3(side * 0.098, 0.078, 0.044);
+    thumbP2.rotation = new Vector3(0.42, -side * 0.48, -side * 0.72);
+    thumbP2.material = skin;
+    thumbP2.isPickable = false;
+    handParts.push(thumbP2);
+
+    // Thumb nail
+    const thumbNail = MeshBuilder.CreateBox(`hand-${label}-thumb-nail`, { width: 0.018, height: 0.019, depth: 0.004 }, scene);
+    thumbNail.parent = hand;
+    thumbNail.position = new Vector3(side * 0.096, 0.082, 0.035);
+    thumbNail.rotation = new Vector3(0.42, -side * 0.48, -side * 0.72);
+    thumbNail.material = nailMat;
+    thumbNail.isPickable = false;
+    handParts.push(thumbNail);
+
     return hand;
   };
 
@@ -201,7 +586,9 @@ function createFirstPersonHands(scene: Scene, camera: UniversalCamera): FirstPer
     dispose: () => {
       handParts.forEach((part) => part.dispose(false, true));
       skin.dispose();
+      nailMat.dispose();
       sleeve.dispose();
+      goldCuff.dispose();
       root.dispose(false, true);
     },
   };
@@ -237,7 +624,8 @@ function createTitleMaterial(scene: Scene, book: BookInfo, cache: Map<string, St
   context.rotate(-Math.PI / 2);
   context.direction = "rtl";
   context.fillStyle = "#f4d486";
-  context.font = "bold 31px Georgia";
+  const fontSize = book.spineTitle.length > 15 ? 20 : book.spineTitle.length > 10 ? 25 : 29;
+  context.font = `bold ${fontSize}px "Noto Sans Arabic", Georgia, serif`;
   context.fillText(book.spineTitle, 0, -4);
   context.restore();
   context.fillStyle = "#f1cc72";
@@ -281,24 +669,40 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
   shelfCollider.isPickable = false;
   shelfCollider.receiveShadows = false;
   parts.forEach((part) => { part.parent = root; part.checkCollisions = false; shadow.addShadowCaster(part); });
-      const bookColors = [new Color3(0.34, 0.075, 0.045), new Color3(0.24, 0.075, 0.035), new Color3(0.32, 0.11, 0.055), new Color3(0.075, 0.17, 0.12), new Color3(0.28, 0.055, 0.075)];
+      const bookColors = [
+        new Color3(0.34, 0.075, 0.045), // Deep Burgundy
+        new Color3(0.24, 0.075, 0.035), // Dark Mahogany
+        new Color3(0.32, 0.11, 0.055),  // Warm Moroccan Leather
+        new Color3(0.075, 0.17, 0.12),  // Forest Olive Green
+        new Color3(0.28, 0.055, 0.075), // Dark Wine
+        new Color3(0.08, 0.14, 0.24),   // Andalusian Royal Blue
+        new Color3(0.20, 0.16, 0.08),   // Antique Gilded Ochre
+        new Color3(0.12, 0.12, 0.13),   // Classic Dark Ebony Leather
+      ];
       [0.72, 1.72, 2.72, 3.72].forEach((y, row) => {
-    for (let i = 0; i < 14; i += 1) {
-      const format = BOOK_FORMATS[(shelfIndex + row + i) % BOOK_FORMATS.length];
-      const bookWidth = format.width;
-      const bookHeight = format.height;
-      const bookDepth = format.depth;
-      const bookLean = ((i % 5) - 2) * 0.018;
-      // Every physical volume represents the same public-domain Arabic work requested by the user.
-      const bookInfo = BOOK_CATALOG[0];
-      const leatherColor = bookColors[(i + row) % bookColors.length];
-      const bookMaterial = material(scene, `book-mat-${shelfIndex}-${row}-${i}`, leatherColor);
-      const leatherMaterial = material(scene, `book-leather-${shelfIndex}-${row}-${i}`, leatherColor, BOOK_LEATHER_TEXTURE);
-      // Place the book directly on the board below this row, with only a tiny clearance.
-      const shelfTopY = y - 0.17 + 0.08;
-      const bookPosition = new Vector3(-2.00 + i * 0.30, shelfTopY + bookHeight * 0.5 + 0.008, -0.04);
-      const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
-      book.parent = root;
+        // Brass bookends on both ends of each shelf board
+        const bookendLeft = box(scene, `bookend-l-${shelfIndex}-${row}`, { width: 0.05, height: 0.38, depth: 0.44 }, new Vector3(-2.04, y - 0.17 + 0.22, -0.04), brass, false);
+        bookendLeft.parent = root;
+        const bookendRight = box(scene, `bookend-r-${shelfIndex}-${row}`, { width: 0.05, height: 0.38, depth: 0.44 }, new Vector3(2.04, y - 0.17 + 0.22, -0.04), brass, false);
+        bookendRight.parent = root;
+
+        for (let i = 0; i < 18; i += 1) {
+          const format = BOOK_FORMATS[(shelfIndex + row + i) % BOOK_FORMATS.length];
+          const bookWidth = format.width;
+          const bookHeight = format.height;
+          const bookDepth = format.depth;
+          const bookLean = (i === 0 || i === 17) ? 0 : (((i * 7) % 7) - 3) * 0.012;
+          const bookIndex = (shelfIndex * 18 + row * 7 + i) % BOOK_CATALOG.length;
+          const bookInfo = BOOK_CATALOG[bookIndex];
+          const leatherColor = bookColors[(i + row * 2 + shelfIndex) % bookColors.length];
+          const bookMaterial = material(scene, `book-mat-${shelfIndex}-${row}-${i}`, leatherColor);
+          const leatherMaterial = material(scene, `book-leather-${shelfIndex}-${row}-${i}`, leatherColor);
+          leatherMaterial.specularColor = new Color3(0.22, 0.17, 0.12);
+          // Place the book directly on the board below this row, with only a tiny clearance.
+          const shelfTopY = y - 0.17 + 0.08;
+          const bookPosition = new Vector3(-1.95 + i * 0.23, shelfTopY + bookHeight * 0.5 + 0.008, -0.04);
+          const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
+          book.parent = root;
       const roundedSpine = MeshBuilder.CreateCylinder(`book-rounded-spine-${shelfIndex}-${row}-${i}`, { diameter: Math.min(bookDepth * 0.9, 0.28), height: bookHeight * 0.94, tessellation: 16 }, scene);
       roundedSpine.position = new Vector3(bookPosition.x - bookWidth * 0.46, bookPosition.y, bookPosition.z);
       roundedSpine.material = leatherMaterial;
@@ -317,7 +721,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       frontCover.parent = root;
       // Closed books carry a hidden physical reading spread that unfolds in front of the cover.
       const pageRenderers: { left?: (pageIndex: number) => void; right?: (pageIndex: number) => void } = {};
-      const makeReadingMaterial = (initialPageIndex: number, side: "left" | "right") => {
+      const makeReadingMaterial = (bookToRead: BookInfo, initialPageIndex: number, side: "left" | "right") => {
         const pageMaterial = material(scene, `book-reading-pages-${shelfIndex}-${row}-${i}-${side}`, new Color3(0.96, 0.88, 0.70));
         const pageTexture = new DynamicTexture(`book-reading-text-${shelfIndex}-${row}-${i}-${side}`, { width: 512, height: 512 }, scene, true);
         const pageContext = pageTexture.getContext() as unknown as CanvasRenderingContext2D;
@@ -325,30 +729,62 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
           pageContext.fillStyle = "#f1dfb3"; pageContext.fillRect(0, 0, 512, 512);
           pageContext.strokeStyle = "#9a6b35"; pageContext.lineWidth = 7; pageContext.strokeRect(16, 16, 480, 480);
           pageContext.direction = "rtl"; pageContext.textAlign = "right"; pageContext.fillStyle = "#3a2014";
-          pageContext.font = "bold 30px Noto Sans Arabic"; pageContext.fillText("حي بن يقظان", 462, 64);
-          pageContext.fillStyle = "#745032"; pageContext.font = "500 13px Noto Sans Arabic"; pageContext.fillText("أبو بكر ابن طفيل — نص من الملك العام", 462, 90);
-          pageContext.font = "bold 18px Noto Sans Arabic";
-          const pageCount = hayyPages.length || FALLBACK_HAYY_PAGE_COUNT;
-          const text = hayyPages[Math.max(0, Math.min(pageIndex, pageCount - 1))] ?? HAYY_PAGE_FALLBACKS[Math.min(pageIndex, HAYY_PAGE_FALLBACKS.length - 1)] ?? "حي بن يقظان — صفحات الكتاب قيد التحضير.";
+          
+          const titleFont = bookToRead.title.length > 20 ? "bold 23px" : "bold 27px";
+          pageContext.font = `${titleFont} "Noto Sans Arabic", Georgia, serif`;
+          pageContext.fillText(bookToRead.title, 462, 58);
+          
+          pageContext.fillStyle = "#745032";
+          pageContext.font = "bold 13px \"Noto Sans Arabic\", Georgia, serif";
+          pageContext.fillText(`${bookToRead.author ?? "تراث عربي"} — ${bookToRead.category}`, 462, 86);
+          
+          pageContext.strokeStyle = "#c49a5a";
+          pageContext.lineWidth = 2;
+          pageContext.beginPath();
+          pageContext.moveTo(52, 102);
+          pageContext.lineTo(460, 102);
+          pageContext.stroke();
+          
+          pageContext.fillStyle = "#28150d";
+          pageContext.font = "bold 17px \"Noto Sans Arabic\", Georgia, serif";
+          
+          const pagesList = bookToRead.pages && bookToRead.pages.length > 0
+            ? bookToRead.pages
+            : (bookToRead.id === "hayy-ibn-yaqdhan" && hayyPages.length ? hayyPages : [bookToRead.description]);
+          const pageCount = pagesList.length;
+          const text = pagesList[Math.max(0, Math.min(pageIndex, pageCount - 1))] ?? bookToRead.description;
           const lines: string[] = (text.match(/.{1,28}/g) ?? []).slice(0, 8);
-          lines.forEach((line: string, lineIndex: number) => pageContext.fillText(line.trim(), 462, 138 + lineIndex * 34));
-          if (!hayyPages.length) {
-            pageContext.fillStyle = "#8e6b43"; pageContext.font = "500 12px Noto Sans Arabic";
+          lines.forEach((line: string, lineIndex: number) => pageContext.fillText(line.trim(), 462, 142 + lineIndex * 33));
+          
+          if (!pagesList.length && bookToRead.id === "hayy-ibn-yaqdhan" && !hayyPages.length) {
+            pageContext.fillStyle = "#8e6b43";
+            pageContext.font = "500 12px \"Noto Sans Arabic\", Georgia, serif";
             pageContext.fillText("يجري تجهيز بقية صفحات الكتاب…", 462, 404);
-            pageContext.fillStyle = "#3a2014";
+            pageContext.fillStyle = "#28150d";
           }
-          pageContext.strokeStyle = "#c49a5a"; pageContext.lineWidth = 2; pageContext.beginPath(); pageContext.moveTo(52, 420); pageContext.lineTo(460, 420); pageContext.stroke();
-          pageContext.textAlign = "center"; pageContext.font = "bold 23px serif"; pageContext.fillText(toArabicPageNumber(pageIndex + 1), 256, 466);
-          // Babylon's visible page face mirrors this UV direction; flip only the texture, not the RTL text layout.
-          pageTexture.uScale = -1; pageTexture.uOffset = 1;
+          
+          pageContext.strokeStyle = "#c49a5a";
+          pageContext.lineWidth = 2;
+          pageContext.beginPath();
+          pageContext.moveTo(52, 420);
+          pageContext.lineTo(460, 420);
+          pageContext.stroke();
+          
+          pageContext.textAlign = "center";
+          pageContext.font = "bold 23px serif";
+          pageContext.fillText(toArabicPageNumber(pageIndex + 1), 256, 466);
+          
+          pageTexture.uScale = -1;
+          pageTexture.uOffset = 1;
           pageTexture.update();
         };
         pageRenderers[side] = renderPage;
         renderPage(initialPageIndex);
-        pageMaterial.diffuseTexture = pageTexture; return pageMaterial;
+        pageMaterial.diffuseTexture = pageTexture;
+        return pageMaterial;
       };
-      const leftReadingMaterial = makeReadingMaterial(0, "left");
-      const rightReadingMaterial = makeReadingMaterial(1, "right");
+      const leftReadingMaterial = makeReadingMaterial(bookInfo, 0, "left");
+      const rightReadingMaterial = makeReadingMaterial(bookInfo, 1, "right");
       // The reading spread uses square pages, like a compact illuminated manuscript.
       const openPageSize = Math.max(bookHeight * 1.02, 0.48);
       const openPageWidth = openPageSize;
@@ -380,7 +816,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const frameRight = box(scene, `book-frame-right-${row}-${i}`, { width: 0.018, height: bookHeight * 0.76, depth: 0.022 }, new Vector3(bookPosition.x + bookWidth * 0.38, bookPosition.y, frontZ), brass, false);
       [frameTop, frameBottom, frameLeft, frameRight].forEach((frame) => { frame.parent = root; });
       const bookParts = [book, roundedSpine, spineStrip, pages, coverTop, coverBottom, frontCover, openLeftPage, openRightPage, turningPage, titlePlate, spineLabel, spineBand, bindingBandTop, bindingBandMid, bindingBandBottom, frameTop, frameBottom, frameLeft, frameRight];
-      const pageState = { pageIndex: 0, pageCount: FALLBACK_HAYY_PAGE_COUNT, pageRenderers };
+      const pageState = { pageIndex: 0, pageCount: bookInfo.pages?.length || (bookInfo.id === "hayy-ibn-yaqdhan" ? FALLBACK_HAYY_PAGE_COUNT : 1), pageRenderers };
       bookParts.forEach((target) => {
         target.rotation.y = bookLean;
         target.metadata = { book: bookInfo, format: format.name, openPageWidth, openPageHeight, bookParts, pageState, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, bookDetail: target !== book && target !== openLeftPage && target !== openRightPage && target !== turningPage, readingPage: target === openLeftPage || target === openRightPage, pageSide: target === openLeftPage ? "left" : target === openRightPage ? "right" : undefined, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate || target === spineLabel || target === spineBand || target === frameTop || target === frameBottom || target === frameLeft || target === frameRight };
@@ -490,23 +926,26 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const handMotionObserver = scene.onBeforeRenderObservable.add(() => {
     const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
     const walkBlend = movementAmount;
-    handMotionPhase += deltaSeconds * (2.2 + walkBlend * (isRunning ? 12.5 : 9.5));
-    handInteraction += (handInteractionTarget - handInteraction) * Math.min(1, deltaSeconds * 9);
-    const bob = Math.abs(Math.sin(handMotionPhase)) * 0.028 * walkBlend * (isRunning ? 1.22 : 1);
-    const sway = Math.sin(handMotionPhase * 0.5) * 0.024 * walkBlend * (isRunning ? 1.16 : 1);
+    handMotionPhase += deltaSeconds * (2.0 + walkBlend * (isRunning ? 11.5 : 8.5));
+    handInteraction += (handInteractionTarget - handInteraction) * Math.min(1, deltaSeconds * 8);
+    // Subtle living breathing oscillation when idle
+    const breathY = Math.sin(handMotionPhase * 0.75) * 0.007;
+    const breathX = Math.cos(handMotionPhase * 0.38) * 0.005;
+    const bob = Math.abs(Math.sin(handMotionPhase)) * 0.030 * walkBlend * (isRunning ? 1.25 : 1);
+    const sway = Math.sin(handMotionPhase * 0.5) * 0.024 * walkBlend * (isRunning ? 1.18 : 1);
     const reach = handInteraction;
-    hands.left.position.x = -0.42 - reach * 0.11 + sway;
-    hands.left.position.y = -0.38 + bob + reach * 0.08;
-    hands.left.position.z = 0.94 + reach * 0.12;
-    hands.left.rotation.x = -0.13 - reach * 0.18 + Math.sin(handMotionPhase) * 0.035 * walkBlend;
-    hands.left.rotation.y = -0.08 - reach * 0.12;
-    hands.left.rotation.z = -0.11 + sway * 0.75;
-    hands.right.position.x = 0.42 + reach * 0.11 + sway;
-    hands.right.position.y = -0.38 + bob + reach * 0.08;
-    hands.right.position.z = 0.94 + reach * 0.12;
-    hands.right.rotation.x = -0.13 - reach * 0.18 + Math.sin(handMotionPhase + Math.PI) * 0.035 * walkBlend;
-    hands.right.rotation.y = 0.08 + reach * 0.12;
-    hands.right.rotation.z = 0.11 + sway * 0.75;
+    hands.left.position.x = -0.38 - reach * 0.08 + sway + breathX;
+    hands.left.position.y = -0.34 + bob + reach * 0.07 + breathY;
+    hands.left.position.z = 0.88 + reach * 0.12;
+    hands.left.rotation.x = -0.16 - reach * 0.18 + Math.sin(handMotionPhase) * 0.035 * walkBlend;
+    hands.left.rotation.y = -0.09 - reach * 0.12;
+    hands.left.rotation.z = -0.13 + sway * 0.75;
+    hands.right.position.x = 0.38 + reach * 0.12 + sway + breathX;
+    hands.right.position.y = -0.34 + bob + reach * 0.11 + breathY;
+    hands.right.position.z = 0.88 + reach * 0.22;
+    hands.right.rotation.x = -0.16 - reach * 0.32 + Math.sin(handMotionPhase + Math.PI) * 0.035 * walkBlend;
+    hands.right.rotation.y = 0.09 + reach * 0.16;
+    hands.right.rotation.z = 0.13 + sway * 0.75;
   });
   const movementVelocity = new Vector3(0, 0, 0);
   scene.onBeforeRenderObservable.add(() => {
@@ -560,9 +999,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   shadow.useBlurExponentialShadowMap = true; shadow.blurKernel = 24;
   applyPerformanceMode(performanceMode);
 
-  const wood = material(scene, "walnut", COLORS.walnut, "/manus-storage/walnut-shelf-texture_c5b61c55.png");
+  const wood = material(scene, "walnut", COLORS.walnut);
   const woodLight = material(scene, "wood-light", COLORS.walnutLight);
-  const floor = material(scene, "floor", new Color3(0.12, 0.065, 0.032), "/manus-storage/walnut-shelf-texture_c5b61c55.png");
+  const floor = material(scene, "floor", new Color3(0.12, 0.065, 0.032));
   const wall = material(scene, "plaster", new Color3(0.42, 0.34, 0.23));
   const ivory = material(scene, "ivory", COLORS.ivory);
   const olive = material(scene, "olive", COLORS.olive);
@@ -580,15 +1019,11 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     shelfRoots.push(root);
     return root;
   };
-  // Keep the shelf banks inside the tighter production camera framing so they remain visible on Vercel as well as locally.
-  addTrackedShelf(0, -5.8, -5.2, 0);
-  addTrackedShelf(1, 5.8, -5.2, 0);
-  addTrackedShelf(2, -5.8, 1.2, 0);
-  addTrackedShelf(3, 5.8, 1.2, 0);
-  // Stage the distant back wall after the player-facing shelves are ready, keeping first paint responsive on mobile.
-  const progressiveLoadTimer = window.setTimeout(() => {
-    if (!scene.isDisposed) addTrackedShelf(4, 0, -10.2, Math.PI / 2);
-  }, 220);
+  // Initialize 8 grand bookcases immediately for a dense, majestic historic library
+  for (let s = 0; s < 8; s += 1) {
+    addTrackedShelf(s, 0, 0, 0);
+  }
+  const progressiveLoadTimer = 0;
   // Keep the 174 KB literary text out of the initial scene chunk while warming it shortly after the room appears.
   const pagePreloadTimer = window.setTimeout(() => {
     void loadHayyPages().catch(() => undefined);
@@ -599,7 +1034,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const updateInterval = performanceMode === "light" ? 180 : 90;
     if (now - lastDetailUpdate < updateInterval) return;
     lastDetailUpdate = now;
-    const detailRadius = performanceMode === "light" ? 5.2 : 7.6;
+    const detailRadius = 150.0;
     const detailRadiusSquared = detailRadius * detailRadius;
     shelfRoots.forEach((root) => {
       const nearby = Vector3.DistanceSquared(root.getAbsolutePosition(), camera.globalPosition) <= detailRadiusSquared;
@@ -693,18 +1128,24 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const pages = parts.filter((part) => part.metadata?.readingPage);
     const closedCoverParts = parts.filter((part) => part.metadata?.closedCover);
     const pageState = parts[0]?.metadata?.pageState;
-    if (pageState) {
-      pageState.pageIndex = readSavedPageIndex(hayyPages.length || FALLBACK_HAYY_PAGE_COUNT);
+    const currentBook: BookInfo | undefined = parts[0]?.metadata?.book;
+    if (pageState && currentBook) {
+      const isHayy = currentBook.id === "hayy-ibn-yaqdhan";
+      const customPageCount = currentBook.pages?.length ?? 0;
+      pageState.pageCount = isHayy ? (hayyPages.length || FALLBACK_HAYY_PAGE_COUNT) : (customPageCount || 1);
+      pageState.pageIndex = isHayy ? readSavedPageIndex(pageState.pageCount) : 0;
       pageState.pageRenderers.left?.(pageState.pageIndex);
       pageState.pageRenderers.right?.(pageState.pageIndex + 1);
-      void loadHayyPages().then((loadedPages) => {
-        pageState.pageCount = loadedPages.length;
-        pageState.pageIndex = clampSpreadPageIndex(pageState.pageIndex, loadedPages.length);
-        if (activeBookParts === parts) {
-          pageState.pageRenderers.left?.(pageState.pageIndex);
-          pageState.pageRenderers.right?.(pageState.pageIndex + 1);
-        }
-      }).catch(() => undefined);
+      if (isHayy) {
+        void loadHayyPages().then((loadedPages) => {
+          pageState.pageCount = loadedPages.length;
+          pageState.pageIndex = clampSpreadPageIndex(pageState.pageIndex, loadedPages.length);
+          if (activeBookParts === parts) {
+            pageState.pageRenderers.left?.(pageState.pageIndex);
+            pageState.pageRenderers.right?.(pageState.pageIndex + 1);
+          }
+        }).catch(() => undefined);
+      }
     }
     if (!pages.length) return;
     const center = parts[0].position.clone().add(new Vector3(0, 0, 0.12));
@@ -735,7 +1176,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const pageState = activeBookParts[0]?.metadata?.pageState;
     if (!turningPage || !rightPage || !leftPage || !pageState) return false;
     handInteractionTarget = 0.72;
-    if (!hayyPages.length) {
+    const currentBook: BookInfo | undefined = activeBookParts[0]?.metadata?.book;
+    const isHayy = currentBook?.id === "hayy-ibn-yaqdhan";
+    if (isHayy && !hayyPages.length) {
       void loadHayyPages().then((loadedPages) => {
         if (activeBookParts?.[0]?.metadata?.pageState === pageState) {
           pageState.pageCount = loadedPages.length;
@@ -746,9 +1189,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
       }).catch(() => undefined);
       return true;
     }
-    const pageCount = pageState.pageCount || hayyPages.length || FALLBACK_HAYY_PAGE_COUNT;
+    const pageCount = pageState.pageCount || (isHayy ? (hayyPages.length || FALLBACK_HAYY_PAGE_COUNT) : (currentBook?.pages?.length ?? 1));
     const nextPageIndex = direction === "rtl" ? pageState.pageIndex + 2 : pageState.pageIndex - 2;
-    if (nextPageIndex < 0 || nextPageIndex + 1 >= pageCount) return false;
+    if (nextPageIndex < 0 || nextPageIndex >= pageCount) return false;
     const start = (direction === "rtl" ? rightPage : leftPage).position.clone();
     const end = (direction === "rtl" ? leftPage : rightPage).position.clone();
     const startedAt = performance.now();
@@ -966,7 +1409,14 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
 
   const dispose = () => { window.clearTimeout(progressiveLoadTimer); window.clearTimeout(pagePreloadTimer); scene.onBeforeRenderObservable.remove(handMotionObserver); hands.dispose(); window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
   const setTouchMove = (x: number, y: number) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, y)); };
-  // Resolve scene creation only after the initial textures and shaders are ready, so the warm entry card never hands off to an empty black frame.
-  await scene.whenReadyAsync();
+  // Ensure scene readiness without blocking indefinitely if any remote resource is delayed.
+  try {
+    await Promise.race([
+      scene.whenReadyAsync(),
+      new Promise((resolve) => window.setTimeout(resolve, 800)),
+    ]);
+  } catch (err) {
+    console.warn("whenReadyAsync non-blocking fallback:", err);
+  }
   return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, turnActivePage, hasActiveBook, getBookScreenRects, setTouchMove, setPerformanceMode: applyPerformanceMode };
 }

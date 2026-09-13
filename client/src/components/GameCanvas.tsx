@@ -81,6 +81,9 @@ export default function GameCanvas() {
         }
       });
       setStarted(true);
+    }).catch((error) => {
+      console.error("3D Library initialization error:", error);
+      setStarted(true);
     });
     const onResize = () => engine?.resize();
     window.addEventListener("resize", onResize);
@@ -139,7 +142,7 @@ export default function GameCanvas() {
     <main className="library-game" dir="rtl" aria-label="مكتبة ثلاثية الأبعاد تفاعلية">
       <canvas ref={canvasRef} className="game-canvas" style={{ touchAction: "none" }} />
       {!started && <div className="loading-overlay" role="status" aria-live="polite"><div className="loading-shelf-silhouette" aria-hidden="true" /><div className="loading-copy"><div className="loading-mark" aria-hidden="true">۞</div><div className="loading-kicker">قاعة الدراسة الهادئة</div><strong>يجري تجهيز القاعة</strong><span>لحظات، وتُضاء الرفوف أمامك</span></div></div>}
-      <div className="hud-topline"><div className="brand-lockup"><img src="/manus-storage/library-mark_0613fe33.webp" alt="" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/library-mark.svg"; }} /><span>قاعة الدراسة الهادئة</span></div><div className="status-pill"><i /> {started ? "مفتوحة للاستكشاف" : "يجري تجهيز القاعة"}</div></div>
+      <div className="hud-topline"><div className="brand-lockup"><img src="/library-mark.svg" alt="" /><span>قاعة الدراسة الهادئة</span></div><div className="status-pill"><i /> {started ? "مفتوحة للاستكشاف" : "يجري تجهيز القاعة"}</div></div>
       <div className="mobile-controls" aria-label="عناصر التحكم باللمس"><div ref={joystickRef} className="touch-joystick" onPointerDown={onJoystickPointerDown} onPointerMove={onJoystickPointerMove} onPointerUp={resetJoystick} onPointerCancel={resetJoystick}><div ref={joystickKnobRef} className="touch-joystick-knob" /></div></div>
       <div className="hud-bottom"><div className="crosshair" aria-hidden="true">+</div><div className="controls"><span><b>W A S D</b> تحرّك</span><span><b>Shift</b> للجري</span><span><b>حرّك الفأرة</b> لتدوير المشهد</span><span><b>نقر / E</b> للتفاعل</span></div><div className="hud-actions"><button className="inspect-button" onClick={() => openNearestBookRef.current()}>فحص أقرب كتاب <span>↗</span></button><div className="page-actions" aria-label="أزرار الكتاب"><button className="page-turn-button page-turn-left" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("ltr")}>اليسرى <span>→</span></button><button className="return-button" disabled={!hasActiveBook} onClick={() => returnActiveBookRef.current()}>إرجاع الكتاب <span>↩</span></button><button className="page-turn-button page-turn-right" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("rtl")}>اليمنى <span>←</span></button></div><button className="help-button" onClick={() => setShowHelp((value) => !value)}>{showHelp ? "إخفاء الدليل" : "إظهار الدليل"}</button><button className="help-button performance-button" onClick={() => { const nextMode = performanceMode === "light" ? "cinematic" : "light"; setPerformanceMode(nextMode); setPerformanceModeRef.current(nextMode); }} aria-label="تبديل جودة العرض">{performanceMode === "light" ? "أداء خفيف" : "جودة سينمائية"}</button></div></div>
       {started && <div className="book-hotspots" aria-label="كتب قابلة للتفاعل">{bookRects.map((rect) => <button key={rect.meshName} className="book-hotspot" style={{ left: rect.x - rect.width / 2, top: rect.y - rect.height / 2, width: rect.width, height: rect.height }} aria-label={`فتح ${rect.title}`} title={rect.title} onClick={() => { setShowHelp(false); openBookByMeshNameRef.current(rect.meshName); }}><span>{rect.title}</span></button>)}</div>}
