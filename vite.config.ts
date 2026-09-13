@@ -203,9 +203,34 @@ function vitePluginStorageProxy(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy()];
+function vitePluginDualDist(): Plugin {
+  return {
+    name: "vite-plugin-dual-dist",
+    closeBundle() {
+      try {
+        const distDir = path.resolve(import.meta.dirname, "dist");
+        const distPublicDir = path.join(distDir, "public");
+        if (!fs.existsSync(distPublicDir)) {
+          fs.mkdirSync(distPublicDir, { recursive: true });
+        }
+        const entries = fs.readdirSync(distDir);
+        for (const entry of entries) {
+          if (entry === "public") continue;
+          const srcPath = path.join(distDir, entry);
+          const destPath = path.join(distPublicDir, entry);
+          fs.cpSync(srcPath, destPath, { recursive: true });
+        }
+      } catch (err) {
+        console.warn("Dual dist copy warning:", err);
+      }
+    },
+  };
+}
+
+const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy(), vitePluginDualDist()];
 
 export default defineConfig({
+  base: "./",
   plugins,
   resolve: {
     alias: {
@@ -231,3 +256,4 @@ export default defineConfig({
     },
   },
 });
+

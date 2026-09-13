@@ -721,11 +721,15 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       frontCover.parent = root;
       // Closed books carry a hidden physical reading spread that unfolds in front of the cover.
       const pageRenderers: { left?: (pageIndex: number) => void; right?: (pageIndex: number) => void } = {};
-      const makeReadingMaterial = (bookToRead: BookInfo, initialPageIndex: number, side: "left" | "right") => {
+      const makeReadingMaterial = (bookToRead: BookInfo, _initialPageIndex: number, side: "left" | "right") => {
         const pageMaterial = material(scene, `book-reading-pages-${shelfIndex}-${row}-${i}-${side}`, new Color3(0.96, 0.88, 0.70));
-        const pageTexture = new DynamicTexture(`book-reading-text-${shelfIndex}-${row}-${i}-${side}`, { width: 512, height: 512 }, scene, true);
-        const pageContext = pageTexture.getContext() as unknown as CanvasRenderingContext2D;
+        let pageTexture: DynamicTexture | null = null;
         const renderPage = (pageIndex: number) => {
+          if (!pageTexture) {
+            pageTexture = new DynamicTexture(`book-reading-text-${shelfIndex}-${row}-${i}-${side}`, { width: 512, height: 512 }, scene, true);
+            pageMaterial.diffuseTexture = pageTexture;
+          }
+          const pageContext = pageTexture.getContext() as unknown as CanvasRenderingContext2D;
           pageContext.fillStyle = "#f1dfb3"; pageContext.fillRect(0, 0, 512, 512);
           pageContext.strokeStyle = "#9a6b35"; pageContext.lineWidth = 7; pageContext.strokeRect(16, 16, 480, 480);
           pageContext.direction = "rtl"; pageContext.textAlign = "right"; pageContext.fillStyle = "#3a2014";
@@ -779,8 +783,6 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
           pageTexture.update();
         };
         pageRenderers[side] = renderPage;
-        renderPage(initialPageIndex);
-        pageMaterial.diffuseTexture = pageTexture;
         return pageMaterial;
       };
       const leftReadingMaterial = makeReadingMaterial(bookInfo, 0, "left");
