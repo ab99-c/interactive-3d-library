@@ -348,24 +348,28 @@ export const BOOK_CATALOG: BookInfo[] = [
   },
 ];
 
-function material(scene: Scene, name: string, color: Color3, textureUrl?: string) {
+function material(scene: Scene, name: string, color: Color3, specularOrUrl?: Color3 | string, emissive?: Color3) {
   const existing = scene.getMaterialByName(name);
   if (existing instanceof StandardMaterial) return existing;
   const mat = new StandardMaterial(name, scene);
   mat.diffuseColor = color;
   mat.ambientColor = color.scale(0.38);
-  mat.emissiveColor = color.scale(0.045);
-  mat.specularColor = new Color3(0.12, 0.09, 0.06);
-  if (textureUrl && !textureUrl.startsWith("/manus-storage")) {
-    try {
-      const texture = new Texture(textureUrl, scene);
-      texture.uScale = 2;
-      texture.vScale = 2;
-      mat.diffuseTexture = texture;
-      mat.bumpTexture = texture;
-      mat.bumpTexture.level = 0.22;
-    } catch {
-      // Fall back gracefully to procedural color
+  mat.emissiveColor = emissive ?? color.scale(0.045);
+  if (specularOrUrl instanceof Color3) {
+    mat.specularColor = specularOrUrl;
+  } else {
+    mat.specularColor = new Color3(0.12, 0.09, 0.06);
+    if (typeof specularOrUrl === "string" && !specularOrUrl.startsWith("/manus-storage")) {
+      try {
+        const texture = new Texture(specularOrUrl, scene);
+        texture.uScale = 2;
+        texture.vScale = 2;
+        mat.diffuseTexture = texture;
+        mat.bumpTexture = texture;
+        mat.bumpTexture.level = 0.22;
+      } catch {
+        // Fall back gracefully to procedural color
+      }
     }
   }
   return mat;
@@ -650,67 +654,190 @@ function createTitleMaterial(scene: Scene, book: BookInfo, cache: Map<string, St
   return titleMaterial;
 }
 
+function getCobblestoneMaterial(scene: Scene): StandardMaterial {
+  const existing = scene.getMaterialByName("cobblestone-wall-mat");
+  if (existing instanceof StandardMaterial) return existing;
+
+  const mat = new StandardMaterial("cobblestone-wall-mat", scene);
+  const tex = new DynamicTexture("cobblestone-wall-tex", { width: 256, height: 256 }, scene, true);
+  const ctx = tex.getContext() as unknown as CanvasRenderingContext2D;
+
+  // Dark charcoal stone mortar
+  ctx.fillStyle = "#15171a";
+  ctx.fillRect(0, 0, 256, 256);
+
+  const stoneColors = ["#282b32", "#353943", "#1e2126", "#3d4350", "#2c3038", "#23252c", "#343944"];
+  const rows = 9;
+  const rowHeight = 256 / rows;
+
+  for (let r = 0; r < rows; r++) {
+    const y = r * rowHeight + 2;
+    const h = rowHeight - 4;
+    const offset = (r % 2) * 18;
+    let x = -offset;
+    while (x < 256) {
+      const w = 22 + ((r * 11 + Math.floor(x + 100) * 7) % 24);
+      const color = stoneColors[(r * 5 + Math.floor(x + 100) * 3) % stoneColors.length];
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      if ("roundRect" in ctx && typeof ctx.roundRect === "function") {
+        ctx.roundRect(x, y, w, h, 4);
+      } else {
+        ctx.rect(x, y, w, h);
+      }
+      ctx.fill();
+
+      // Stone top highlight
+      ctx.strokeStyle = "rgba(130, 140, 160, 0.28)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + 2, y + 2);
+      ctx.lineTo(x + w - 2, y + 2);
+      ctx.stroke();
+
+      // Stone bottom shadow
+      ctx.strokeStyle = "rgba(8, 10, 13, 0.65)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + 2, y + h - 2);
+      ctx.lineTo(x + w - 2, y + h - 2);
+      ctx.stroke();
+
+      x += w + 4;
+    }
+  }
+
+  tex.uScale = 2.4;
+  tex.vScale = 4.2;
+  tex.update();
+
+  mat.diffuseTexture = tex;
+  mat.specularColor = new Color3(0.04, 0.04, 0.04);
+  mat.ambientColor = new Color3(0.24, 0.26, 0.30);
+  return mat;
+}
+
+function addShelfCandleSconce(scene: Scene, root: Mesh, pos: Vector3, brassMat: StandardMaterial, lightId: string) {
+  const ironMat = material(scene, "sconce-iron-mat", new Color3(0.12, 0.11, 0.10));
+  const waxMat = material(scene, "sconce-wax-mat", new Color3(0.94, 0.90, 0.82), new Color3(0.1, 0.1, 0.08), new Color3(0.22, 0.16, 0.08));
+  const flameMat = material(scene, "sconce-flame-mat", new Color3(1.0, 0.70, 0.22), new Color3(0.1, 0.1, 0.1), new Color3(1.0, 0.65, 0.20));
+
+  // Wrought iron curved wall bracket
+  const bracket = box(scene, `sconce-bracket-${lightId}`, { width: 0.08, height: 0.12, depth: 0.24 }, pos, ironMat, false);
+  bracket.parent = root;
+
+  // Drip pan
+  const pan = MeshBuilder.CreateCylinder(`sconce-pan-${lightId}`, { diameter: 0.14, height: 0.02, tessellation: 8 }, scene);
+  pan.position = new Vector3(pos.x, pos.y + 0.06, pos.z + 0.10);
+  pan.material = brassMat;
+  pan.parent = root;
+
+  // Wax candle pillar
+  const candle = MeshBuilder.CreateCylinder(`sconce-candle-${lightId}`, { diameter: 0.05, height: 0.14, tessellation: 8 }, scene);
+  candle.position = new Vector3(pos.x, pos.y + 0.13, pos.z + 0.10);
+  candle.material = waxMat;
+  candle.parent = root;
+
+  // Flame
+  const flame = MeshBuilder.CreateSphere(`sconce-flame-${lightId}`, { diameterX: 0.032, diameterY: 0.052, diameterZ: 0.032, segments: 4 }, scene);
+  flame.position = new Vector3(pos.x, pos.y + 0.22, pos.z + 0.10);
+  flame.material = flameMat;
+  flame.parent = root;
+
+  // Candle warm PointLight
+  const light = new PointLight(`sconce-light-${lightId}`, new Vector3(pos.x, pos.y + 0.25, pos.z + 0.14), scene);
+  light.parent = root;
+  light.diffuse = new Color3(1.0, 0.64, 0.22);
+  light.intensity = 0.28;
+  light.range = 4.0;
+}
+
 function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotationY: number, wood: StandardMaterial, olive: StandardMaterial, brass: StandardMaterial, shadow: ShadowGenerator, titleMaterials: Map<string, StandardMaterial>) {
   const root = new Mesh("shelf-root", scene);
   root.position = new Vector3(x, 0, z);
   root.rotation.y = rotationY;
+  const cobblestoneMat = getCobblestoneMaterial(scene);
+  const rusticWood = material(scene, "rustic-timber-wood", new Color3(0.38, 0.18, 0.08), new Color3(0.08, 0.05, 0.03), new Color3(0.12, 0.06, 0.02));
+  const shelfTrimMat = material(scene, "rustic-shelf-trim", new Color3(0.48, 0.25, 0.12), new Color3(0.12, 0.08, 0.04), new Color3(0.14, 0.07, 0.03));
+
+  const shelfBoardsY = [0.48, 1.38, 2.28, 3.18, 4.08];
   const parts = [
-    box(scene, "shelf-back", { width: 4.45, height: 4.7, depth: 0.10 }, new Vector3(0, 2.35, -0.56), wood, false),
-    box(scene, "shelf-side", { width: 0.25, height: 4.7, depth: 1.2 }, new Vector3(-2.1, 2.35, 0), wood),
-    box(scene, "shelf-side", { width: 0.25, height: 4.7, depth: 1.2 }, new Vector3(2.1, 2.35, 0), wood),
-    box(scene, "shelf-top", { width: 4.45, height: 0.24, depth: 1.2 }, new Vector3(0, 4.62, 0), wood),
-    ...[0.55, 1.55, 2.55, 3.55].map((y) => box(scene, "shelf-board", { width: 4.35, height: 0.16, depth: 1.12 }, new Vector3(0, y, 0), wood)),
-    box(scene, "shelf-marker", { width: 0.7, height: 0.28, depth: 0.05 }, new Vector3(0, 4.25, -0.62), olive, false),
+    // Rustic cobblestone masonry backing wall matching image
+    box(scene, `shelf-back-${shelfIndex}`, { width: 4.45, height: 5.2, depth: 0.10 }, new Vector3(0, 2.6, -0.56), cobblestoneMat, false),
+    // Chunky rustic timber side uprights
+    box(scene, `shelf-side-l-${shelfIndex}`, { width: 0.30, height: 5.2, depth: 1.22 }, new Vector3(-2.15, 2.6, 0), rusticWood),
+    box(scene, `shelf-side-r-${shelfIndex}`, { width: 0.30, height: 5.2, depth: 1.22 }, new Vector3(2.15, 2.6, 0), rusticWood),
+    // Top carved timber cornice
+    box(scene, `shelf-top-${shelfIndex}`, { width: 4.60, height: 0.26, depth: 1.25 }, new Vector3(0, 5.15, 0), rusticWood),
+    // Horizontal rustic wooden boards
+    ...shelfBoardsY.map((y, bIdx) => box(scene, `shelf-board-${shelfIndex}-${bIdx}`, { width: 4.35, height: 0.14, depth: 1.15 }, new Vector3(0, y, 0), wood)),
+    // Front edge timber trim strips with warm golden-brown highlights
+    ...shelfBoardsY.map((y, bIdx) => box(scene, `shelf-trim-${shelfIndex}-${bIdx}`, { width: 4.35, height: 0.06, depth: 0.05 }, new Vector3(0, y, 0.58), shelfTrimMat, false)),
+    box(scene, `shelf-marker-${shelfIndex}`, { width: 0.7, height: 0.28, depth: 0.05 }, new Vector3(0, 4.85, -0.62), olive, false),
   ];
   // One simple collision volume avoids snagging on individual boards while keeping the shelf bank solid.
-  const shelfCollider = box(scene, "shelf-collider", { width: 4.58, height: 4.72, depth: 1.28 }, new Vector3(0, 2.35, 0), wood);
+  const shelfCollider = box(scene, "shelf-collider", { width: 4.65, height: 5.25, depth: 1.30 }, new Vector3(0, 2.6, 0), wood);
   shelfCollider.parent = root;
   shelfCollider.isVisible = false;
   shelfCollider.isPickable = false;
   shelfCollider.receiveShadows = false;
   parts.forEach((part) => { part.parent = root; part.checkCollisions = false; shadow.addShadowCaster(part); });
-      const bookColors = [
-        new Color3(0.34, 0.075, 0.045), // Deep Burgundy
-        new Color3(0.24, 0.075, 0.035), // Dark Mahogany
-        new Color3(0.32, 0.11, 0.055),  // Warm Moroccan Leather
-        new Color3(0.075, 0.17, 0.12),  // Forest Olive Green
-        new Color3(0.28, 0.055, 0.075), // Dark Wine
-        new Color3(0.08, 0.14, 0.24),   // Andalusian Royal Blue
-        new Color3(0.20, 0.16, 0.08),   // Antique Gilded Ochre
-        new Color3(0.12, 0.12, 0.13),   // Classic Dark Ebony Leather
-      ];
-      [0.72, 1.72, 2.72, 3.72].forEach((y, row) => {
-        // Brass bookends on both ends of each shelf board
-        const bookendLeft = box(scene, `bookend-l-${shelfIndex}-${row}`, { width: 0.05, height: 0.38, depth: 0.44 }, new Vector3(-2.04, y - 0.17 + 0.22, -0.04), brass, false);
-        bookendLeft.parent = root;
-        const bookendRight = box(scene, `bookend-r-${shelfIndex}-${row}`, { width: 0.05, height: 0.38, depth: 0.44 }, new Vector3(2.04, y - 0.17 + 0.22, -0.04), brass, false);
-        bookendRight.parent = root;
 
-        for (let i = 0; i < 18; i += 1) {
-          const format = BOOK_FORMATS[(shelfIndex + row + i) % BOOK_FORMATS.length];
-          const bookWidth = format.width;
-          const bookHeight = format.height;
-          const bookDepth = format.depth;
-          const bookLean = (i === 0 || i === 17) ? 0 : (((i * 7) % 7) - 3) * 0.012;
-          const bookIndex = (shelfIndex * 18 + row * 7 + i) % BOOK_CATALOG.length;
-          const bookInfo = BOOK_CATALOG[bookIndex];
-          const leatherColor = bookColors[(i + row * 2 + shelfIndex) % bookColors.length];
-          const bookMaterial = material(scene, `book-mat-${shelfIndex}-${row}-${i}`, leatherColor);
-          const leatherMaterial = material(scene, `book-leather-${shelfIndex}-${row}-${i}`, leatherColor);
-          leatherMaterial.specularColor = new Color3(0.22, 0.17, 0.12);
-          // Place the book directly on the board below this row, with only a tiny clearance.
-          const shelfTopY = y - 0.17 + 0.08;
-          const bookPosition = new Vector3(-1.95 + i * 0.23, shelfTopY + bookHeight * 0.5 + 0.008, -0.04);
-          const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
-          book.parent = root;
-          const roundedSpine = MeshBuilder.CreateCylinder(`book-rounded-spine-${shelfIndex}-${row}-${i}`, { diameter: Math.min(bookDepth * 0.9, 0.28), height: bookHeight * 0.94, tessellation: 10 }, scene);
-          roundedSpine.position = new Vector3(bookPosition.x - bookWidth * 0.46, bookPosition.y, bookPosition.z);
-          roundedSpine.material = leatherMaterial;
-          roundedSpine.parent = root;
-          roundedSpine.isPickable = false;
+  // Candle Sconces mounted directly on the wooden shelf uprights (as in reference image)
+  addShelfCandleSconce(scene, root, new Vector3(-2.15, 3.2, 0.30), brass, `${shelfIndex}-l`);
+  addShelfCandleSconce(scene, root, new Vector3(2.15, 2.3, 0.30), brass, `${shelfIndex}-r`);
 
-          const frontCover = box(scene, `book-front-cover-${shelfIndex}-${row}-${i}`, { width: bookWidth * 1.04, height: bookHeight * 1.02, depth: 0.035 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.014), leatherMaterial, false);
-          frontCover.parent = root;
+  // Rich antique color palette matching the reference image
+  const bookColors = [
+    new Color3(0.58, 0.16, 0.14), // Antique Brick Red / Crimson (Prominent in image)
+    new Color3(0.74, 0.52, 0.18), // Vintage Ochre / Mustard
+    new Color3(0.24, 0.38, 0.25), // Earthy Forest / Sage Green
+    new Color3(0.44, 0.22, 0.12), // Warm Cinnamon & Chestnut Brown
+    new Color3(0.85, 0.76, 0.62), // Aged Cream Parchment
+    new Color3(0.42, 0.13, 0.20), // Deep Vintage Wine & Plum
+    new Color3(0.16, 0.24, 0.36), // Andalusian Midnight Slate
+    new Color3(0.66, 0.28, 0.16), // Terracotta / Burnt Orange
+    new Color3(0.32, 0.18, 0.10), // Dark Walnut Leather
+    new Color3(0.68, 0.48, 0.16), // Antique Gilded Leather
+    new Color3(0.50, 0.18, 0.16), // Deep Burgundy
+    new Color3(0.28, 0.36, 0.22), // Moss Green
+  ];
+
+  const rowBookYs = [0.63, 1.53, 2.43, 3.33, 4.23];
+  rowBookYs.forEach((y, row) => {
+    // Brass bookends on both ends of each shelf board
+    const bookendLeft = box(scene, `bookend-l-${shelfIndex}-${row}`, { width: 0.05, height: 0.38, depth: 0.44 }, new Vector3(-2.04, y - 0.15 + 0.22, -0.04), brass, false);
+    bookendLeft.parent = root;
+    const bookendRight = box(scene, `bookend-r-${shelfIndex}-${row}`, { width: 0.05, height: 0.38, depth: 0.44 }, new Vector3(2.04, y - 0.15 + 0.22, -0.04), brass, false);
+    bookendRight.parent = root;
+
+    for (let i = 0; i < 18; i += 1) {
+      const format = BOOK_FORMATS[(shelfIndex + row + i) % BOOK_FORMATS.length];
+      const heightFactor = 0.86 + (((i * 7 + row * 11 + shelfIndex * 3) % 9) / 9) * 0.28;
+      const widthFactor = 0.84 + (((i * 5 + row * 7) % 5) / 5) * 0.36;
+      const bookWidth = format.width * widthFactor;
+      const bookHeight = format.height * heightFactor;
+      const bookDepth = format.depth;
+      const bookLean = (i % 8 === 2) ? 0.075 : (i % 7 === 5) ? -0.065 : 0;
+      const bookIndex = (shelfIndex * 18 + row * 7 + i) % BOOK_CATALOG.length;
+      const bookInfo = BOOK_CATALOG[bookIndex];
+      const leatherColor = bookColors[(i + row * 2 + shelfIndex) % bookColors.length];
+      const bookMaterial = material(scene, `book-mat-${shelfIndex}-${row}-${i}`, leatherColor);
+      const leatherMaterial = material(scene, `book-leather-${shelfIndex}-${row}-${i}`, leatherColor);
+      leatherMaterial.specularColor = new Color3(0.22, 0.17, 0.12);
+      // Place the book directly on the board below this row, with only a tiny clearance.
+      const shelfTopY = y - 0.15 + 0.07;
+      const bookPosition = new Vector3(-1.95 + i * 0.23, shelfTopY + bookHeight * 0.5 + 0.008, -0.04);
+      const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
+      book.parent = root;
+      const roundedSpine = MeshBuilder.CreateCylinder(`book-rounded-spine-${shelfIndex}-${row}-${i}`, { diameter: Math.min(bookDepth * 0.9, 0.28), height: bookHeight * 0.94, tessellation: 10 }, scene);
+      roundedSpine.position = new Vector3(bookPosition.x - bookWidth * 0.46, bookPosition.y, bookPosition.z);
+      roundedSpine.material = leatherMaterial;
+      roundedSpine.parent = root;
+      roundedSpine.isPickable = false;
+
+      const frontCover = box(scene, `book-front-cover-${shelfIndex}-${row}-${i}`, { width: bookWidth * 1.04, height: bookHeight * 1.02, depth: 0.035 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.014), leatherMaterial, false);
+      frontCover.parent = root;
       // Closed books carry a hidden physical reading spread that unfolds in front of the cover.
       const pageRenderers: { left?: (pageIndex: number) => void; right?: (pageIndex: number) => void } = {};
       const makeReadingMaterial = (bookToRead: BookInfo, _initialPageIndex: number, side: "left" | "right") => {
@@ -790,7 +917,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const turningPage = MeshBuilder.CreatePlane(`book-turning-page-${shelfIndex}-${row}-${i}`, { width: openPageWidth, height: openPageHeight, sideOrientation: Mesh.DOUBLESIDE }, scene);
       turningPage.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.14); turningPage.material = rightReadingMaterial;
       [openLeftPage, openRightPage, turningPage].forEach((page) => { page.parent = root; page.isVisible = false; page.isPickable = false; });
-      const titlePlate = MeshBuilder.CreatePlane(`book-title-${row}-${i}`, { width: Math.max(bookWidth * 0.9, 0.20), height: bookHeight * 0.86, sideOrientation: Mesh.DOUBLESIDE }, scene);
+      const titlePlate = MeshBuilder.CreatePlane(`book-title-${shelfIndex}-${row}-${i}`, { width: Math.max(bookWidth * 0.9, 0.20), height: bookHeight * 0.86, sideOrientation: Mesh.DOUBLESIDE }, scene);
       titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.046);
       titlePlate.material = createTitleMaterial(scene, bookInfo, titleMaterials);
       titlePlate.parent = root;
@@ -805,7 +932,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       shadow.addShadowCaster(book);
     }
   });
-  const shelfLight = new PointLight("shelf-light", new Vector3(x, 4.4, z), scene);
+  const shelfLight = new PointLight(`shelf-light-${shelfIndex}`, new Vector3(x, 4.8, z), scene);
   shelfLight.parent = root;
   shelfLight.diffuse = COLORS.brass;
   shelfLight.intensity = 0.12;

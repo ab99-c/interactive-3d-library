@@ -445,48 +445,74 @@ function addStudyStation(scene: Scene, z: number, hasAstrolabe: boolean) {
   }
 }
 
-function addLibraryLadder(scene: Scene, x: number, z: number) {
-  const wood = material(scene, "ladder-wood", new Color3(0.24, 0.12, 0.06));
-  const brass = material(scene, "ladder-brass", new Color3(0.78, 0.58, 0.28));
+function addRusticLadder(scene: Scene, id: string, x: number, z: number, height: number, leanAngleZ: number) {
+  const wood = material(scene, "rustic-ladder-wood", new Color3(0.40, 0.22, 0.10));
+  const tie = material(scene, "rustic-ladder-tie", new Color3(0.68, 0.54, 0.34));
 
-  const root = new TransformNode("library-ladder", scene);
+  const root = new TransformNode(`rustic-ladder-${id}`, scene);
   root.position = new Vector3(x, 0, z);
-  root.rotation.z = 0.16; // Lean towards the shelf at ~9 degrees
+  root.rotation.z = leanAngleZ;
 
-  const ladderHeight = 4.4;
-  [-0.26, 0.26].forEach((lx) => {
-    const rail = MeshBuilder.CreateBox(`ladder-rail-${lx}`, { width: 0.06, height: ladderHeight, depth: 0.08 }, scene);
-    rail.position = new Vector3(lx, ladderHeight * 0.5, 0);
+  const width = 0.54;
+  [-width * 0.5, width * 0.5].forEach((lx) => {
+    const rail = MeshBuilder.CreateBox(`ladder-rail-${id}-${lx}`, { width: 0.07, height, depth: 0.08 }, scene);
+    rail.position = new Vector3(lx, height * 0.5, 0);
     rail.material = wood;
     rail.isPickable = false;
     rail.parent = root;
-
-    // Top brass hook
-    const hook = MeshBuilder.CreateTorus(`ladder-hook-${lx}`, { diameter: 0.12, thickness: 0.024, tessellation: 16 }, scene);
-    hook.position = new Vector3(lx, ladderHeight - 0.06, 0.06);
-    hook.rotation.x = Math.PI / 2;
-    hook.material = brass;
-    hook.isPickable = false;
-    hook.parent = root;
-
-    // Bottom brass wheel
-    const wheel = MeshBuilder.CreateCylinder(`ladder-wheel-${lx}`, { height: 0.04, diameter: 0.14, tessellation: 16 }, scene);
-    wheel.position = new Vector3(lx, 0.07, 0);
-    wheel.rotation.z = Math.PI / 2;
-    wheel.material = brass;
-    wheel.isPickable = false;
-    wheel.parent = root;
   });
 
-  // Rungs
-  for (let y = 0.38; y < ladderHeight - 0.2; y += 0.36) {
-    const rung = MeshBuilder.CreateCylinder(`ladder-rung-${y.toFixed(2)}`, { height: 0.48, diameter: 0.04, tessellation: 8 }, scene);
+  const stepSpacing = 0.34;
+  for (let y = 0.32; y < height - 0.18; y += stepSpacing) {
+    const rung = MeshBuilder.CreateCylinder(`ladder-rung-${id}-${y.toFixed(2)}`, { height: width - 0.02, diameter: 0.042, tessellation: 8 }, scene);
     rung.position = new Vector3(0, y, 0);
     rung.rotation.z = Math.PI / 2;
     rung.material = wood;
     rung.isPickable = false;
     rung.parent = root;
+
+    // Rustic peg/tie bindings on the sides matching the reference picture
+    [-width * 0.5, width * 0.5].forEach((tx) => {
+      const peg = MeshBuilder.CreateSphere(`ladder-peg-${id}-${y.toFixed(2)}-${tx}`, { diameter: 0.035, segments: 4 }, scene);
+      peg.position = new Vector3(tx, y, 0.03);
+      peg.material = tie;
+      peg.isPickable = false;
+      peg.parent = root;
+    });
   }
+}
+
+function addReadingFootstool(scene: Scene, id: string, x: number, z: number, rotationY: number) {
+  const wood = material(scene, "rustic-stool-wood", new Color3(0.42, 0.23, 0.11), new Color3(0.08, 0.05, 0.03), new Color3(0.12, 0.06, 0.02));
+
+  const root = new TransformNode(`footstool-${id}`, scene);
+  root.position = new Vector3(x, 0, z);
+  root.rotation.y = rotationY;
+
+  // Stool top seat
+  const seat = MeshBuilder.CreateBox(`stool-seat-${id}`, { width: 0.44, height: 0.07, depth: 0.28 }, scene);
+  seat.position = new Vector3(0, 0.26, 0);
+  seat.material = wood;
+  seat.isPickable = false;
+  seat.parent = root;
+
+  // 4 splayed rustic legs
+  const legOffsets = [
+    { x: -0.15, z: -0.09, rotZ: 0.14, rotX: -0.14 },
+    { x: 0.15, z: -0.09, rotZ: -0.14, rotX: -0.14 },
+    { x: -0.15, z: 0.09, rotZ: 0.14, rotX: 0.14 },
+    { x: 0.15, z: 0.09, rotZ: -0.14, rotX: 0.14 },
+  ];
+
+  legOffsets.forEach((l, idx) => {
+    const leg = MeshBuilder.CreateBox(`stool-leg-${id}-${idx}`, { width: 0.048, height: 0.25, depth: 0.048 }, scene);
+    leg.position = new Vector3(l.x, 0.125, l.z);
+    leg.rotation.z = l.rotZ;
+    leg.rotation.x = l.rotX;
+    leg.material = wood;
+    leg.isPickable = false;
+    leg.parent = root;
+  });
 }
 
 function addWallDecor(scene: Scene) {
@@ -577,8 +603,16 @@ function arrangeGrandLibrary(scene: Scene) {
   addStudyStation(scene, -3.4, true);  // Astronomy with Astrolabe & Banker's lamp
   addStudyStation(scene, 3.4, false);  // Philosophy with Folios, Scroll & Candlestick
 
-  // Rolling Library Ladder
-  addLibraryLadder(scene, -4.1, 0.0);
+  // Rustic Library Ladders (Matching user reference image)
+  addRusticLadder(scene, "tall-left", -4.4, 0.6, 4.3, 0.16);
+  addRusticLadder(scene, "short-mid", -4.2, -4.2, 2.3, 0.18);
+  addRusticLadder(scene, "right-aisle", 4.4, 1.8, 3.8, -0.16);
+
+  // Rustic Reading Footstools (Matching user reference image)
+  addReadingFootstool(scene, "stool-1", -3.6, 2.2, 0.22);
+  addReadingFootstool(scene, "stool-2", -3.4, -2.4, -0.18);
+  addReadingFootstool(scene, "stool-3", 3.6, -1.2, 0.35);
+  addReadingFootstool(scene, "stool-4", 3.5, 3.2, -0.12);
 
   // Initial Player Framing
   const camera = scene.activeCamera as UniversalCamera | null;
