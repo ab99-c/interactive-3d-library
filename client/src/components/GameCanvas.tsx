@@ -8,7 +8,7 @@ import type { BookScreenRect, GameHandle, PerformanceMode } from "@/game/scene";
 export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const startedRef = useRef(false);
-  const [showHelp, setShowHelp] = useState(() => !new URLSearchParams(window.location.search).has("demo"));
+  const [showHelp, setShowHelp] = useState(false);
   const [started, setStarted] = useState(false);
   const [bookRects, setBookRects] = useState<BookScreenRect[]>([]);
   const bookRectsRef = useRef<BookScreenRect[]>([]);

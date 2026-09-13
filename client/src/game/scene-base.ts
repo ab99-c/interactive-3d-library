@@ -703,22 +703,14 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
           const bookPosition = new Vector3(-1.95 + i * 0.23, shelfTopY + bookHeight * 0.5 + 0.008, -0.04);
           const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
           book.parent = root;
-      const roundedSpine = MeshBuilder.CreateCylinder(`book-rounded-spine-${shelfIndex}-${row}-${i}`, { diameter: Math.min(bookDepth * 0.9, 0.28), height: bookHeight * 0.94, tessellation: 16 }, scene);
-      roundedSpine.position = new Vector3(bookPosition.x - bookWidth * 0.46, bookPosition.y, bookPosition.z);
-      roundedSpine.material = leatherMaterial;
-      roundedSpine.parent = root;
-      roundedSpine.isPickable = false;
-      const spineStrip = box(scene, `book-spine-strip-${shelfIndex}-${row}-${i}`, { width: Math.max(bookWidth * 0.12, 0.045), height: bookHeight * 0.94, depth: bookDepth * 1.04 }, new Vector3(bookPosition.x - bookWidth * 0.45, bookPosition.y, bookPosition.z), bookMaterial, false);
-      spineStrip.material = leatherMaterial;
-      spineStrip.parent = root;
-      const pages = box(scene, `book-pages-${row}-${i}`, { width: Math.max(bookWidth * 0.68, 0.2), height: bookHeight * 0.82, depth: bookDepth * 0.78 }, new Vector3(bookPosition.x + 0.035, bookPosition.y, bookPosition.z + 0.012), material(scene, `book-pages-mat-${row}-${i}`, new Color3(0.92, 0.83, 0.63)), false);
-      pages.parent = root;
-      const coverTop = box(scene, `book-cover-top-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.48, bookPosition.z), leatherMaterial, false);
-      coverTop.parent = root;
-      const coverBottom = box(scene, `book-cover-bottom-${row}-${i}`, { width: bookWidth * 1.06, height: 0.045, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.48, bookPosition.z), leatherMaterial, false);
-      coverBottom.parent = root;
-      const frontCover = box(scene, `book-front-cover-${shelfIndex}-${row}-${i}`, { width: bookWidth * 1.04, height: bookHeight * 1.02, depth: 0.035 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.014), leatherMaterial, false);
-      frontCover.parent = root;
+          const roundedSpine = MeshBuilder.CreateCylinder(`book-rounded-spine-${shelfIndex}-${row}-${i}`, { diameter: Math.min(bookDepth * 0.9, 0.28), height: bookHeight * 0.94, tessellation: 10 }, scene);
+          roundedSpine.position = new Vector3(bookPosition.x - bookWidth * 0.46, bookPosition.y, bookPosition.z);
+          roundedSpine.material = leatherMaterial;
+          roundedSpine.parent = root;
+          roundedSpine.isPickable = false;
+
+          const frontCover = box(scene, `book-front-cover-${shelfIndex}-${row}-${i}`, { width: bookWidth * 1.04, height: bookHeight * 1.02, depth: 0.035 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.014), leatherMaterial, false);
+          frontCover.parent = root;
       // Closed books carry a hidden physical reading spread that unfolds in front of the cover.
       const pageRenderers: { left?: (pageIndex: number) => void; right?: (pageIndex: number) => void } = {};
       const makeReadingMaterial = (bookToRead: BookInfo, _initialPageIndex: number, side: "left" | "right") => {
@@ -802,26 +794,11 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.046);
       titlePlate.material = createTitleMaterial(scene, bookInfo, titleMaterials);
       titlePlate.parent = root;
-      const labelMaterial = i % 3 === 0 ? brass : material(scene, `book-label-mat-${row}-${i}`, COLORS.ivory);
-      const spineLabel = box(scene, `book-label-${row}-${i}`, { width: bookWidth * 0.72, height: 0.055, depth: 0.025 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.26, bookPosition.z + bookDepth * 0.5 + 0.032), labelMaterial, false);
-      spineLabel.parent = root;
-      const spineBand = box(scene, `book-band-${row}-${i}`, { width: bookWidth * 0.9, height: 0.035, depth: 0.03 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.32, bookPosition.z + bookDepth * 0.5 + 0.035), brass, false);
-      spineBand.parent = root;
-      const bindingBandTop = box(scene, `book-binding-top-${shelfIndex}-${row}-${i}`, { width: Math.max(bookWidth * 0.15, 0.05), height: 0.035, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x - bookWidth * 0.45, bookPosition.y + bookHeight * 0.34, bookPosition.z), brass, false);
-      const bindingBandMid = box(scene, `book-binding-mid-${shelfIndex}-${row}-${i}`, { width: Math.max(bookWidth * 0.15, 0.05), height: 0.035, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x - bookWidth * 0.45, bookPosition.y, bookPosition.z), brass, false);
-      const bindingBandBottom = box(scene, `book-binding-bottom-${shelfIndex}-${row}-${i}`, { width: Math.max(bookWidth * 0.15, 0.05), height: 0.035, depth: bookDepth * 1.08 }, new Vector3(bookPosition.x - bookWidth * 0.45, bookPosition.y - bookHeight * 0.34, bookPosition.z), brass, false);
-      [bindingBandTop, bindingBandMid, bindingBandBottom].forEach((band) => { band.parent = root; });
-      const frontZ = bookPosition.z + bookDepth * 0.5 + 0.038;
-      const frameTop = box(scene, `book-frame-top-${row}-${i}`, { width: bookWidth * 0.78, height: 0.018, depth: 0.022 }, new Vector3(bookPosition.x, bookPosition.y + bookHeight * 0.38, frontZ), brass, false);
-      const frameBottom = box(scene, `book-frame-bottom-${row}-${i}`, { width: bookWidth * 0.78, height: 0.018, depth: 0.022 }, new Vector3(bookPosition.x, bookPosition.y - bookHeight * 0.38, frontZ), brass, false);
-      const frameLeft = box(scene, `book-frame-left-${row}-${i}`, { width: 0.018, height: bookHeight * 0.76, depth: 0.022 }, new Vector3(bookPosition.x - bookWidth * 0.38, bookPosition.y, frontZ), brass, false);
-      const frameRight = box(scene, `book-frame-right-${row}-${i}`, { width: 0.018, height: bookHeight * 0.76, depth: 0.022 }, new Vector3(bookPosition.x + bookWidth * 0.38, bookPosition.y, frontZ), brass, false);
-      [frameTop, frameBottom, frameLeft, frameRight].forEach((frame) => { frame.parent = root; });
-      const bookParts = [book, roundedSpine, spineStrip, pages, coverTop, coverBottom, frontCover, openLeftPage, openRightPage, turningPage, titlePlate, spineLabel, spineBand, bindingBandTop, bindingBandMid, bindingBandBottom, frameTop, frameBottom, frameLeft, frameRight];
+      const bookParts = [book, roundedSpine, frontCover, openLeftPage, openRightPage, turningPage, titlePlate];
       const pageState = { pageIndex: 0, pageCount: bookInfo.pages?.length || (bookInfo.id === "hayy-ibn-yaqdhan" ? FALLBACK_HAYY_PAGE_COUNT : 1), pageRenderers };
       bookParts.forEach((target) => {
         target.rotation.y = bookLean;
-        target.metadata = { book: bookInfo, format: format.name, openPageWidth, openPageHeight, bookParts, pageState, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, bookDetail: target !== book && target !== openLeftPage && target !== openRightPage && target !== turningPage, readingPage: target === openLeftPage || target === openRightPage, pageSide: target === openLeftPage ? "left" : target === openRightPage ? "right" : undefined, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate || target === spineLabel || target === spineBand || target === frameTop || target === frameBottom || target === frameLeft || target === frameRight };
+        target.metadata = { book: bookInfo, format: format.name, openPageWidth, openPageHeight, bookParts, pageState, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, bookDetail: target !== book && target !== openLeftPage && target !== openRightPage && target !== turningPage, readingPage: target === openLeftPage || target === openRightPage, pageSide: target === openLeftPage ? "left" : target === openRightPage ? "right" : undefined, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate };
         // Only the main volume is pickable; decorative binding parts move with it but do not create duplicate hits.
         target.isPickable = target === book || target === openLeftPage || target === openRightPage;
       });
@@ -1415,7 +1392,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   try {
     await Promise.race([
       scene.whenReadyAsync(),
-      new Promise((resolve) => window.setTimeout(resolve, 800)),
+      new Promise((resolve) => window.setTimeout(resolve, 150)),
     ]);
   } catch (err) {
     console.warn("whenReadyAsync non-blocking fallback:", err);

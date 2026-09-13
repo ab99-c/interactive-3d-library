@@ -110,63 +110,63 @@ function addMoroccanCarpet(scene: Scene) {
   carpet.isPickable = false;
 
   const mat = new StandardMaterial("moroccan-carpet-mat", scene);
-  const tex = new DynamicTexture("moroccan-carpet-tex", { width: 512, height: 2048 }, scene, true);
+  const tex = new DynamicTexture("moroccan-carpet-tex", { width: 256, height: 1024 }, scene, true);
   const ctx = tex.getContext() as unknown as CanvasRenderingContext2D;
 
   // Background deep Moroccan ruby
   ctx.fillStyle = "#691419";
-  ctx.fillRect(0, 0, 512, 2048);
+  ctx.fillRect(0, 0, 256, 1024);
 
   // Outer gold borders
   ctx.strokeStyle = "#c89439";
-  ctx.lineWidth = 14;
-  ctx.strokeRect(18, 18, 476, 2012);
+  ctx.lineWidth = 7;
+  ctx.strokeRect(9, 9, 238, 1006);
 
   ctx.strokeStyle = "#1a2744";
-  ctx.lineWidth = 8;
-  ctx.strokeRect(36, 36, 440, 1976);
+  ctx.lineWidth = 4;
+  ctx.strokeRect(18, 18, 220, 988);
 
   ctx.strokeStyle = "#ddb35c";
-  ctx.lineWidth = 4;
-  ctx.strokeRect(48, 48, 416, 1952);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(24, 24, 208, 976);
 
   // Central geometric medallions repeat along carpet
-  for (let y = 140; y < 1950; y += 220) {
+  for (let y = 70; y < 975; y += 110) {
     ctx.save();
-    ctx.translate(256, y);
+    ctx.translate(128, y);
 
     // Outer diamond
     ctx.fillStyle = "#1c2b48";
     ctx.beginPath();
-    ctx.moveTo(0, -85);
-    ctx.lineTo(120, 0);
-    ctx.lineTo(0, 85);
-    ctx.lineTo(-120, 0);
+    ctx.moveTo(0, -42);
+    ctx.lineTo(60, 0);
+    ctx.lineTo(0, 42);
+    ctx.lineTo(-60, 0);
     ctx.closePath();
     ctx.fill();
 
     ctx.strokeStyle = "#e8bd63";
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 3;
     ctx.stroke();
 
     // Inner gold star diamond
     ctx.fillStyle = "#8a1b22";
     ctx.beginPath();
-    ctx.moveTo(0, -55);
-    ctx.lineTo(75, 0);
-    ctx.lineTo(0, 55);
-    ctx.lineTo(-75, 0);
+    ctx.moveTo(0, -28);
+    ctx.lineTo(38, 0);
+    ctx.lineTo(0, 28);
+    ctx.lineTo(-38, 0);
     ctx.closePath();
     ctx.fill();
 
     ctx.strokeStyle = "#f3d182";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.stroke();
 
     // Center rosette
     ctx.fillStyle = "#cca044";
     ctx.beginPath();
-    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+    ctx.arc(0, 0, 9, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -174,8 +174,8 @@ function addMoroccanCarpet(scene: Scene) {
 
   // Fringes on top and bottom
   ctx.fillStyle = "#efe3cb";
-  ctx.fillRect(18, 0, 476, 18);
-  ctx.fillRect(18, 2030, 476, 18);
+  ctx.fillRect(9, 0, 238, 9);
+  ctx.fillRect(9, 1015, 238, 9);
 
   tex.update();
   mat.diffuseTexture = tex;
