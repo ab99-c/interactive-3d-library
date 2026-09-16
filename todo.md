@@ -312,10 +312,10 @@
 
 ## Deploy linked Vercel project
 
-- [ ] Discover the existing Vercel project linked to `ab99-c/interactive-3d-library`.
-- [ ] Trigger the latest GitHub `main` deployment without creating a duplicate project.
-- [ ] Verify the production URL and deployment status.
-- [ ] Report the live URL or the exact remaining account action.
+- [x] Discover the existing Vercel project linked to `ab99-c/interactive-3d-library`.
+- [x] Trigger the latest GitHub `main` deployment without creating a duplicate project.
+- [x] Verify the production URL and deployment status.
+- [x] Report the live URL or the exact remaining account action.
 
 ## Match desktop to mobile reference
 
@@ -354,10 +354,10 @@
 
 ## Performance upgrades 1-2-3
 
-- [ ] Compress and resize heavy leather and wood textures while preserving visual clarity.
-- [ ] Add progressive loading for library areas or distant detail.
-- [ ] Add a lightweight Arabic loading screen during Babylon initialization.
-- [ ] Rebuild, verify desktop/mobile interactions, and checkpoint the upgrade.
+- [x] Compress and resize heavy leather and wood textures while preserving visual clarity. (خامات إجرائية مولّدة ديناميكياً — لا ملفات ثقيلة للضغط)
+- [x] Add progressive loading for library areas or distant detail.
+- [x] Add a lightweight Arabic loading screen during Babylon initialization.
+- [x] Rebuild, verify desktop/mobile interactions, and checkpoint the upgrade.
 
 
 ## ترقيات الأداء الجديدة
@@ -366,15 +366,15 @@
 - [x] جعل تفاصيل الرفوف البعيدة تتوقف أو تخف حسب بُعد اللاعب مع الحفاظ على الكتب القابلة للتفاعل.
 - [x] إضافة وضع أداء خفيف للهاتف لتقليل device pixel ratio والظلال وجودة العرض.
 - [x] فحص سطح المكتب والهاتف ومراجعة سجلات التشغيل بعد التغييرات.
-- [ ] تشغيل pnpm check وpnpm build ثم commit وpush إلى GitHub والتحقق من Vercel قبل التسليم.
+- [x] تشغيل pnpm check وpnpm build ثم commit وpush إلى GitHub والتحقق من Vercel قبل التسليم.
 
 
 ## إصلاح صفحات الكتاب الخاوية
 
-- [ ] تشخيص طلب JSON وتوقيت تحديث خامة الصفحة بعد فتح الكتاب.
-- [ ] ضمان ظهور نص حي بن يقظان ومعلومات الكتاب حتى مع تأخر التحميل أو فشل الطلب.
-- [ ] اختبار فتح الكتاب وتقليب الصفحات على الحاسوب والهاتف ومراجعة السجلات.
-- [ ] تشغيل pnpm check وpnpm build ثم commit وpush والتحقق من Vercel قبل التسليم.
+- [x] تشخيص طلب JSON وتوقيت تحديث خامة الصفحة بعد فتح الكتاب.
+- [x] ضمان ظهور نص حي بن يقظان ومعلومات الكتاب حتى مع تأخر التحميل أو فشل الطلب.
+- [x] اختبار فتح الكتاب وتقليب الصفحات على الحاسوب والهاتف ومراجعة السجلات.
+- [x] تشغيل pnpm check وpnpm build ثم commit وpush والتحقق من Vercel قبل التسليم.
 
 
 ## إضافة اليدين في منظور الشخص الأول
@@ -390,20 +390,20 @@
 - [x] إضافة تسارع وتباطؤ وجري اختياري وحركة كاميرا طبيعية للمشي.
 - [x] تطبيق تصادمات خفيفة مع الرفوف والطاولة مع الحفاظ على الوصول للكتب.
 - [x] اختبار الحاسوب والهاتف وربط حركة اليدين بالحركة الجديدة.
-- [ ] تشغيل pnpm check وpnpm build ثم commit وpush والتحقق من Vercel قبل التسليم.
+- [x] تشغيل pnpm check وpnpm build ثم commit وpush والتحقق من Vercel قبل التسليم.
 
 ## حقوق الملكية والنسبة
 
 - [x] إضافة LICENSE باسم Abdel Aziz بصيغة All Rights Reserved.
 - [x] إضافة إشعارات الحقوق إلى README ووسوم HTML وواجهة المكتبة وconsole.
-- [ ] تشغيل pnpm check وpnpm build ثم commit وpush والتحقق من Vercel قبل التسليم.
+- [x] تشغيل pnpm check وpnpm build ثم commit وpush والتحقق من Vercel قبل التسليم.
 
 ## تعزيز حماية المشروع
 
 - [x] توثيق عناصر المشروع المحمية: الكود، تصميم المشهد، العلامة، والمحتوى الأصلي.
 - [x] إضافة ملف NOTICE يوضح ملكية الاسم والهوية البصرية والمكونات الأصلية.
 - [x] مراجعة إعدادات النشر والمستودع لتقليل كشف ما لا يلزم من الملفات أو الأسرار.
-- [ ] فحص النسخة ثم مزامنة GitHub والتحقق من Vercel قبل التسليم.
+- [x] فحص النسخة ثم مزامنة GitHub والتحقق من Vercel قبل التسليم.
 
 ## خطة تطوير المكتبة المعتمدة
 
@@ -411,7 +411,7 @@
 - [x] مراجعة المشي والجري والتصادم وحركة اليدين وصقل التفاعل مع الكتاب.
 - [x] تحسين أول ظهور للمكتبة والإضاءة والخامات والأداء على الحاسوب والهاتف.
 - [x] استكمال توثيق الحقوق وحماية الملفات الحساسة ومراجعة جودة المشروع.
-- [ ] تشغيل pnpm check وpnpm build ثم commit وpush والتحقق من Vercel قبل التسليم.
+- [x] تشغيل pnpm check وpnpm build ثم commit وpush والتحقق من Vercel قبل التسليم.
 
 ## إصلاح نشر Vercel
 
@@ -424,7 +424,7 @@
 - [x] تحويل بيانات صفحات حي بن يقظان إلى أصل JSON كسول خارج حزمة Babylon.js.
 - [x] جعل تفاصيل الرفوف البعيدة تتوقف أو تخف حسب بُعد اللاعب مع الحفاظ على الكتب القابلة للتفاعل.
 - [x] إضافة وضع أداء خفيف للهاتف لتقليل device pixel ratio والظلال وجودة العرض.
-- [ ] تشغيل pnpm check وpnpm build ثم commit وpush إلى GitHub والتحقق من Vercel.
+- [x] تشغيل pnpm check وpnpm build ثم commit وpush إلى GitHub والتحقق من Vercel.
 
 ## إصلاح صفحات الكتاب الخاوية
 
