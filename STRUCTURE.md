@@ -10,6 +10,8 @@ React 19 كإطار خارجي فقط، وBabylon.js كمالك للـ canvas و
 | `client/src/App.tsx` | عرض اللعبة فقط |
 | `client/src/components/GameCanvas.tsx` | تشغيل Babylon، إدارة HUD، استقبال أحداث الكتب |
 | `client/src/game/scene.ts` | إنشاء القاعة، الإضاءة، الرفوف، الكتب، الكاميرا، الاصطدامات، demo mode |
+| `client/src/game/scene-base.ts` | المشهد الأساسي والتفاعل: الصوت المولّد، ذرات الغبار، أحداث التقدم |
+| `client/src/game/progression.ts` | أهداف الباحث، نقاط المعرفة، الرتب، والحفظ — مستقلة عن React وBabylon |
 | `client/src/index.css` | هوية Quiet Study Hall، HUD، responsive behavior، motion |
 | `ideas.md` | الاتجاه البصري وقرارات العلامة |
 | `ASSETS.md` | سجل الأصول البصرية وروابط التخزين |

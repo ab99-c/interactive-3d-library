@@ -12,7 +12,7 @@ button { font: inherit; }
 .library-game { position: fixed; inset: 0; overflow: hidden; background: #090706; color: #f4ead5; direction: rtl; }
 .game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; outline: none; display: block; }
 .library-game::after { content: ''; pointer-events: none; position: absolute; inset: 0; background: radial-gradient(circle at 52% 47%, transparent 24%, rgba(7,5,3,.18) 68%, rgba(4,3,2,.64) 100%), linear-gradient(180deg, rgba(5,3,2,.5), transparent 24%, transparent 72%, rgba(5,3,2,.5)); z-index: 1; }
-.hud-topline, .hud-bottom, .welcome-card, .book-card, .corner-note, .loading-overlay { position: absolute; z-index: 2; }
+.hud-topline, .hud-bottom, .welcome-card, .book-card, .corner-note, .loading-overlay, .quest-card, .toast-stack, .library-map { position: absolute; z-index: 2; }
 .hud-topline { top: 24px; left: 30px; right: 30px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
 .brand-lockup { display: flex; align-items: center; gap: 11px; color: #f4ead5; letter-spacing: .18em; font-size: 10px; font-weight: 800; text-shadow: 0 2px 10px #000; }
 .brand-lockup img { width: 31px; height: 31px; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(201,148,82,.35)); }
@@ -75,5 +75,31 @@ button { font: inherit; }
 .copyright-note { position: absolute; z-index: 2; right: 30px; bottom: 12px; max-width: 320px; color: rgba(244,234,213,.28); text-align: right; font-size: 8px; line-height: 1.7; letter-spacing: .04em; direction: ltr; pointer-events: none; }
 .copyright-note span { font-size: 7px; opacity: .85; }
 @keyframes card-in { from { opacity: 0; transform: translateY(-38%) translateX(-12px); } to { opacity: 1; transform: translateY(-45%) translateX(0); } }
-@media (max-width: 720px) { .welcome-card { left: 22px; right: 22px; top: auto; bottom: 84px; width: auto; transform: none; padding: 21px; } .welcome-card h1 { font-size: 43px; } .hud-topline { left: 18px; right: 18px; top: 17px; } .hud-bottom { left: 18px; right: 18px; bottom: 17px; } .controls { display: none; } .corner-note, .copyright-note { display: none; } .mobile-controls { display: block; } .hud-actions { width: 100%; gap: 6px; flex-wrap: wrap; justify-content: center; } .page-actions { order: 2; width: 100%; justify-content: center; gap: 7px; } .hud-actions .inspect-button, .hud-actions .return-button, .hud-actions .page-turn-button { padding: 9px 8px; font-size: 8px; } .hud-actions .help-button { padding: 9px 8px; font-size: 8px; } }
+/* رحلة الباحث: بطاقة الأهداف، نقاط المعرفة، والإشعارات */
+.quest-card { left: 30px; top: 84px; width: min(300px, 30vw); padding: 16px 17px 13px; background: linear-gradient(135deg, rgba(14,10,7,.82), rgba(14,10,7,.42)); border-left: 2px solid #c99452; backdrop-filter: blur(4px); box-shadow: 0 12px 34px rgba(0,0,0,.22); text-align: right; }
+.quest-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rank-pill { border: 1px solid rgba(201,148,82,.55); color: #d8b47c; background: rgba(201,148,82,.12); padding: 5px 9px; font-size: 8px; font-weight: 800; letter-spacing: .06em; }
+.quest-card h2 { font-family: 'Noto Serif Arabic', serif; font-size: 17px; font-weight: 500; margin: 11px 0 5px; color: #f4ead5; }
+.quest-card p { margin: 0 0 11px; color: rgba(244,234,213,.62); font-size: 10px; line-height: 1.65; }
+.quest-bar { height: 5px; background: rgba(244,234,213,.1); border-radius: 3px; overflow: hidden; }
+.quest-bar i { display: block; height: 100%; background: linear-gradient(90deg, #8a5f2f, #e4bb7d); border-radius: 3px; transition: width .5s ease-out; box-shadow: 0 0 10px rgba(201,148,82,.5); }
+.quest-count { display: block; margin-top: 7px; color: rgba(244,234,213,.45); font-size: 8px; letter-spacing: .08em; }
+.quest-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; padding-top: 9px; border-top: 1px solid rgba(244,234,213,.1); color: rgba(244,234,213,.5); font-size: 8px; letter-spacing: .05em; }
+.reset-progress-button { border: 1px solid rgba(244,234,213,.22); background: transparent; color: rgba(244,234,213,.5); padding: 4px 7px; font-size: 7px; letter-spacing: .06em; cursor: pointer; transition: border-color .16s ease-out, color .16s ease-out; }
+.reset-progress-button:hover { border-color: rgba(201,148,82,.7); color: #d8b47c; }
+.toast-stack { left: 50%; top: 84px; transform: translateX(-50%); display: grid; gap: 8px; justify-items: center; pointer-events: none; }
+.game-toast { min-width: 230px; max-width: 320px; padding: 10px 16px; background: linear-gradient(135deg, rgba(15,10,6,.92), rgba(15,10,6,.7)); border: 1px solid rgba(201,148,82,.5); box-shadow: 0 10px 30px rgba(0,0,0,.3); text-align: center; animation: toast-in .35s cubic-bezier(.23,1,.32,1) both; }
+.game-toast strong { display: block; color: #d8b47c; font-size: 9px; font-weight: 800; letter-spacing: .14em; margin-bottom: 3px; }
+.game-toast span { color: #f4ead5; font-size: 11px; font-weight: 600; }
+.game-toast-rank { border-color: rgba(244,213,140,.75); box-shadow: 0 10px 34px rgba(201,148,82,.28); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-14px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.library-map { left: 30px; bottom: 30px; width: min(240px, 30vw); background: rgba(10,7,4,.78); border: 1px solid rgba(201,148,82,.45); box-shadow: 0 12px 34px rgba(0,0,0,.26); backdrop-filter: blur(5px); padding: 9px; animation: toast-in .3s ease-out both; }
+.library-map svg { display: block; width: 100%; height: auto; }
+.map-room { fill: rgba(244,234,213,.05); stroke: rgba(201,148,82,.55); stroke-width: 1.2; }
+.map-shelf { fill: rgba(216,180,124,.4); }
+.map-player { fill: #e4bb7d; stroke: #2a1508; stroke-width: 1; }
+.map-player-halo { fill: none; stroke: rgba(228,187,125,.4); stroke-width: 1.2; }
+.map-label { fill: rgba(244,234,213,.42); font-size: 7px; letter-spacing: .08em; }
+.audio-button { min-width: 88px; }
+@media (max-width: 720px) { .welcome-card { left: 22px; right: 22px; top: auto; bottom: 84px; width: auto; transform: none; padding: 21px; } .welcome-card h1 { font-size: 43px; } .hud-topline { left: 18px; right: 18px; top: 17px; } .hud-bottom { left: 18px; right: 18px; bottom: 17px; } .controls { display: none; } .corner-note, .copyright-note { display: none; } .mobile-controls { display: block; } .hud-actions { width: 100%; gap: 6px; flex-wrap: wrap; justify-content: center; } .page-actions { order: 2; width: 100%; justify-content: center; gap: 7px; } .hud-actions .inspect-button, .hud-actions .return-button, .hud-actions .page-turn-button { padding: 9px 8px; font-size: 8px; } .hud-actions .help-button { padding: 9px 8px; font-size: 8px; } .quest-card { left: 14px; right: 14px; top: 62px; width: auto; padding: 12px 13px 10px; } .quest-card p, .quest-card-foot, .reset-progress-button { display: none; } .quest-card h2 { font-size: 14px; margin: 7px 0 6px; } .toast-stack { top: 64px; } .game-toast { min-width: 0; max-width: 78vw; } .library-map { left: 14px; bottom: 128px; width: min(180px, 46vw); } .audio-button { min-width: 0; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

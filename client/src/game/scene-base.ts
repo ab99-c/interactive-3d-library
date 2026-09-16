@@ -13,6 +13,8 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
+import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
+import { AUDIO_STORAGE_KEY } from "./progression";
 import "@babylonjs/core/Collisions/collisionCoordinator";
 // Style: Quiet Study Hall — walnut, ivory, olive, and brass; first-person details stay tactile, quiet, and low-poly.
 // Register Ray before scene picking APIs are used; Babylon otherwise logs a side-effect warning at runtime.
@@ -83,7 +85,7 @@ export type BookInfo = {
   pages?: string[];
 };
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
-export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; turnActivePage: (direction: "rtl" | "ltr") => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[]; setTouchMove: (x: number, y: number) => void; setPerformanceMode: (mode: PerformanceMode) => void };
+export type GameHandle = { scene: Scene; dispose: () => void; openNearestBook: () => boolean; openBookById: (bookId: string) => boolean; openBookByMeshName: (meshName: string) => boolean; returnActiveBook: () => boolean; turnActivePage: (direction: "rtl" | "ltr") => boolean; hasActiveBook: () => boolean; getBookScreenRects: () => BookScreenRect[]; setTouchMove: (x: number, y: number) => void; setPerformanceMode: (mode: PerformanceMode) => void; setAudioEnabled: (enabled: boolean) => void; getAudioEnabled: () => boolean };
 
 const BOOK_FORMATS = [
   { name: "Pocket", width: 0.17, height: 0.43, depth: 0.12 },
@@ -944,6 +946,8 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
 export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement): Promise<GameHandle> {
   const scene = new Scene(engine);
   let performanceMode: PerformanceMode = (window.matchMedia("(max-width: 720px)").matches || (navigator.hardwareConcurrency ?? 8) <= 4) ? "light" : "cinematic";
+  let dustSystem: ParticleSystem | null = null;
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const applyPerformanceMode = (mode: PerformanceMode) => {
     performanceMode = mode;
     engine.setHardwareScalingLevel(mode === "light" ? 1.35 : 1);
@@ -953,6 +957,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const shadowMap = shadow.getShadowMap();
     if (shadowMap) shadowMap.refreshRate = mode === "light" ? 4 : 1;
     shadow.blurKernel = mode === "light" ? 8 : 24;
+    if (dustSystem) {
+      if (mode === "cinematic" && !prefersReducedMotion) dustSystem.start();
+      else dustSystem.stop();
+    }
   };
   scene.clearColor = new Color4(0.035, 0.028, 0.024, 1);
   scene.collisionsEnabled = true;
@@ -1054,6 +1062,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     hands.right.rotation.z = 0.13 + sway * 0.75;
   });
   const movementVelocity = new Vector3(0, 0, 0);
+  let stepDistanceAccumulator = 0;
+  let walkedSinceLastEvent = 0;
+  let lastWalkEventAt = 0;
+  let lastPlayerMapEventAt = 0;
   scene.onBeforeRenderObservable.add(() => {
     let moveX = touchMove.x;
     let moveZ = touchMove.z;
@@ -1080,6 +1092,27 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     movementVelocity.z += (desiredVelocity.z - movementVelocity.z) * response;
     movementAmount += (Math.min(1, movementVelocity.length() / walkSpeed) - movementAmount) * Math.min(1, deltaSeconds * 12);
     if (movementVelocity.lengthSquared() > 0.000001) camera.cameraDirection.addInPlace(movementVelocity.scale(deltaSeconds));
+    // خطوات اللاعب: صوت خفيف يتناسب مع سرعة المشي والجري.
+    const travelled = movementVelocity.length() * deltaSeconds;
+    stepDistanceAccumulator += travelled;
+    const stepStride = isRunning ? 2.1 : 1.35;
+    if (stepDistanceAccumulator >= stepStride && movementAmount > 0.22) {
+      stepDistanceAccumulator = 0;
+      playStep(isRunning);
+    }
+    // حدث المسافة المقطوعة يصل إلى واجهة الأهداف بدون إغراقها بالتحديثات.
+    walkedSinceLastEvent += travelled;
+    const now = performance.now();
+    if (now - lastWalkEventAt >= 600 && walkedSinceLastEvent >= 0.35) {
+      lastWalkEventAt = now;
+      window.dispatchEvent(new CustomEvent("library:walked", { detail: { type: "walked", delta: walkedSinceLastEvent } }));
+      walkedSinceLastEvent = 0;
+    }
+    // موضع اللاعب على خريطة القاعة — يُرسل فقط عند التحرك فعلياً.
+    if (now - lastPlayerMapEventAt >= 400 && travelled > 0.001) {
+      lastPlayerMapEventAt = now;
+      window.dispatchEvent(new CustomEvent("library:player-moved", { detail: { x: camera.position.x, z: camera.position.z } }));
+    }
     const targetFov = performanceMode === "light" ? (isRunning ? 0.96 : 0.92) : (isRunning ? 0.82 : 0.78);
     camera.fov += (targetFov - camera.fov) * Math.min(1, deltaSeconds * 7);
   });
@@ -1104,6 +1137,40 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const shadow = new ShadowGenerator(1024, ceilingLight);
   shadow.useBlurExponentialShadowMap = true; shadow.blurKernel = 24;
   applyPerformanceMode(performanceMode);
+
+  // ذرات غبار ضوئية بطيئة: عمق سينمائي بدون أصول خارجية، وتُعطَّل تلقائياً في وضع الأداء الخفيف.
+  dustSystem = new ParticleSystem("dust-motes", 90, scene);
+  const dustTexture = new DynamicTexture("dust-mote-texture", { width: 64, height: 64 }, scene, true);
+  dustTexture.hasAlpha = true;
+  {
+    const dustContext = dustTexture.getContext() as unknown as CanvasRenderingContext2D;
+    const dustGradient = dustContext.createRadialGradient(32, 32, 0, 32, 32, 32);
+    dustGradient.addColorStop(0, "rgba(255, 238, 200, 0.9)");
+    dustGradient.addColorStop(0.45, "rgba(255, 226, 170, 0.28)");
+    dustGradient.addColorStop(1, "rgba(255, 226, 170, 0)");
+    dustContext.fillStyle = dustGradient;
+    dustContext.fillRect(0, 0, 64, 64);
+    dustTexture.update();
+  }
+  dustSystem.particleTexture = dustTexture;
+  dustSystem.emitter = new Vector3(0, 1.9, 0);
+  dustSystem.minEmitBox = new Vector3(-10, -1.4, -11.5);
+  dustSystem.maxEmitBox = new Vector3(10, 4.4, 9.5);
+  dustSystem.color1 = new Color4(1, 0.9, 0.72, 0.32);
+  dustSystem.color2 = new Color4(1, 0.84, 0.6, 0.5);
+  dustSystem.colorDead = new Color4(1, 0.8, 0.55, 0);
+  dustSystem.minSize = 0.02;
+  dustSystem.maxSize = 0.075;
+  dustSystem.minLifeTime = 6;
+  dustSystem.maxLifeTime = 12;
+  dustSystem.emitRate = 6;
+  dustSystem.direction1 = new Vector3(0.008, 0.022, 0.006);
+  dustSystem.direction2 = new Vector3(-0.008, 0.05, -0.006);
+  dustSystem.minEmitPower = 0.1;
+  dustSystem.maxEmitPower = 0.4;
+  dustSystem.updateSpeed = 0.012;
+  dustSystem.blendMode = ParticleSystem.BLENDMODE_ADD;
+  if (performanceMode === "cinematic" && !prefersReducedMotion) dustSystem.start();
 
   const wood = material(scene, "walnut", COLORS.walnut);
   const woodLight = material(scene, "wood-light", COLORS.walnutLight);
@@ -1175,17 +1242,145 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   let activeOpenObserver: any = null;
   let activeTurnObserver: any = null;
   let audioContext: AudioContext | null = null;
+  let audioMasterGain: GainNode | null = null;
+  let audioAmbientStarted = false;
+  let audioEnabled = (() => {
+    try {
+      return window.localStorage.getItem(AUDIO_STORAGE_KEY) !== "off";
+    } catch {
+      return true;
+    }
+  })();
   const emitBookState = () => window.dispatchEvent(new CustomEvent("library:book-state", { detail: { active: Boolean(activeBookParts), bookId: activeBookId } }));
   const getAudioContext = () => {
     const AudioContextConstructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextConstructor) return null;
-    if (!audioContext) audioContext = new AudioContextConstructor();
+    if (!audioContext) {
+      try {
+        audioContext = new AudioContextConstructor();
+        audioMasterGain = audioContext.createGain();
+        audioMasterGain.gain.value = audioEnabled ? 0.9 : 0;
+        audioMasterGain.connect(audioContext.destination);
+      } catch {
+        audioContext = null;
+        audioMasterGain = null;
+        return null;
+      }
+    }
     if (audioContext.state === "suspended") void audioContext.resume();
     return audioContext;
   };
+  // أول إيماءة من المستخدم تفتح الصوت (سياسة التشغيل التلقائي في المتصفحات).
+  const unlockAudioOnGesture = () => {
+    if (!audioEnabled) return;
+    getAudioContext();
+    startAmbient();
+  };
+  window.addEventListener("pointerdown", unlockAudioOnGesture, { once: true });
+  window.addEventListener("keydown", unlockAudioOnGesture, { once: true });
+  // نغمة طقطقة الشموع الهادئة: ضجيج بني مرشح يعطي حضور الغرفة دون أصول خارجية.
+  const createNoiseBuffer = (context: AudioContext, seconds: number) => {
+    const length = Math.floor(context.sampleRate * seconds);
+    const buffer = context.createBuffer(1, length, context.sampleRate);
+    const data = buffer.getChannelData(0);
+    let lastOut = 0;
+    for (let i = 0; i < length; i += 1) {
+      const white = Math.random() * 2 - 1;
+      lastOut = (lastOut + 0.02 * white) / 1.02;
+      data[i] = lastOut * 3.2;
+    }
+    return buffer;
+  };
+  const startAmbient = () => {
+    const context = getAudioContext();
+    if (!context || !audioMasterGain || audioAmbientStarted || !audioEnabled) return;
+    audioAmbientStarted = true;
+    const ambient = context.createBufferSource();
+    ambient.buffer = createNoiseBuffer(context, 4);
+    ambient.loop = true;
+    const ambientFilter = context.createBiquadFilter();
+    ambientFilter.type = "lowpass";
+    ambientFilter.frequency.value = 340;
+    const ambientGain = context.createGain();
+    ambientGain.gain.value = 0.05;
+    // نفَس خفيف في الإضاءة: تمايل بطيء في مستوى الصوت.
+    const lfo = context.createOscillator();
+    lfo.frequency.value = 0.07;
+    const lfoGain = context.createGain();
+    lfoGain.gain.value = 0.018;
+    lfo.connect(lfoGain);
+    lfoGain.connect(ambientGain.gain);
+    ambient.connect(ambientFilter);
+    ambientFilter.connect(ambientGain);
+    ambientGain.connect(audioMasterGain);
+    ambient.start();
+    lfo.start();
+  };
+  const playStep = (running: boolean) => {
+    const context = getAudioContext();
+    if (!context || !audioMasterGain || !audioEnabled) return;
+    const now = context.currentTime;
+    const source = context.createBufferSource();
+    source.buffer = createNoiseBuffer(context, 0.12);
+    const filter = context.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = running ? 520 : 380;
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(running ? 0.055 : 0.04, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioMasterGain);
+    source.start(now);
+    source.stop(now + 0.16);
+  };
+  // نغمة الإنجاز: ثلاث نغمات نحاسية دافئة قصيرة.
+  const playChime = (kind: "discovery" | "objective" | "rank") => {
+    const context = getAudioContext();
+    if (!context || !audioMasterGain || !audioEnabled) return;
+    const master = audioMasterGain;
+    const notes = kind === "rank" ? [523.25, 659.25, 783.99] : kind === "objective" ? [440, 554.37, 659.25] : [392, 523.25];
+    const now = context.currentTime;
+    notes.forEach((frequency, index) => {
+      const oscillator = context.createOscillator();
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+      const gain = context.createGain();
+      const startAt = now + index * 0.11;
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(0.06, startAt + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.42);
+      oscillator.connect(gain);
+      gain.connect(master);
+      oscillator.start(startAt);
+      oscillator.stop(startAt + 0.46);
+    });
+  };
+  const setAudioEnabled = (enabled: boolean) => {
+    audioEnabled = enabled;
+    try {
+      window.localStorage.setItem(AUDIO_STORAGE_KEY, enabled ? "on" : "off");
+    } catch {
+      // يبقى الاختيار داخل الجلسة عندما يعطّل المتصفح التخزين.
+    }
+    if (enabled) {
+      getAudioContext();
+      startAmbient();
+    }
+    if (audioContext && audioMasterGain) {
+      audioMasterGain.gain.setTargetAtTime(enabled ? 0.9 : 0, audioContext.currentTime, 0.05);
+    }
+  };
+  const onChimeRequest = (event: Event) => {
+    const detail = (event as CustomEvent<{ kind?: "discovery" | "objective" | "rank" }>).detail;
+    if (detail?.kind) playChime(detail.kind);
+  };
+  window.addEventListener("library:chime", onChimeRequest);
   const playBookSound = (kind: "pull" | "return") => {
     const context = getAudioContext();
-    if (!context) return;
+    if (!context || !audioEnabled) return;
+    const master = audioMasterGain ?? context.destination;
     const now = context.currentTime;
     const oscillator = context.createOscillator();
     const gain = context.createGain();
@@ -1195,7 +1390,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.exponentialRampToValueAtTime(kind === "pull" ? 0.055 : 0.04, now + 0.025);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
-    oscillator.connect(gain).connect(context.destination);
+    oscillator.connect(gain).connect(master);
     oscillator.start(now);
     oscillator.stop(now + 0.24);
   };
@@ -1321,6 +1516,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         pageState.pageRenderers.right?.(nextPageIndex + 1);
         handInteractionTarget = 0.42;
         playBookSound("pull");
+        if (currentBook) {
+          window.dispatchEvent(new CustomEvent("library:page-turned", { detail: { type: "page-turned", bookId: currentBook.id, direction } }));
+        }
       }
     });
     return true;
@@ -1349,6 +1547,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     handInteractionTarget = 1;
     emitBookState();
     playBookSound("pull");
+    const pulledBook = parts.find((part) => part.metadata?.book)?.metadata?.book as BookInfo | undefined;
+    if (pulledBook) {
+      window.dispatchEvent(new CustomEvent("library:book-opened", { detail: { type: "book-opened", bookId: pulledBook.id, title: pulledBook.title } }));
+    }
     parts.forEach((part) => { part.metadata = { ...part.metadata, bookPulled: true }; });
     activePullObserver = scene.onBeforeRenderObservable.add(() => {
       const progress = Math.min((performance.now() - startedAt) / 360, 1);
@@ -1513,7 +1715,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
   }
 
-  const dispose = () => { window.clearTimeout(progressiveLoadTimer); window.clearTimeout(pagePreloadTimer); scene.onBeforeRenderObservable.remove(handMotionObserver); hands.dispose(); window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); scene.onPointerObservable.clear(); scene.dispose(); };
+  const dispose = () => { window.clearTimeout(progressiveLoadTimer); window.clearTimeout(pagePreloadTimer); scene.onBeforeRenderObservable.remove(handMotionObserver); hands.dispose(); window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); window.removeEventListener("pointerdown", unlockAudioOnGesture); window.removeEventListener("keydown", unlockAudioOnGesture); window.removeEventListener("library:chime", onChimeRequest); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); dustSystem.dispose(); if (audioContext) { void audioContext.close().catch(() => undefined); audioContext = null; } scene.onPointerObservable.clear(); scene.dispose(); };
   const setTouchMove = (x: number, y: number) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, y)); };
   // Ensure scene readiness without blocking indefinitely if any remote resource is delayed.
   try {
@@ -1524,5 +1726,5 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   } catch (err) {
     console.warn("whenReadyAsync non-blocking fallback:", err);
   }
-  return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, turnActivePage, hasActiveBook, getBookScreenRects, setTouchMove, setPerformanceMode: applyPerformanceMode };
+  return { scene, dispose, openNearestBook, openBookById, openBookByMeshName, returnActiveBook, turnActivePage, hasActiveBook, getBookScreenRects, setTouchMove, setPerformanceMode: applyPerformanceMode, setAudioEnabled, getAudioEnabled: () => audioEnabled };
 }
