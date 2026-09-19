@@ -32,6 +32,8 @@ const SHELF_MAP_SPOTS = [
 ];
 
 export default function GameCanvas() {
+  const isDebug = useRef(new URLSearchParams(window.location.search).has("debug")).current;
+  const [debugStats, setDebugStats] = useState<{ fps: number; drawCalls: number; activeMeshes: number; totalMeshes: number } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const startedRef = useRef(false);
   const [showHelp, setShowHelp] = useState(false);

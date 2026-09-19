@@ -13,8 +13,12 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
+<<<<<<< HEAD
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import { AUDIO_STORAGE_KEY } from "./progression";
+=======
+import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+>>>>>>> 7042b9e (feat: switch to third-person view and increase book density)
 import "@babylonjs/core/Collisions/collisionCoordinator";
 // Style: Quiet Study Hall — walnut, ivory, olive, and brass; first-person details stay tactile, quiet, and low-poly.
 // Register Ray before scene picking APIs are used; Babylon otherwise logs a side-effect warning at runtime.
@@ -386,217 +390,94 @@ function box(scene: Scene, name: string, size: { width: number; height: number; 
   return mesh;
 }
 
-type FirstPersonHands = {
+type ThirdPersonCharacter = {
   root: TransformNode;
-  left: TransformNode;
-  right: TransformNode;
+  mesh: Mesh;
+  head: Mesh;
+  leftArm: Mesh;
+  rightArm: Mesh;
+  leftLeg: Mesh;
+  rightLeg: Mesh;
   dispose: () => void;
 };
 
-function createFirstPersonHands(scene: Scene, camera: UniversalCamera): FirstPersonHands {
-  const root = new TransformNode("first-person-hands", scene);
-  root.parent = camera;
+function createThirdPersonCharacter(scene: Scene): ThirdPersonCharacter {
+  const root = new TransformNode("third-person-root", scene);
+  
+  // A collider mesh for the player to move with collisions
+  const mesh = MeshBuilder.CreateBox("player-collider", { width: 0.6, height: 1.6, depth: 0.6 }, scene);
+  mesh.parent = root;
+  mesh.position.y = 0.8;
+  mesh.isVisible = false;
+  mesh.checkCollisions = true;
+  mesh.ellipsoid = new Vector3(0.3, 0.8, 0.3);
+  mesh.ellipsoidOffset = new Vector3(0, 0.8, 0);
 
-  // Realistic human skin tone with warm undertones and soft natural specular
-  const skin = material(scene, "realistic-hand-skin", new Color3(0.80, 0.62, 0.50));
-  skin.specularColor = new Color3(0.18, 0.14, 0.12);
-  skin.ambientColor = new Color3(0.46, 0.28, 0.22);
+  const bodyMat = material(scene, "tp-body", new Color3(0.15, 0.22, 0.35)); // Navy/Blue
+  const skinMat = material(scene, "tp-skin", new Color3(0.80, 0.62, 0.50)); // Warm skin
+  const pantsMat = material(scene, "tp-pants", new Color3(0.24, 0.16, 0.12)); // Warm brown
+  
+  // Head
+  const head = MeshBuilder.CreateBox("tp-head", { size: 0.35 }, scene);
+  head.parent = mesh;
+  head.position.y = 0.8 + 0.175;
+  head.material = skinMat;
+  
+  // Torso
+  const torso = MeshBuilder.CreateBox("tp-torso", { width: 0.45, height: 0.7, depth: 0.25 }, scene);
+  torso.parent = mesh;
+  torso.position.y = 0.8 - 0.35;
+  torso.material = bodyMat;
 
-  // Keratin fingernails
-  const nailMat = material(scene, "realistic-nail-mat", new Color3(0.92, 0.78, 0.70));
-  nailMat.specularColor = new Color3(0.45, 0.40, 0.36);
+  // Arms
+  const leftArm = MeshBuilder.CreateBox("tp-l-arm", { width: 0.15, height: 0.65, depth: 0.15 }, scene);
+  leftArm.parent = torso;
+  leftArm.position = new Vector3(-0.3, 0.1, 0);
+  leftArm.setPivotPoint(new Vector3(0, 0.25, 0));
+  leftArm.material = skinMat;
+  
+  const rightArm = MeshBuilder.CreateBox("tp-r-arm", { width: 0.15, height: 0.65, depth: 0.15 }, scene);
+  rightArm.parent = torso;
+  rightArm.position = new Vector3(0.3, 0.1, 0);
+  rightArm.setPivotPoint(new Vector3(0, 0.25, 0));
+  rightArm.material = skinMat;
 
-  // Scholar's midnight robe with gold embroidery cuff
-  const sleeve = material(scene, "scholar-sleeve-cloth", new Color3(0.11, 0.13, 0.19));
-  const goldCuff = material(scene, "scholar-cuff-gold", new Color3(0.85, 0.68, 0.32));
+  // Legs
+  const leftLeg = MeshBuilder.CreateBox("tp-l-leg", { width: 0.18, height: 0.75, depth: 0.18 }, scene);
+  leftLeg.parent = mesh;
+  leftLeg.position = new Vector3(-0.12, -0.4, 0);
+  leftLeg.setPivotPoint(new Vector3(0, 0.3, 0));
+  leftLeg.material = pantsMat;
 
-  const handParts: Mesh[] = [];
+  const rightLeg = MeshBuilder.CreateBox("tp-r-leg", { width: 0.18, height: 0.75, depth: 0.18 }, scene);
+  rightLeg.parent = mesh;
+  rightLeg.position = new Vector3(0.12, -0.4, 0);
+  rightLeg.setPivotPoint(new Vector3(0, 0.3, 0));
+  rightLeg.material = pantsMat;
 
-  const createHand = (side: -1 | 1, label: string) => {
-    const hand = new TransformNode(`hand-${label}`, scene);
-    hand.parent = root;
-    hand.position = new Vector3(side * 0.38, -0.34, 0.88);
-    hand.scaling = new Vector3(0.66, 0.66, 0.66);
-    hand.rotation = new Vector3(-0.16, side * 0.09, side * 0.13);
+  const parts = [head, torso, leftArm, rightArm, leftLeg, rightLeg];
+  parts.forEach(p => {
+    p.isPickable = false;
+    p.checkCollisions = false;
+    p.receiveShadows = true;
+  });
 
-    // 1. Forearm in scholarly cloth sleeve
-    const arm = MeshBuilder.CreateCylinder(`hand-${label}-arm`, { height: 0.32, diameterTop: 0.12, diameterBottom: 0.16, tessellation: 16 }, scene);
-    arm.parent = hand;
-    arm.position = new Vector3(0, -0.19, -0.06);
-    arm.rotation.x = 0.22;
-    arm.material = sleeve;
-    arm.isPickable = false;
-    arm.receiveShadows = false;
-    handParts.push(arm);
-
-    // 2. Gold embroidered cuff ring
-    const cuffRing = MeshBuilder.CreateTorus(`hand-${label}-cuff-gold`, { diameter: 0.13, thickness: 0.016, tessellation: 24 }, scene);
-    cuffRing.parent = hand;
-    cuffRing.position = new Vector3(0, -0.065, -0.02);
-    cuffRing.rotation.x = 0.22;
-    cuffRing.material = goldCuff;
-    cuffRing.isPickable = false;
-    cuffRing.receiveShadows = false;
-    handParts.push(cuffRing);
-
-    // 3. Anatomical Wrist
-    const wrist = MeshBuilder.CreateBox(`hand-${label}-wrist-base`, { width: 0.088, height: 0.055, depth: 0.046 }, scene);
-    wrist.parent = hand;
-    wrist.position = new Vector3(0, -0.035, 0);
-    wrist.material = skin;
-    wrist.isPickable = false;
-    wrist.receiveShadows = false;
-    handParts.push(wrist);
-
-    // 4. Palm - Sculpted main body
-    const palm = MeshBuilder.CreateBox(`hand-${label}-palm-body`, { width: 0.108, height: 0.118, depth: 0.044 }, scene);
-    palm.parent = hand;
-    palm.position = new Vector3(0, 0.046, 0.005);
-    palm.material = skin;
-    palm.isPickable = false;
-    palm.receiveShadows = false;
-    handParts.push(palm);
-
-    // Thenar eminence (thumb base muscle mound)
-    const thenar = MeshBuilder.CreateSphere(`hand-${label}-thenar`, { segments: 10, diameter: 1 }, scene);
-    thenar.parent = hand;
-    thenar.scaling = new Vector3(0.048, 0.068, 0.042);
-    thenar.position = new Vector3(side * 0.038, 0.025, 0.016);
-    thenar.material = skin;
-    thenar.isPickable = false;
-    thenar.receiveShadows = false;
-    handParts.push(thenar);
-
-    // Hypothenar mound (pinky side)
-    const hypothenar = MeshBuilder.CreateSphere(`hand-${label}-hypothenar`, { segments: 8, diameter: 1 }, scene);
-    hypothenar.parent = hand;
-    hypothenar.scaling = new Vector3(0.034, 0.062, 0.038);
-    hypothenar.position = new Vector3(-side * 0.040, 0.028, 0.012);
-    hypothenar.material = skin;
-    hypothenar.isPickable = false;
-    hypothenar.receiveShadows = false;
-    handParts.push(hypothenar);
-
-    // 5. Articulated 4 Fingers (Index, Middle, Ring, Pinky) with natural resting curvature
-    const fingerSpecs = [
-      { name: "index", posX: side * 0.034, length1: 0.044, length2: 0.032, length3: 0.024, thickness: 0.021, curl: 0.28 },
-      { name: "middle", posX: side * 0.011, length1: 0.048, length2: 0.036, length3: 0.026, thickness: 0.022, curl: 0.24 },
-      { name: "ring", posX: -side * 0.012, length1: 0.044, length2: 0.032, length3: 0.024, thickness: 0.020, curl: 0.32 },
-      { name: "pinky", posX: -side * 0.034, length1: 0.036, length2: 0.026, length3: 0.020, thickness: 0.018, curl: 0.38 },
-    ];
-
-    fingerSpecs.forEach((f) => {
-      // Knuckle (Metacarpophalangeal joint)
-      const knuckle = MeshBuilder.CreateSphere(`hand-${label}-knuckle-${f.name}`, { segments: 8, diameter: f.thickness * 1.15 }, scene);
-      knuckle.parent = hand;
-      knuckle.position = new Vector3(f.posX, 0.106, 0.006);
-      knuckle.material = skin;
-      knuckle.isPickable = false;
-      handParts.push(knuckle);
-
-      // Phalanx 1 (Proximal)
-      const p1 = MeshBuilder.CreateCylinder(`hand-${label}-${f.name}-p1`, { height: f.length1, diameter: f.thickness, tessellation: 10 }, scene);
-      p1.parent = hand;
-      p1.position = new Vector3(f.posX, 0.106 + f.length1 * 0.48, 0.008 + f.curl * 0.012);
-      p1.rotation.x = f.curl * 0.55;
-      p1.material = skin;
-      p1.isPickable = false;
-      handParts.push(p1);
-
-      // Joint 1
-      const joint1 = MeshBuilder.CreateSphere(`hand-${label}-${f.name}-j1`, { segments: 8, diameter: f.thickness * 1.05 }, scene);
-      joint1.parent = hand;
-      joint1.position = new Vector3(f.posX, 0.106 + f.length1 * 0.94, 0.016 + f.curl * 0.025);
-      joint1.material = skin;
-      joint1.isPickable = false;
-      handParts.push(joint1);
-
-      // Phalanx 2 (Intermediate)
-      const p2 = MeshBuilder.CreateCylinder(`hand-${label}-${f.name}-p2`, { height: f.length2, diameter: f.thickness * 0.92, tessellation: 10 }, scene);
-      p2.parent = hand;
-      p2.position = new Vector3(f.posX, 0.106 + f.length1 * 0.94 + f.length2 * 0.46, 0.028 + f.curl * 0.052);
-      p2.rotation.x = f.curl * 1.15;
-      p2.material = skin;
-      p2.isPickable = false;
-      handParts.push(p2);
-
-      // Joint 2
-      const joint2 = MeshBuilder.CreateSphere(`hand-${label}-${f.name}-j2`, { segments: 8, diameter: f.thickness * 0.95 }, scene);
-      joint2.parent = hand;
-      joint2.position = new Vector3(f.posX, 0.106 + f.length1 * 0.94 + f.length2 * 0.92, 0.042 + f.curl * 0.082);
-      joint2.material = skin;
-      joint2.isPickable = false;
-      handParts.push(joint2);
-
-      // Phalanx 3 (Distal fingertip)
-      const p3 = MeshBuilder.CreateCylinder(`hand-${label}-${f.name}-p3`, { height: f.length3, diameterTop: f.thickness * 0.65, diameterBottom: f.thickness * 0.88, tessellation: 10 }, scene);
-      p3.parent = hand;
-      p3.position = new Vector3(f.posX, 0.106 + f.length1 * 0.94 + f.length2 * 0.92 + f.length3 * 0.44, 0.056 + f.curl * 0.115);
-      p3.rotation.x = f.curl * 1.65;
-      p3.material = skin;
-      p3.isPickable = false;
-      handParts.push(p3);
-
-      // Fingernail
-      const nail = MeshBuilder.CreateBox(`hand-${label}-${f.name}-nail`, { width: f.thickness * 0.62, height: f.length3 * 0.48, depth: 0.004 }, scene);
-      nail.parent = hand;
-      nail.position = new Vector3(f.posX, 0.106 + f.length1 * 0.94 + f.length2 * 0.92 + f.length3 * 0.48, 0.056 + f.curl * 0.115 - f.thickness * 0.38);
-      nail.rotation.x = f.curl * 1.65;
-      nail.material = nailMat;
-      nail.isPickable = false;
-      handParts.push(nail);
-    });
-
-    // 6. Realistic Thumb (Opposed, 2 articulated phalanges + nail)
-    const thumbKnuckle = MeshBuilder.CreateSphere(`hand-${label}-thumb-knuckle`, { segments: 8, diameter: 0.034 }, scene);
-    thumbKnuckle.parent = hand;
-    thumbKnuckle.position = new Vector3(side * 0.054, 0.036, 0.022);
-    thumbKnuckle.material = skin;
-    thumbKnuckle.isPickable = false;
-    handParts.push(thumbKnuckle);
-
-    const thumbP1 = MeshBuilder.CreateCylinder(`hand-${label}-thumb-p1`, { height: 0.046, diameter: 0.027, tessellation: 10 }, scene);
-    thumbP1.parent = hand;
-    thumbP1.position = new Vector3(side * 0.076, 0.058, 0.032);
-    thumbP1.rotation = new Vector3(0.24, -side * 0.32, -side * 0.58);
-    thumbP1.material = skin;
-    thumbP1.isPickable = false;
-    handParts.push(thumbP1);
-
-    const thumbP2 = MeshBuilder.CreateCylinder(`hand-${label}-thumb-p2`, { height: 0.038, diameterTop: 0.021, diameterBottom: 0.026, tessellation: 10 }, scene);
-    thumbP2.parent = hand;
-    thumbP2.position = new Vector3(side * 0.098, 0.078, 0.044);
-    thumbP2.rotation = new Vector3(0.42, -side * 0.48, -side * 0.72);
-    thumbP2.material = skin;
-    thumbP2.isPickable = false;
-    handParts.push(thumbP2);
-
-    // Thumb nail
-    const thumbNail = MeshBuilder.CreateBox(`hand-${label}-thumb-nail`, { width: 0.018, height: 0.019, depth: 0.004 }, scene);
-    thumbNail.parent = hand;
-    thumbNail.position = new Vector3(side * 0.096, 0.082, 0.035);
-    thumbNail.rotation = new Vector3(0.42, -side * 0.48, -side * 0.72);
-    thumbNail.material = nailMat;
-    thumbNail.isPickable = false;
-    handParts.push(thumbNail);
-
-    return hand;
-  };
-
-  const left = createHand(-1, "left");
-  const right = createHand(1, "right");
   return {
     root,
-    left,
-    right,
+    mesh,
+    head,
+    leftArm,
+    rightArm,
+    leftLeg,
+    rightLeg,
     dispose: () => {
-      handParts.forEach((part) => part.dispose(false, true));
-      skin.dispose();
-      nailMat.dispose();
-      sleeve.dispose();
-      goldCuff.dispose();
+      parts.forEach(p => p.dispose(false, true));
+      mesh.dispose(false, true);
       root.dispose(false, true);
-    },
+      bodyMat.dispose();
+      skinMat.dispose();
+      pantsMat.dispose();
+    }
   };
 }
 
@@ -777,31 +658,38 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
     ...shelfBoardsY.map((y, bIdx) => box(scene, `shelf-trim-${shelfIndex}-${bIdx}`, { width: 4.35, height: 0.06, depth: 0.05 }, new Vector3(0, y, 0.58), shelfTrimMat, false)),
     box(scene, `shelf-marker-${shelfIndex}`, { width: 0.7, height: 0.28, depth: 0.05 }, new Vector3(0, 4.85, -0.62), olive, false),
   ];
-  // One simple collision volume avoids snagging on individual boards while keeping the shelf bank solid.
-  const shelfCollider = box(scene, "shelf-collider", { width: 4.65, height: 5.25, depth: 1.30 }, new Vector3(0, 2.6, 0), wood);
+  const shelfCollider = box(scene, `shelf-collider-${shelfIndex}`, { width: 4.65, height: 5.25, depth: 1.30 }, new Vector3(0, 2.6, 0), wood);
   shelfCollider.parent = root;
   shelfCollider.isVisible = false;
   shelfCollider.isPickable = false;
   shelfCollider.receiveShadows = false;
-  parts.forEach((part) => { part.parent = root; part.checkCollisions = false; shadow.addShadowCaster(part); });
+  shelfCollider.freezeWorldMatrix();
+  parts.forEach((part) => {
+    part.parent = root;
+    part.checkCollisions = false;
+    part.isPickable = false;
+    part.freezeWorldMatrix();
+    shadow.addShadowCaster(part);
+  });
+  const shelfBack = parts[0];
+  if (shelfBack) shelfBack.occlusionType = AbstractMesh.OCCLUSION_TYPE_OPTIMISTIC;
 
   // Candle Sconces mounted directly on the wooden shelf uprights (as in reference image)
   addShelfCandleSconce(scene, root, new Vector3(-2.15, 3.2, 0.30), brass, `${shelfIndex}-l`);
   addShelfCandleSconce(scene, root, new Vector3(2.15, 2.3, 0.30), brass, `${shelfIndex}-r`);
 
-  // Rich antique color palette matching the reference image
+  // Rich bright and warm palette to make it vibrant and full
   const bookColors = [
-    new Color3(0.58, 0.16, 0.14), // Antique Brick Red / Crimson (Prominent in image)
-    new Color3(0.74, 0.52, 0.18), // Vintage Ochre / Mustard
-    new Color3(0.24, 0.38, 0.25), // Earthy Forest / Sage Green
-    new Color3(0.44, 0.22, 0.12), // Warm Cinnamon & Chestnut Brown
+    new Color3(0.95, 0.95, 0.95), // White
+    new Color3(0.20, 0.70, 0.30), // Green
+    new Color3(0.90, 0.50, 0.10), // Orange
+    new Color3(0.90, 0.40, 0.60), // Pink
+    new Color3(0.10, 0.50, 0.80), // Blue
+    new Color3(0.10, 0.20, 0.40), // Dark Blue
+    new Color3(0.58, 0.16, 0.14), // Antique Brick Red
+    new Color3(0.74, 0.52, 0.18), // Vintage Ochre
     new Color3(0.85, 0.76, 0.62), // Aged Cream Parchment
-    new Color3(0.42, 0.13, 0.20), // Deep Vintage Wine & Plum
-    new Color3(0.16, 0.24, 0.36), // Andalusian Midnight Slate
-    new Color3(0.66, 0.28, 0.16), // Terracotta / Burnt Orange
     new Color3(0.32, 0.18, 0.10), // Dark Walnut Leather
-    new Color3(0.68, 0.48, 0.16), // Antique Gilded Leather
-    new Color3(0.50, 0.18, 0.16), // Deep Burgundy
     new Color3(0.28, 0.36, 0.22), // Moss Green
   ];
 
@@ -813,23 +701,23 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
     const bookendRight = box(scene, `bookend-r-${shelfIndex}-${row}`, { width: 0.05, height: 0.38, depth: 0.44 }, new Vector3(2.04, y - 0.15 + 0.22, -0.04), brass, false);
     bookendRight.parent = root;
 
-    for (let i = 0; i < 18; i += 1) {
+    for (let i = 0; i < 34; i += 1) {
       const format = BOOK_FORMATS[(shelfIndex + row + i) % BOOK_FORMATS.length];
       const heightFactor = 0.86 + (((i * 7 + row * 11 + shelfIndex * 3) % 9) / 9) * 0.28;
       const widthFactor = 0.84 + (((i * 5 + row * 7) % 5) / 5) * 0.36;
       const bookWidth = format.width * widthFactor;
       const bookHeight = format.height * heightFactor;
       const bookDepth = format.depth;
-      const bookLean = (i % 8 === 2) ? 0.075 : (i % 7 === 5) ? -0.065 : 0;
-      const bookIndex = (shelfIndex * 18 + row * 7 + i) % BOOK_CATALOG.length;
+      const bookLean = (i % 12 === 2) ? 0.05 : (i % 11 === 5) ? -0.05 : 0;
+      const bookIndex = (shelfIndex * 34 + row * 7 + i) % BOOK_CATALOG.length;
       const bookInfo = BOOK_CATALOG[bookIndex];
-      const leatherColor = bookColors[(i + row * 2 + shelfIndex) % bookColors.length];
+      const leatherColor = bookColors[(i + row * 3 + shelfIndex) % bookColors.length];
       const bookMaterial = material(scene, `book-mat-${shelfIndex}-${row}-${i}`, leatherColor);
       const leatherMaterial = material(scene, `book-leather-${shelfIndex}-${row}-${i}`, leatherColor);
       leatherMaterial.specularColor = new Color3(0.22, 0.17, 0.12);
       // Place the book directly on the board below this row, with only a tiny clearance.
       const shelfTopY = y - 0.15 + 0.07;
-      const bookPosition = new Vector3(-1.95 + i * 0.23, shelfTopY + bookHeight * 0.5 + 0.008, -0.04);
+      const bookPosition = new Vector3(-1.95 + i * 0.117, shelfTopY + bookHeight * 0.5 + 0.008, -0.04);
       const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
       book.parent = root;
       const roundedSpine = MeshBuilder.CreateCylinder(`book-rounded-spine-${shelfIndex}-${row}-${i}`, { diameter: Math.min(bookDepth * 0.9, 0.28), height: bookHeight * 0.94, tessellation: 10 }, scene);
@@ -969,24 +857,17 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   scene.fogDensity = 0.018;
   scene.fogColor = new Color3(0.07, 0.055, 0.04);
 
+  const player = createThirdPersonCharacter(scene);
+  player.mesh.position = new Vector3(0, 0.8, 8.6);
+  player.root.rotation.y = Math.PI;
+
   const camera = new UniversalCamera("player-camera", new Vector3(0, 1.75, 8.6), scene);
   scene.activeCamera = camera;
   camera.minZ = 0.1;
-  // Keep desktop framing close to the mobile composition: a tighter, readable vertical view instead of a distant wide room shot.
+  camera.maxZ = 50;
   camera.fov = 0.78;
   camera.rotation.y = Math.PI;
-  camera.attachControl(canvas, true);
-  // Mouse-look tuning: keyboard input stays with Babylon, while passive mouse movement turns the view without click or pointer lock.
-  camera.inputs.removeByType("FreeCameraMouseInput");
-  camera.inputs.removeByType("FreeCameraKeyboardMoveInput");
-  // Movement tuning: responsive starts/stops, comfortable walking speed, and easier mouse look in every direction.
-  camera.speed = 0.3;
-  camera.angularSensibility = 2500;
-  camera.inertia = 0.42;
-  camera.applyGravity = true;
-  camera.checkCollisions = true;
-  camera.ellipsoid = new Vector3(0.6, 0.9, 0.6);
-  camera.keysUp = [87, 38]; camera.keysDown = [83, 40]; camera.keysLeft = [65, 37]; camera.keysRight = [68, 39];
+  
   let lastMouseX: number | null = null;
   let lastMouseY: number | null = null;
   const touchMove = new Vector3(0, 0, 0);
@@ -1031,7 +912,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   canvas.addEventListener("touchmove", onTouchMove, { passive: false });
   canvas.addEventListener("touchend", onTouchEnd, { passive: false });
   canvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
-  const hands = createFirstPersonHands(scene, camera);
+
   let movementAmount = 0;
   let isRunning = false;
   let handMotionPhase = 0;
@@ -1041,26 +922,20 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
     const walkBlend = movementAmount;
     handMotionPhase += deltaSeconds * (2.0 + walkBlend * (isRunning ? 11.5 : 8.5));
-    handInteraction += (handInteractionTarget - handInteraction) * Math.min(1, deltaSeconds * 8);
-    // Subtle living breathing oscillation when idle
-    const breathY = Math.sin(handMotionPhase * 0.75) * 0.007;
-    const breathX = Math.cos(handMotionPhase * 0.38) * 0.005;
-    const bob = Math.abs(Math.sin(handMotionPhase)) * 0.030 * walkBlend * (isRunning ? 1.25 : 1);
-    const sway = Math.sin(handMotionPhase * 0.5) * 0.024 * walkBlend * (isRunning ? 1.18 : 1);
-    const reach = handInteraction;
-    hands.left.position.x = -0.38 - reach * 0.08 + sway + breathX;
-    hands.left.position.y = -0.34 + bob + reach * 0.07 + breathY;
-    hands.left.position.z = 0.88 + reach * 0.12;
-    hands.left.rotation.x = -0.16 - reach * 0.18 + Math.sin(handMotionPhase) * 0.035 * walkBlend;
-    hands.left.rotation.y = -0.09 - reach * 0.12;
-    hands.left.rotation.z = -0.13 + sway * 0.75;
-    hands.right.position.x = 0.38 + reach * 0.12 + sway + breathX;
-    hands.right.position.y = -0.34 + bob + reach * 0.11 + breathY;
-    hands.right.position.z = 0.88 + reach * 0.22;
-    hands.right.rotation.x = -0.16 - reach * 0.32 + Math.sin(handMotionPhase + Math.PI) * 0.035 * walkBlend;
-    hands.right.rotation.y = 0.09 + reach * 0.16;
-    hands.right.rotation.z = 0.13 + sway * 0.75;
+    
+    // Animate third person character limbs
+    const swing = Math.sin(handMotionPhase) * 0.8 * walkBlend;
+    player.leftArm.rotation.x = swing;
+    player.rightArm.rotation.x = -swing;
+    player.leftLeg.rotation.x = -swing;
+    player.rightLeg.rotation.x = swing;
+    
+    // Bob the torso slightly
+    const bob = Math.abs(Math.sin(handMotionPhase)) * 0.04 * walkBlend;
+    player.head.position.y = 0.8 + 0.175 + bob;
+    player.leftArm.parent!.position.y = 0.8 - 0.35 + bob;
   });
+  
   const movementVelocity = new Vector3(0, 0, 0);
   let stepDistanceAccumulator = 0;
   let walkedSinceLastEvent = 0;
@@ -1077,23 +952,43 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
     const hasMovementInput = length >= 0.001;
     if (length > 1) { moveX /= length; moveZ /= length; }
+    
     const forward = camera.getDirection(Vector3.Forward());
     forward.y = 0;
     if (forward.lengthSquared() > 0.001) forward.normalize();
     const right = camera.getDirection(Vector3.Right());
     right.y = 0;
     if (right.lengthSquared() > 0.001) right.normalize();
+    
     isRunning = hasMovementInput && (pressedKeys.has("shift") || Math.hypot(touchMove.x, touchMove.z) > 0.84);
     const walkSpeed = 2.7;
     const targetSpeed = hasMovementInput ? (isRunning ? 4.15 : walkSpeed) : 0;
     const desiredVelocity = hasMovementInput ? forward.scale(moveZ * targetSpeed).addInPlace(right.scale(moveX * targetSpeed)) : Vector3.Zero();
     const response = Math.min(1, deltaSeconds * (hasMovementInput ? 13 : 17));
+    
     movementVelocity.x += (desiredVelocity.x - movementVelocity.x) * response;
     movementVelocity.z += (desiredVelocity.z - movementVelocity.z) * response;
-    movementAmount += (Math.min(1, movementVelocity.length() / walkSpeed) - movementAmount) * Math.min(1, deltaSeconds * 12);
-    if (movementVelocity.lengthSquared() > 0.000001) camera.cameraDirection.addInPlace(movementVelocity.scale(deltaSeconds));
+    movementAmount += (Math.min(1, Math.hypot(movementVelocity.x, movementVelocity.z) / walkSpeed) - movementAmount) * Math.min(1, deltaSeconds * 12);
+    
+    // Character rotation to face movement direction
+    if (hasMovementInput) {
+      const targetAngle = Math.atan2(movementVelocity.x, movementVelocity.z);
+      let currentAngle = player.root.rotation.y;
+      let diff = targetAngle - currentAngle;
+      while (diff > Math.PI) diff -= 2 * Math.PI;
+      while (diff < -Math.PI) diff += 2 * Math.PI;
+      player.root.rotation.y += diff * Math.min(1, deltaSeconds * 12);
+    }
+    
+    // Move the player mesh with gravity
+    const velocityWithGravity = movementVelocity.clone();
+    velocityWithGravity.y = -2.0; // gravity
+    if (movementVelocity.lengthSquared() > 0.000001 || velocityWithGravity.y !== 0) {
+      player.mesh.moveWithCollisions(velocityWithGravity.scale(deltaSeconds));
+    }
+    
     // خطوات اللاعب: صوت خفيف يتناسب مع سرعة المشي والجري.
-    const travelled = movementVelocity.length() * deltaSeconds;
+    const travelled = Math.hypot(movementVelocity.x, movementVelocity.z) * deltaSeconds;
     stepDistanceAccumulator += travelled;
     const stepStride = isRunning ? 2.1 : 1.35;
     if (stepDistanceAccumulator >= stepStride && movementAmount > 0.22) {
@@ -1111,21 +1006,30 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     // موضع اللاعب على خريطة القاعة — يُرسل فقط عند التحرك فعلياً.
     if (now - lastPlayerMapEventAt >= 400 && travelled > 0.001) {
       lastPlayerMapEventAt = now;
-      window.dispatchEvent(new CustomEvent("library:player-moved", { detail: { x: camera.position.x, z: camera.position.z } }));
+      window.dispatchEvent(new CustomEvent("library:player-moved", { detail: { x: player.mesh.position.x, z: player.mesh.position.z } }));
     }
     const targetFov = performanceMode === "light" ? (isRunning ? 0.96 : 0.92) : (isRunning ? 0.82 : 0.78);
     camera.fov += (targetFov - camera.fov) * Math.min(1, deltaSeconds * 7);
   });
-  // Keep every control scheme inside the playable library floor, including the mobile joystick.
+  
+  // Update camera to follow player mesh, keep inside room
   const roomBounds = { minX: -10.3, maxX: 10.3, minY: 1.15, maxY: 4.7, minZ: -11.9, maxZ: 10.2 };
   scene.onBeforeRenderObservable.add(() => {
-    const before = camera.position.clone();
-    camera.position.x = Math.max(roomBounds.minX, Math.min(roomBounds.maxX, camera.position.x));
-    camera.position.y = Math.max(roomBounds.minY, Math.min(roomBounds.maxY, camera.position.y));
-    camera.position.z = Math.max(roomBounds.minZ, Math.min(roomBounds.maxZ, camera.position.z));
-    if (camera.position.x !== before.x && Math.sign(camera.cameraDirection.x) === Math.sign(camera.position.x - before.x)) camera.cameraDirection.x = 0;
-    if (camera.position.y !== before.y && Math.sign(camera.cameraDirection.y) === Math.sign(camera.position.y - before.y)) camera.cameraDirection.y = 0;
-    if (camera.position.z !== before.z && Math.sign(camera.cameraDirection.z) === Math.sign(camera.position.z - before.z)) camera.cameraDirection.z = 0;
+    const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
+    // Over the shoulder offset: right, up, back
+    const camOffset = new Vector3(0.5, 0.4, -2.5);
+    const rotationMatrix = Matrix.RotationYawPitchRoll(camera.rotation.y, camera.rotation.x, 0);
+    const rotatedOffset = Vector3.TransformCoordinates(camOffset, rotationMatrix);
+    const targetCamPos = player.mesh.position.add(new Vector3(0, 0.8, 0)).add(rotatedOffset);
+    camera.position = Vector3.Lerp(camera.position, targetCamPos, Math.min(1, deltaSeconds * 15));
+
+    // Bounds for player mesh
+    const before = player.mesh.position.clone();
+    player.mesh.position.x = Math.max(roomBounds.minX, Math.min(roomBounds.maxX, player.mesh.position.x));
+    // player.mesh.position.y is grounded via collisions
+    player.mesh.position.z = Math.max(roomBounds.minZ, Math.min(roomBounds.maxZ, player.mesh.position.z));
+    if (player.mesh.position.x !== before.x) movementVelocity.x = 0;
+    if (player.mesh.position.z !== before.z) movementVelocity.z = 0;
   });
 
   const hemi = new HemisphericLight("ambient", new Vector3(0, 1, 0), scene);
@@ -1181,11 +1085,24 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const brass = material(scene, "brass", COLORS.brass);
   const titleMaterials = new Map<string, StandardMaterial>();
 
-  box(scene, "floor", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, -0.15, 0), floor);
-  box(scene, "back-wall", { width: 24, height: 7, depth: 0.3 }, new Vector3(0, 3.5, -13.5), wall);
-  box(scene, "left-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(-12, 3.5, 0), wall);
-  box(scene, "right-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(12, 3.5, 0), wall);
-  box(scene, "ceiling", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, 7, 0), woodLight, false);
+  const floorMesh = box(scene, "floor", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, -0.15, 0), floor);
+  floorMesh.freezeWorldMatrix();
+  floorMesh.isPickable = false;
+  const backWall = box(scene, "back-wall", { width: 24, height: 7, depth: 0.3 }, new Vector3(0, 3.5, -13.5), wall);
+  backWall.freezeWorldMatrix();
+  backWall.occlusionType = AbstractMesh.OCCLUSION_TYPE_OPTIMISTIC;
+  backWall.isPickable = false;
+  const leftWall = box(scene, "left-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(-12, 3.5, 0), wall);
+  leftWall.freezeWorldMatrix();
+  leftWall.occlusionType = AbstractMesh.OCCLUSION_TYPE_OPTIMISTIC;
+  leftWall.isPickable = false;
+  const rightWall = box(scene, "right-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(12, 3.5, 0), wall);
+  rightWall.freezeWorldMatrix();
+  rightWall.occlusionType = AbstractMesh.OCCLUSION_TYPE_OPTIMISTIC;
+  rightWall.isPickable = false;
+  const ceilingMesh = box(scene, "ceiling", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, 7, 0), woodLight, false);
+  ceilingMesh.freezeWorldMatrix();
+  ceilingMesh.isPickable = false;
   const shelfRoots: Mesh[] = [];
   const addTrackedShelf = (shelfIndex: number, x: number, z: number, rotationY: number) => {
     const root = addShelf(scene, shelfIndex, x, z, rotationY, woodLight, olive, brass, shadow, titleMaterials);
@@ -1219,22 +1136,35 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   });
 
   const table = box(scene, "reading-table", { width: 4.8, height: 0.26, depth: 2.2 }, new Vector3(0, 2, 0), woodLight, false);
+  table.freezeWorldMatrix();
   shadow.addShadowCaster(table);
-  [-1.8, 1.8].forEach((x) => [-0.72, 0.72].forEach((z) => box(scene, "table-leg", { width: 0.22, height: 2, depth: 0.22 }, new Vector3(x, 1, z), woodLight, false)));
+  [-1.8, 1.8].forEach((x) => [-0.72, 0.72].forEach((z) => {
+    const leg = box(scene, `table-leg-${x}-${z}`, { width: 0.22, height: 2, depth: 0.22 }, new Vector3(x, 1, z), woodLight, false);
+    leg.freezeWorldMatrix();
+    leg.isPickable = false;
+  }));
   const tableCollider = box(scene, "reading-table-collider", { width: 4.95, height: 2.05, depth: 2.35 }, new Vector3(0, 1.02, 0), woodLight);
   tableCollider.isVisible = false;
   tableCollider.isPickable = false;
   tableCollider.receiveShadows = false;
-  box(scene, "catalog", { width: 1.1, height: 0.13, depth: 0.75 }, new Vector3(0, 2.2, 0), ivory, false);
+  tableCollider.freezeWorldMatrix();
+  const catalog = box(scene, "catalog", { width: 1.1, height: 0.13, depth: 0.75 }, new Vector3(0, 2.2, 0), ivory, false);
+  catalog.freezeWorldMatrix();
+  catalog.isPickable = false;
   const tableLamp = new PointLight("reading-lamp", new Vector3(0, 3.3, 0), scene);
   tableLamp.diffuse = COLORS.brass; tableLamp.intensity = 1.2; tableLamp.range = 6;
   const lampShade = MeshBuilder.CreateCylinder("lamp-shade", { diameterTop: 0.3, diameterBottom: 0.75, height: 0.55 }, scene);
   lampShade.position = new Vector3(0, 3.05, 0); lampShade.material = brass; lampShade.isPickable = false;
+  lampShade.freezeWorldMatrix();
 
   const rug = box(scene, "rug", { width: 8, height: 0.03, depth: 5 }, new Vector3(0, 0.02, 1.2), material(scene, "rug-mat", new Color3(0.18, 0.19, 0.12)), false);
   rug.rotation.y = 0.02;
+  rug.isPickable = false;
+  rug.freezeWorldMatrix();
   const plaque = box(scene, "welcome-plaque", { width: 3.4, height: 1.2, depth: 0.08 }, new Vector3(0, 4.3, -13.28), ivory, false);
   plaque.metadata = { decorative: true };
+  plaque.isPickable = false;
+  plaque.freezeWorldMatrix();
 
   let activeBookParts: any[] | null = null;
   let activeBookId: string | null = null;
@@ -1662,7 +1592,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const openNearestBook = () => {
     const candidates = scene.meshes.filter((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book);
     if (!candidates.length) return false;
-    const nearest = candidates.reduce((closest, candidate) => Vector3.DistanceSquared(candidate.getAbsolutePosition(), camera.position) < Vector3.DistanceSquared(closest.getAbsolutePosition(), camera.position) ? candidate : closest);
+    const nearest = candidates.reduce((closest, candidate) => Vector3.DistanceSquared(candidate.getAbsolutePosition(), player.mesh.position) < Vector3.DistanceSquared(closest.getAbsolutePosition(), player.mesh.position) ? candidate : closest);
     return openBook(nearest);
   };
   const openBookById = (bookId: string) => {
@@ -1715,7 +1645,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     });
   }
 
-  const dispose = () => { window.clearTimeout(progressiveLoadTimer); window.clearTimeout(pagePreloadTimer); scene.onBeforeRenderObservable.remove(handMotionObserver); hands.dispose(); window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); window.removeEventListener("pointerdown", unlockAudioOnGesture); window.removeEventListener("keydown", unlockAudioOnGesture); window.removeEventListener("library:chime", onChimeRequest); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); dustSystem.dispose(); if (audioContext) { void audioContext.close().catch(() => undefined); audioContext = null; } scene.onPointerObservable.clear(); scene.dispose(); };
+  const dispose = () => { window.clearTimeout(progressiveLoadTimer); window.clearTimeout(pagePreloadTimer); scene.onBeforeRenderObservable.remove(handMotionObserver); player.dispose(); window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); window.removeEventListener("blur", onWindowBlur); window.removeEventListener("pointerdown", unlockAudioOnGesture); window.removeEventListener("keydown", unlockAudioOnGesture); window.removeEventListener("library:chime", onChimeRequest); canvas.removeEventListener("click", onCanvasClick); canvas.removeEventListener("mousemove", onMouseMove); canvas.removeEventListener("mouseleave", resetMouseReference); canvas.removeEventListener("touchstart", onTouchStart); canvas.removeEventListener("touchmove", onTouchMove); canvas.removeEventListener("touchend", onTouchEnd); canvas.removeEventListener("touchcancel", onTouchEnd); dustSystem.dispose(); if (audioContext) { void audioContext.close().catch(() => undefined); audioContext = null; } scene.onPointerObservable.clear(); scene.dispose(); };
   const setTouchMove = (x: number, y: number) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, y)); };
   // Ensure scene readiness without blocking indefinitely if any remote resource is delayed.
   try {

@@ -44,11 +44,13 @@ function addAndalusianArch(scene: Scene, z: number, width = 8.8) {
   left.position = new Vector3(-sideX, pillarHeight * 0.5, z);
   left.material = wood;
   left.isPickable = false;
+  left.freezeWorldMatrix();
 
   const right = MeshBuilder.CreateBox(`library-arch-right-${z}`, { width: pillarWidth, height: pillarHeight, depth: pillarDepth }, scene);
   right.position = new Vector3(sideX, pillarHeight * 0.5, z);
   right.material = wood;
   right.isPickable = false;
+  right.freezeWorldMatrix();
 
   // Carved Brass Capitals on top of pillars
   [-sideX, sideX].forEach((x, idx) => {
@@ -56,6 +58,7 @@ function addAndalusianArch(scene: Scene, z: number, width = 8.8) {
     cap.position = new Vector3(x, pillarHeight, z);
     cap.material = brass;
     cap.isPickable = false;
+    cap.freezeWorldMatrix();
   });
 
   // Spanning Architrave Beam
@@ -63,6 +66,7 @@ function addAndalusianArch(scene: Scene, z: number, width = 8.8) {
   beam.position = new Vector3(0, pillarHeight + 0.18, z);
   beam.material = wood;
   beam.isPickable = false;
+  beam.freezeWorldMatrix();
 
   // Horseshoe Arch Curve
   const arch = MeshBuilder.CreateTorus(`library-arch-curve-${z}`, { diameter: width * 0.82, thickness: 0.26, tessellation: 32 }, scene);
@@ -70,6 +74,7 @@ function addAndalusianArch(scene: Scene, z: number, width = 8.8) {
   arch.position = new Vector3(0, pillarHeight - 0.05, z);
   arch.material = wood;
   arch.isPickable = false;
+  arch.freezeWorldMatrix();
 
   // Alternating Bicolor Voussoir blocks along the horseshoe arch
   const voussoirCount = 13;
@@ -84,6 +89,7 @@ function addAndalusianArch(scene: Scene, z: number, width = 8.8) {
     block.rotation.z = -theta + Math.PI / 2;
     block.material = i % 2 === 0 ? redTerracotta : creamStone;
     block.isPickable = false;
+    block.freezeWorldMatrix();
   }
 
   // Central Brass Keystone Medallion
@@ -92,6 +98,7 @@ function addAndalusianArch(scene: Scene, z: number, width = 8.8) {
   keystone.rotation.x = Math.PI / 2;
   keystone.material = brass;
   keystone.isPickable = false;
+  keystone.freezeWorldMatrix();
 }
 
 function addCeilingBeams(scene: Scene) {
@@ -101,6 +108,7 @@ function addCeilingBeams(scene: Scene) {
     beam.position = new Vector3(0, 6.72, z);
     beam.material = wood;
     beam.isPickable = false;
+    beam.freezeWorldMatrix();
   });
 }
 
@@ -108,6 +116,7 @@ function addMoroccanCarpet(scene: Scene) {
   const carpet = MeshBuilder.CreateGround("moroccan-grand-carpet", { width: 3.6, height: 21, subdivisions: 2 }, scene);
   carpet.position = new Vector3(0, 0.015, -0.5);
   carpet.isPickable = false;
+  carpet.freezeWorldMatrix();
 
   const mat = new StandardMaterial("moroccan-carpet-mat", scene);
   const tex = new DynamicTexture("moroccan-carpet-tex", { width: 256, height: 1024 }, scene, true);
@@ -196,6 +205,7 @@ function addChandelier(scene: Scene, z: number) {
   rod.position = new Vector3(0, 1.05, 0);
   rod.material = brass;
   rod.isPickable = false;
+  rod.freezeWorldMatrix();
   rod.parent = root;
 
   // Main brass circular ring wheel
@@ -203,6 +213,7 @@ function addChandelier(scene: Scene, z: number) {
   mainRing.position = new Vector3(0, 0, 0);
   mainRing.material = brass;
   mainRing.isPickable = false;
+  mainRing.freezeWorldMatrix();
   mainRing.parent = root;
 
   // Upper tiered brass ring
@@ -210,6 +221,7 @@ function addChandelier(scene: Scene, z: number) {
   upperRing.position = new Vector3(0, 0.65, 0);
   upperRing.material = brass;
   upperRing.isPickable = false;
+  upperRing.freezeWorldMatrix();
   upperRing.parent = root;
 
   // Diagonal support spokes
@@ -221,6 +233,7 @@ function addChandelier(scene: Scene, z: number) {
     spoke.rotation.x = -Math.sin(angle) * 0.45;
     spoke.material = brass;
     spoke.isPickable = false;
+    spoke.freezeWorldMatrix();
     spoke.parent = root;
   }
 
@@ -234,18 +247,21 @@ function addChandelier(scene: Scene, z: number) {
     lanternCup.position = new Vector3(lx, -0.04, lz);
     lanternCup.material = brass;
     lanternCup.isPickable = false;
+    lanternCup.freezeWorldMatrix();
     lanternCup.parent = root;
 
     const lanternGlass = MeshBuilder.CreateCylinder(`lantern-glass-${z}-${i}`, { height: 0.28, diameter: 0.14, tessellation: 12 }, scene);
     lanternGlass.position = new Vector3(lx, 0.12, lz);
     lanternGlass.material = glass;
     lanternGlass.isPickable = false;
+    lanternGlass.freezeWorldMatrix();
     lanternGlass.parent = root;
 
     const lanternCap = MeshBuilder.CreateCylinder(`lantern-cap-${z}-${i}`, { height: 0.1, diameterTop: 0.02, diameterBottom: 0.18, tessellation: 12 }, scene);
     lanternCap.position = new Vector3(lx, 0.28, lz);
     lanternCap.material = brass;
     lanternCap.isPickable = false;
+    lanternCap.freezeWorldMatrix();
     lanternCap.parent = root;
   }
 
@@ -459,6 +475,7 @@ function addRusticLadder(scene: Scene, id: string, x: number, z: number, height:
     rail.position = new Vector3(lx, height * 0.5, 0);
     rail.material = wood;
     rail.isPickable = false;
+    rail.freezeWorldMatrix();
     rail.parent = root;
   });
 
@@ -469,6 +486,7 @@ function addRusticLadder(scene: Scene, id: string, x: number, z: number, height:
     rung.rotation.z = Math.PI / 2;
     rung.material = wood;
     rung.isPickable = false;
+    rung.freezeWorldMatrix();
     rung.parent = root;
 
     // Rustic peg/tie bindings on the sides matching the reference picture
@@ -477,6 +495,7 @@ function addRusticLadder(scene: Scene, id: string, x: number, z: number, height:
       peg.position = new Vector3(tx, y, 0.03);
       peg.material = tie;
       peg.isPickable = false;
+      peg.freezeWorldMatrix();
       peg.parent = root;
     });
   }
@@ -494,6 +513,7 @@ function addReadingFootstool(scene: Scene, id: string, x: number, z: number, rot
   seat.position = new Vector3(0, 0.26, 0);
   seat.material = wood;
   seat.isPickable = false;
+  seat.freezeWorldMatrix();
   seat.parent = root;
 
   // 4 splayed rustic legs
@@ -511,6 +531,7 @@ function addReadingFootstool(scene: Scene, id: string, x: number, z: number, rot
     leg.rotation.x = l.rotX;
     leg.material = wood;
     leg.isPickable = false;
+    leg.freezeWorldMatrix();
     leg.parent = root;
   });
 }
@@ -528,12 +549,14 @@ function addWallDecor(scene: Scene) {
       pilaster.position = new Vector3(x, 3.4, z);
       pilaster.material = wood;
       pilaster.isPickable = false;
+      pilaster.freezeWorldMatrix();
 
       // Decorative corbel capital
       const capital = MeshBuilder.CreateBox(`pilaster-cap-${idx}-${sideIdx}`, { width: 0.54, height: 0.24, depth: 0.36 }, scene);
       capital.position = new Vector3(x, 6.7, z);
       capital.material = brass;
       capital.isPickable = false;
+      capital.freezeWorldMatrix();
 
       // Brass wall sconce arm
       const arm = MeshBuilder.CreateCylinder(`sconce-arm-${idx}-${sideIdx}`, { height: 0.38, diameter: 0.03, tessellation: 8 }, scene);
@@ -541,12 +564,14 @@ function addWallDecor(scene: Scene) {
       arm.rotation.z = sideIdx === 0 ? Math.PI / 2 : -Math.PI / 2;
       arm.material = brass;
       arm.isPickable = false;
+      arm.freezeWorldMatrix();
 
       // Glowing lantern
       const lantern = MeshBuilder.CreateCylinder(`sconce-lantern-${idx}-${sideIdx}`, { height: 0.32, diameter: 0.16, tessellation: 12 }, scene);
       lantern.position = new Vector3(x + (sideIdx === 0 ? 0.40 : -0.40), 3.9, z);
       lantern.material = lanternGlass;
       lantern.isPickable = false;
+      lantern.freezeWorldMatrix();
 
       // Soft amber wall light
       const wallLight = new PointLight(`sconce-light-${idx}-${sideIdx}`, lantern.position.clone(), scene);
