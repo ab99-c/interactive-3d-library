@@ -13,12 +13,9 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
-<<<<<<< HEAD
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import { AUDIO_STORAGE_KEY } from "./progression";
-=======
 import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
->>>>>>> 7042b9e (feat: switch to third-person view and increase book density)
 import "@babylonjs/core/Collisions/collisionCoordinator";
 // Style: Quiet Study Hall — walnut, ivory, olive, and brass; first-person details stay tactile, quiet, and low-poly.
 // Register Ray before scene picking APIs are used; Babylon otherwise logs a side-effect warning at runtime.
