@@ -1,7 +1,7 @@
 // Quiet Study Hall: مشهد دافئ وسينمائي؛ الخشب والعاج والزيتوني والنحاسي، والعالم 3D هو البطل.
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
-import { UniversalCamera } from "@babylonjs/core/Cameras/universalCamera";
+import { FollowCamera } from "@babylonjs/core/Cameras/followCamera";
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
@@ -410,9 +410,9 @@ function createThirdPersonCharacter(scene: Scene): ThirdPersonCharacter {
   mesh.ellipsoid = new Vector3(0.3, 0.8, 0.3);
   mesh.ellipsoidOffset = new Vector3(0, 0.8, 0);
 
-  const bodyMat = material(scene, "tp-body", new Color3(0.15, 0.22, 0.35)); // Navy/Blue
+  const bodyMat = material(scene, "tp-body", new Color3(0.055, 0.10, 0.22)); // Classic dark navy uniform
   const skinMat = material(scene, "tp-skin", new Color3(0.80, 0.62, 0.50)); // Warm skin
-  const pantsMat = material(scene, "tp-pants", new Color3(0.24, 0.16, 0.12)); // Warm brown
+  const pantsMat = material(scene, "tp-pants", new Color3(0.045, 0.075, 0.16)); // Matching navy trousers
   
   // Head
   const head = MeshBuilder.CreateBox("tp-head", { size: 0.35 }, scene);
@@ -431,13 +431,13 @@ function createThirdPersonCharacter(scene: Scene): ThirdPersonCharacter {
   leftArm.parent = torso;
   leftArm.position = new Vector3(-0.3, 0.1, 0);
   leftArm.setPivotPoint(new Vector3(0, 0.25, 0));
-  leftArm.material = skinMat;
+  leftArm.material = bodyMat;
   
   const rightArm = MeshBuilder.CreateBox("tp-r-arm", { width: 0.15, height: 0.65, depth: 0.15 }, scene);
   rightArm.parent = torso;
   rightArm.position = new Vector3(0.3, 0.1, 0);
   rightArm.setPivotPoint(new Vector3(0, 0.25, 0));
-  rightArm.material = skinMat;
+  rightArm.material = bodyMat;
 
   // Legs
   const leftLeg = MeshBuilder.CreateBox("tp-l-leg", { width: 0.18, height: 0.75, depth: 0.18 }, scene);
@@ -451,6 +451,19 @@ function createThirdPersonCharacter(scene: Scene): ThirdPersonCharacter {
   rightLeg.position = new Vector3(0.12, -0.4, 0);
   rightLeg.setPivotPoint(new Vector3(0, 0.3, 0));
   rightLeg.material = pantsMat;
+
+  // Small shoes keep the silhouette readable from the over-the-shoulder camera.
+  const shoeMat = material(scene, "tp-shoes", new Color3(0.025, 0.022, 0.03));
+  [-1, 1].forEach((side, index) => {
+    const shoe = MeshBuilder.CreateBox(`tp-shoe-${index}`, { width: 0.22, height: 0.12, depth: 0.34 }, scene);
+    shoe.parent = mesh;
+    shoe.position = new Vector3(side * 0.12, -0.78, 0.055);
+    shoe.material = shoeMat;
+    shoe.isPickable = false;
+    shoe.checkCollisions = false;
+    shoe.receiveShadows = true;
+    parts.push(shoe);
+  });
 
   const parts = [head, torso, leftArm, rightArm, leftLeg, rightLeg];
   parts.forEach(p => {
@@ -474,6 +487,7 @@ function createThirdPersonCharacter(scene: Scene): ThirdPersonCharacter {
       bodyMat.dispose();
       skinMat.dispose();
       pantsMat.dispose();
+      shoeMat.dispose();
     }
   };
 }
@@ -708,13 +722,15 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const bookLean = (i % 12 === 2) ? 0.05 : (i % 11 === 5) ? -0.05 : 0;
       const bookIndex = (shelfIndex * 34 + row * 7 + i) % BOOK_CATALOG.length;
       const bookInfo = BOOK_CATALOG[bookIndex];
-      const leatherColor = bookColors[(i + row * 3 + shelfIndex) % bookColors.length];
-      const bookMaterial = material(scene, `book-mat-${shelfIndex}-${row}-${i}`, leatherColor);
-      const leatherMaterial = material(scene, `book-leather-${shelfIndex}-${row}-${i}`, leatherColor);
+      const colorIndex = (i + row * 3 + shelfIndex) % bookColors.length;
+      const leatherColor = bookColors[colorIndex];
+      // Reuse one pair of materials per palette color across all shelves.
+      const bookMaterial = material(scene, `book-mat-palette-${colorIndex}`, leatherColor);
+      const leatherMaterial = material(scene, `book-leather-palette-${colorIndex}`, leatherColor);
       leatherMaterial.specularColor = new Color3(0.22, 0.17, 0.12);
       // Place the book directly on the board below this row, with only a tiny clearance.
       const shelfTopY = y - 0.15 + 0.07;
-      const bookPosition = new Vector3(-1.95 + i * 0.117, shelfTopY + bookHeight * 0.5 + 0.008, -0.04);
+      const bookPosition = new Vector3(-1.95 + i * 0.112, shelfTopY + bookHeight * 0.5 + 0.008, -0.04);
       const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
       book.parent = root;
       const roundedSpine = MeshBuilder.CreateCylinder(`book-rounded-spine-${shelfIndex}-${row}-${i}`, { diameter: Math.min(bookDepth * 0.9, 0.28), height: bookHeight * 0.94, tessellation: 10 }, scene);
@@ -858,12 +874,21 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   player.mesh.position = new Vector3(0, 0.8, 8.6);
   player.root.rotation.y = Math.PI;
 
-  const camera = new UniversalCamera("player-camera", new Vector3(0, 1.75, 8.6), scene);
+  const camera = new FollowCamera("player-camera", new Vector3(0.5, 2.2, 11.8), scene);
   scene.activeCamera = camera;
   camera.minZ = 0.1;
   camera.maxZ = 50;
   camera.fov = 0.78;
-  camera.rotation.y = Math.PI;
+  camera.lockedTarget = player.mesh;
+  camera.radius = 3.8;
+  camera.heightOffset = 1.35;
+  camera.rotationOffset = 180;
+  camera.cameraAcceleration = 0.08;
+  camera.maxCameraSpeed = 6;
+  camera.lowerRadiusLimit = 2.8;
+  camera.upperRadiusLimit = 5.2;
+  camera.lowerHeightOffsetLimit = 0.8;
+  camera.upperHeightOffsetLimit = 2.4;
   
   let lastMouseX: number | null = null;
   let lastMouseY: number | null = null;
@@ -874,8 +899,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const deltaY = event.movementY || (lastMouseY === null ? 0 : event.clientY - lastMouseY);
     lastMouseX = event.clientX;
     lastMouseY = event.clientY;
-    camera.rotation.y += deltaX * 0.0025;
-    camera.rotation.x = Math.max(-1.25, Math.min(1.25, camera.rotation.x + deltaY * 0.0025));
+    camera.rotationOffset -= deltaX * 0.18;
+    camera.heightOffset = Math.max(0.8, Math.min(2.4, camera.heightOffset - deltaY * 0.012));
   };
   const resetMouseReference = () => { lastMouseX = null; lastMouseY = null; };
   canvas.addEventListener("mousemove", onMouseMove);
@@ -898,8 +923,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const deltaY = touch.clientY - lastTouchY;
     lastTouchX = touch.clientX;
     lastTouchY = touch.clientY;
-    camera.rotation.y += deltaX * 0.004;
-    camera.rotation.x = Math.max(-1.25, Math.min(1.25, camera.rotation.x + deltaY * 0.004));
+    camera.rotationOffset -= deltaX * 0.28;
+    camera.heightOffset = Math.max(0.8, Math.min(2.4, camera.heightOffset - deltaY * 0.018));
     event.preventDefault();
   };
   const onTouchEnd = (event: TouchEvent) => {
@@ -930,7 +955,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     // Bob the torso slightly
     const bob = Math.abs(Math.sin(handMotionPhase)) * 0.04 * walkBlend;
     player.head.position.y = 0.8 + 0.175 + bob;
-    player.leftArm.parent!.position.y = 0.8 - 0.35 + bob;
+    player.leftArm.position.y = 0.1 + bob;
+    player.rightArm.position.y = 0.1 + bob;
   });
   
   const movementVelocity = new Vector3(0, 0, 0);
@@ -1009,21 +1035,11 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     camera.fov += (targetFov - camera.fov) * Math.min(1, deltaSeconds * 7);
   });
   
-  // Update camera to follow player mesh, keep inside room
-  const roomBounds = { minX: -10.3, maxX: 10.3, minY: 1.15, maxY: 4.7, minZ: -11.9, maxZ: 10.2 };
+  // Keep the player inside the room; FollowCamera handles smooth shoulder tracking.
+  const roomBounds = { minX: -10.3, maxX: 10.3, minZ: -11.0, maxZ: 11.0 };
   scene.onBeforeRenderObservable.add(() => {
-    const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
-    // Over the shoulder offset: right, up, back
-    const camOffset = new Vector3(0.5, 0.4, -2.5);
-    const rotationMatrix = Matrix.RotationYawPitchRoll(camera.rotation.y, camera.rotation.x, 0);
-    const rotatedOffset = Vector3.TransformCoordinates(camOffset, rotationMatrix);
-    const targetCamPos = player.mesh.position.add(new Vector3(0, 0.8, 0)).add(rotatedOffset);
-    camera.position = Vector3.Lerp(camera.position, targetCamPos, Math.min(1, deltaSeconds * 15));
-
-    // Bounds for player mesh
     const before = player.mesh.position.clone();
     player.mesh.position.x = Math.max(roomBounds.minX, Math.min(roomBounds.maxX, player.mesh.position.x));
-    // player.mesh.position.y is grounded via collisions
     player.mesh.position.z = Math.max(roomBounds.minZ, Math.min(roomBounds.maxZ, player.mesh.position.z));
     if (player.mesh.position.x !== before.x) movementVelocity.x = 0;
     if (player.mesh.position.z !== before.z) movementVelocity.z = 0;
@@ -1106,10 +1122,14 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     shelfRoots.push(root);
     return root;
   };
-  // Initialize 8 grand bookcases immediately for a dense, majestic historic library
-  for (let s = 0; s < 8; s += 1) {
-    addTrackedShelf(s, 0, 0, 0);
-  }
+  // Sixteen grand bookcases: balanced wings and a north archive, leaving the central table and aisles open.
+  const shelfLayout = [
+    [-8.0, -8.2, Math.PI / 2], [-8.0, -2.7, Math.PI / 2], [-8.0, 2.7, Math.PI / 2], [-8.0, 8.2, Math.PI / 2],
+    [8.0, -8.2, -Math.PI / 2], [8.0, -2.7, -Math.PI / 2], [8.0, 2.7, -Math.PI / 2], [8.0, 8.2, -Math.PI / 2],
+    [-8.0, -12.0, 0], [-2.7, -12.0, 0], [2.7, -12.0, 0], [8.0, -12.0, 0],
+    [-8.0, 12.0, Math.PI], [-2.7, 12.0, Math.PI], [2.7, 12.0, Math.PI], [8.0, 12.0, Math.PI],
+  ] as const;
+  shelfLayout.forEach(([x, z, rotationY], shelfIndex) => addTrackedShelf(shelfIndex, x, z, rotationY));
   const progressiveLoadTimer = 0;
   // Keep the 174 KB literary text out of the initial scene chunk while warming it shortly after the room appears.
   const pagePreloadTimer = window.setTimeout(() => {
