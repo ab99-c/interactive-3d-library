@@ -1,6 +1,5 @@
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
-import { UniversalCamera } from "@babylonjs/core/Cameras/universalCamera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
@@ -585,17 +584,16 @@ function addWallDecor(scene: Scene) {
 function arrangeGrandLibrary(scene: Scene) {
   const roots = shelfRoot(scene);
   const layouts = [
-    // Left Wing (3 large bookcases facing central aisle)
-    { x: -6.4, z: -6.8, rotation: 0 },
-    { x: -6.4, z: 0.0, rotation: 0 },
-    { x: -6.4, z: 6.8, rotation: 0 },
-    // Right Wing (3 large bookcases facing central aisle)
-    { x: 6.4, z: -6.8, rotation: 0 },
-    { x: 6.4, z: 0.0, rotation: 0 },
-    { x: 6.4, z: 6.8, rotation: 0 },
-    // Deep North Archive (2 majestic bookcases facing south)
-    { x: -3.0, z: -12.2, rotation: 0 },
-    { x: 3.0, z: -12.2, rotation: 0 },
+    // Left and right wings face the central aisle.
+    { x: -8.0, z: -8.2, rotation: Math.PI / 2 }, { x: -8.0, z: -2.7, rotation: Math.PI / 2 },
+    { x: -8.0, z: 2.7, rotation: Math.PI / 2 }, { x: -8.0, z: 8.2, rotation: Math.PI / 2 },
+    { x: 8.0, z: -8.2, rotation: -Math.PI / 2 }, { x: 8.0, z: -2.7, rotation: -Math.PI / 2 },
+    { x: 8.0, z: 2.7, rotation: -Math.PI / 2 }, { x: 8.0, z: 8.2, rotation: -Math.PI / 2 },
+    // North and south archives face the long central aisle.
+    { x: -8.0, z: -12.0, rotation: 0 }, { x: -2.7, z: -12.0, rotation: 0 },
+    { x: 2.7, z: -12.0, rotation: 0 }, { x: 8.0, z: -12.0, rotation: 0 },
+    { x: -8.0, z: 12.0, rotation: Math.PI }, { x: -2.7, z: 12.0, rotation: Math.PI },
+    { x: 2.7, z: 12.0, rotation: Math.PI }, { x: 8.0, z: 12.0, rotation: Math.PI },
   ];
 
   roots.forEach((root, index) => {
@@ -639,13 +637,6 @@ function arrangeGrandLibrary(scene: Scene) {
   addReadingFootstool(scene, "stool-3", 3.6, -1.2, 0.35);
   addReadingFootstool(scene, "stool-4", 3.5, 3.2, -0.12);
 
-  // Initial Player Framing
-  const camera = scene.activeCamera as UniversalCamera | null;
-  if (camera) {
-    camera.position = new Vector3(0, 1.75, 10.4);
-    camera.rotation.y = Math.PI;
-    camera.rotation.x = -0.035;
-  }
 }
 
 export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement): Promise<GameHandle> {
