@@ -1,7 +1,7 @@
 // Quiet Study Hall: مشهد دافئ وسينمائي؛ الخشب والعاج والزيتوني والنحاسي، والعالم 3D هو البطل.
 import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
-import { FollowCamera } from "@babylonjs/core/Cameras/followCamera";
+import { UniversalCamera } from "@babylonjs/core/Cameras/universalCamera";
 import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
@@ -452,6 +452,8 @@ function createThirdPersonCharacter(scene: Scene): ThirdPersonCharacter {
   rightLeg.setPivotPoint(new Vector3(0, 0.3, 0));
   rightLeg.material = pantsMat;
 
+  const parts = [head, torso, leftArm, rightArm, leftLeg, rightLeg];
+
   // Small shoes keep the silhouette readable from the over-the-shoulder camera.
   const shoeMat = material(scene, "tp-shoes", new Color3(0.025, 0.022, 0.03));
   [-1, 1].forEach((side, index) => {
@@ -465,7 +467,6 @@ function createThirdPersonCharacter(scene: Scene): ThirdPersonCharacter {
     parts.push(shoe);
   });
 
-  const parts = [head, torso, leftArm, rightArm, leftLeg, rightLeg];
   parts.forEach(p => {
     p.isPickable = false;
     p.checkCollisions = false;
@@ -874,21 +875,15 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   player.mesh.position = new Vector3(0, 0.8, 8.6);
   player.root.rotation.y = Math.PI;
 
-  const camera = new FollowCamera("player-camera", new Vector3(0.5, 2.2, 11.8), scene);
+  const camera = new UniversalCamera("player-camera", new Vector3(0.65, 2.35, 12.4), scene);
   scene.activeCamera = camera;
   camera.minZ = 0.1;
   camera.maxZ = 50;
   camera.fov = 0.78;
-  camera.lockedTarget = player.mesh;
-  camera.radius = 3.8;
-  camera.heightOffset = 1.35;
-  camera.rotationOffset = 180;
-  camera.cameraAcceleration = 0.08;
-  camera.maxCameraSpeed = 6;
-  camera.lowerRadiusLimit = 2.8;
-  camera.upperRadiusLimit = 5.2;
-  camera.lowerHeightOffsetLimit = 0.8;
-  camera.upperHeightOffsetLimit = 2.4;
+  camera.rotation.y = Math.PI;
+  camera.rotation.x = -0.08;
+  let cameraYaw = Math.PI;
+  let cameraPitch = -0.08;
   
   let lastMouseX: number | null = null;
   let lastMouseY: number | null = null;
@@ -899,8 +894,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const deltaY = event.movementY || (lastMouseY === null ? 0 : event.clientY - lastMouseY);
     lastMouseX = event.clientX;
     lastMouseY = event.clientY;
-    camera.rotationOffset -= deltaX * 0.18;
-    camera.heightOffset = Math.max(0.8, Math.min(2.4, camera.heightOffset - deltaY * 0.012));
+    cameraYaw -= deltaX * 0.0025;
+    cameraPitch = Math.max(-0.35, Math.min(0.45, cameraPitch + deltaY * 0.0025));
   };
   const resetMouseReference = () => { lastMouseX = null; lastMouseY = null; };
   canvas.addEventListener("mousemove", onMouseMove);
@@ -923,8 +918,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const deltaY = touch.clientY - lastTouchY;
     lastTouchX = touch.clientX;
     lastTouchY = touch.clientY;
-    camera.rotationOffset -= deltaX * 0.28;
-    camera.heightOffset = Math.max(0.8, Math.min(2.4, camera.heightOffset - deltaY * 0.018));
+    cameraYaw -= deltaX * 0.004;
+    cameraPitch = Math.max(-0.35, Math.min(0.45, cameraPitch + deltaY * 0.004));
     event.preventDefault();
   };
   const onTouchEnd = (event: TouchEvent) => {
@@ -976,12 +971,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const hasMovementInput = length >= 0.001;
     if (length > 1) { moveX /= length; moveZ /= length; }
     
-    const forward = camera.getDirection(Vector3.Forward());
-    forward.y = 0;
-    if (forward.lengthSquared() > 0.001) forward.normalize();
-    const right = camera.getDirection(Vector3.Right());
-    right.y = 0;
-    if (right.lengthSquared() > 0.001) right.normalize();
+    const forward = new Vector3(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
+    const right = new Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
     
     isRunning = hasMovementInput && (pressedKeys.has("shift") || Math.hypot(touchMove.x, touchMove.z) > 0.84);
     const walkSpeed = 2.7;
@@ -1038,11 +1029,18 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   // Keep the player inside the room; FollowCamera handles smooth shoulder tracking.
   const roomBounds = { minX: -10.3, maxX: 10.3, minZ: -11.0, maxZ: 11.0 };
   scene.onBeforeRenderObservable.add(() => {
+    const deltaSeconds = Math.min(engine.getDeltaTime() / 1000, 0.05);
     const before = player.mesh.position.clone();
     player.mesh.position.x = Math.max(roomBounds.minX, Math.min(roomBounds.maxX, player.mesh.position.x));
     player.mesh.position.z = Math.max(roomBounds.minZ, Math.min(roomBounds.maxZ, player.mesh.position.z));
     if (player.mesh.position.x !== before.x) movementVelocity.x = 0;
     if (player.mesh.position.z !== before.z) movementVelocity.z = 0;
+    const target = player.mesh.position.add(new Vector3(0, 1.0, 0));
+    const shoulderOffset = Vector3.TransformCoordinates(new Vector3(0.65, 1.35, -3.8), Matrix.RotationY(cameraYaw));
+    const targetCameraPosition = target.add(shoulderOffset);
+    camera.position = Vector3.Lerp(camera.position, targetCameraPosition, Math.min(1, deltaSeconds * 10));
+    camera.rotation.y = cameraYaw;
+    camera.rotation.x = cameraPitch;
   });
 
   const hemi = new HemisphericLight("ambient", new Vector3(0, 1, 0), scene);
