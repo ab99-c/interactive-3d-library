@@ -244,6 +244,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 2000,
   },
   server: {
     port: 3000,
@@ -256,4 +257,3 @@ export default defineConfig({
     },
   },
 });
-
