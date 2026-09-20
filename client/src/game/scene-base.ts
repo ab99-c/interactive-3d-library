@@ -690,19 +690,12 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
   addShelfCandleSconce(scene, root, new Vector3(-2.15, 3.2, 0.30), brass, `${shelfIndex}-l`);
   addShelfCandleSconce(scene, root, new Vector3(2.15, 2.3, 0.30), brass, `${shelfIndex}-r`);
 
-  // Rich bright and warm palette to make it vibrant and full
+  // Reference-style shelves: pale uniform books create the dense architectural
+  // silhouette while the catalog and click interaction remain unchanged.
   const bookColors = [
-    new Color3(0.95, 0.95, 0.95), // White
-    new Color3(0.20, 0.70, 0.30), // Green
-    new Color3(0.90, 0.50, 0.10), // Orange
-    new Color3(0.90, 0.40, 0.60), // Pink
-    new Color3(0.10, 0.50, 0.80), // Blue
-    new Color3(0.10, 0.20, 0.40), // Dark Blue
-    new Color3(0.58, 0.16, 0.14), // Antique Brick Red
-    new Color3(0.74, 0.52, 0.18), // Vintage Ochre
-    new Color3(0.85, 0.76, 0.62), // Aged Cream Parchment
-    new Color3(0.32, 0.18, 0.10), // Dark Walnut Leather
-    new Color3(0.28, 0.36, 0.22), // Moss Green
+    new Color3(0.82, 0.82, 0.79),
+    new Color3(0.74, 0.75, 0.73),
+    new Color3(0.88, 0.87, 0.82),
   ];
 
   const rowBookYs = [0.63, 1.53, 2.43, 3.33, 4.23];
@@ -713,14 +706,11 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
     const bookendRight = box(scene, `bookend-r-${shelfIndex}-${row}`, { width: 0.05, height: 0.38, depth: 0.44 }, new Vector3(2.04, y - 0.15 + 0.22, -0.04), brass, false);
     bookendRight.parent = root;
 
-    for (let i = 0; i < 34; i += 1) {
-      const format = BOOK_FORMATS[(shelfIndex + row + i) % BOOK_FORMATS.length];
-      const heightFactor = 0.86 + (((i * 7 + row * 11 + shelfIndex * 3) % 9) / 9) * 0.28;
-      const widthFactor = 0.84 + (((i * 5 + row * 7) % 5) / 5) * 0.36;
-      const bookWidth = format.width * widthFactor;
-      const bookHeight = format.height * heightFactor;
-      const bookDepth = format.depth;
-      const bookLean = (i % 12 === 2) ? 0.05 : (i % 11 === 5) ? -0.05 : 0;
+    for (let i = 0; i < 40; i += 1) {
+      const bookWidth = 0.105 + (((i * 3 + row + shelfIndex) % 4) * 0.008);
+      const bookHeight = 0.68 + (((i * 7 + row * 3 + shelfIndex) % 5) * 0.035);
+      const bookDepth = 0.34;
+      const bookLean = (i % 17 === 4) ? 0.14 : (i % 19 === 11) ? -0.11 : 0;
       const bookIndex = (shelfIndex * 34 + row * 7 + i) % BOOK_CATALOG.length;
       const bookInfo = BOOK_CATALOG[bookIndex];
       const colorIndex = (i + row * 3 + shelfIndex) % bookColors.length;
@@ -829,7 +819,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const pageState = { pageIndex: 0, pageCount: bookInfo.pages?.length || (bookInfo.id === "hayy-ibn-yaqdhan" ? FALLBACK_HAYY_PAGE_COUNT : 1), pageRenderers };
       bookParts.forEach((target) => {
         target.rotation.y = bookLean;
-        target.metadata = { book: bookInfo, format: format.name, openPageWidth, openPageHeight, bookParts, pageState, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, bookDetail: target !== book && target !== openLeftPage && target !== openRightPage && target !== turningPage, readingPage: target === openLeftPage || target === openRightPage, pageSide: target === openLeftPage ? "left" : target === openRightPage ? "right" : undefined, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate };
+        target.metadata = { book: bookInfo, format: "uniform-hardcover", openPageWidth, openPageHeight, bookParts, pageState, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, bookDetail: target !== book && target !== openLeftPage && target !== openRightPage && target !== turningPage, readingPage: target === openLeftPage || target === openRightPage, pageSide: target === openLeftPage ? "left" : target === openRightPage ? "right" : undefined, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate };
         // Only the main volume is pickable; decorative binding parts move with it but do not create duplicate hits.
         target.isPickable = target === book || target === openLeftPage || target === openRightPage;
       });
