@@ -711,6 +711,10 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const bookHeight = 0.68 + (((i * 7 + row * 3 + shelfIndex) % 5) * 0.035);
       const bookDepth = 0.34;
       const bookLean = (i % 17 === 4) ? 0.14 : (i % 19 === 11) ? -0.11 : 0;
+      const bookT = i / 39;
+      // A shallow spline-like arc keeps the row organic without pushing books
+      // beyond the shelf ends or changing the interaction raycast geometry.
+      const bookArc = Math.sin(bookT * Math.PI) * 0.055;
       const bookIndex = (shelfIndex * 34 + row * 7 + i) % BOOK_CATALOG.length;
       const bookInfo = BOOK_CATALOG[bookIndex];
       const colorIndex = (i + row * 3 + shelfIndex) % bookColors.length;
@@ -721,7 +725,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       leatherMaterial.specularColor = new Color3(0.22, 0.17, 0.12);
       // Place the book directly on the board below this row, with only a tiny clearance.
       const shelfTopY = y - 0.15 + 0.07;
-      const bookPosition = new Vector3(-1.95 + i * 0.112, shelfTopY + bookHeight * 0.5 + 0.008, -0.04);
+      const bookPosition = new Vector3(-1.92 + i * 0.098, shelfTopY + bookHeight * 0.5 + 0.008, -0.04 + bookArc);
       const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
       book.parent = root;
       const roundedSpine = MeshBuilder.CreateCylinder(`book-rounded-spine-${shelfIndex}-${row}-${i}`, { diameter: Math.min(bookDepth * 0.9, 0.28), height: bookHeight * 0.94, tessellation: 10 }, scene);
@@ -818,7 +822,9 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const bookParts = [book, roundedSpine, frontCover, openLeftPage, openRightPage, turningPage, titlePlate];
       const pageState = { pageIndex: 0, pageCount: bookInfo.pages?.length || (bookInfo.id === "hayy-ibn-yaqdhan" ? FALLBACK_HAYY_PAGE_COUNT : 1), pageRenderers };
       bookParts.forEach((target) => {
-        target.rotation.y = bookLean;
+        // Roll around the spine for the occasional naturally leaning book;
+        // every decorative part receives the same transform as the volume.
+        target.rotation.z = bookLean;
         target.metadata = { book: bookInfo, format: "uniform-hardcover", openPageWidth, openPageHeight, bookParts, pageState, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, bookDetail: target !== book && target !== openLeftPage && target !== openRightPage && target !== turningPage, readingPage: target === openLeftPage || target === openRightPage, pageSide: target === openLeftPage ? "left" : target === openRightPage ? "right" : undefined, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate };
         // Only the main volume is pickable; decorative binding parts move with it but do not create duplicate hits.
         target.isPickable = target === book || target === openLeftPage || target === openRightPage;
