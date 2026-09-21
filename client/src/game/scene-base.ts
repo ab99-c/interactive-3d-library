@@ -692,11 +692,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
 
   // Reference-style shelves: pale uniform books create the dense architectural
   // silhouette while the catalog and click interaction remain unchanged.
-  const bookColors = [
-    new Color3(0.82, 0.82, 0.79),
-    new Color3(0.74, 0.75, 0.73),
-    new Color3(0.88, 0.87, 0.82),
-  ];
+  const uniformBookColor = new Color3(0.82, 0.82, 0.79);
 
   const rowBookYs = [0.63, 1.53, 2.43, 3.33, 4.23];
   rowBookYs.forEach((y, row) => {
@@ -707,8 +703,8 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
     bookendRight.parent = root;
 
     for (let i = 0; i < 40; i += 1) {
-      const bookWidth = 0.105 + (((i * 3 + row + shelfIndex) % 4) * 0.008);
-      const bookHeight = 0.68 + (((i * 7 + row * 3 + shelfIndex) % 5) * 0.035);
+      const bookWidth = 0.112;
+      const bookHeight = 0.72;
       const bookDepth = 0.34;
       const bookLean = (i % 17 === 4) ? 0.14 : (i % 19 === 11) ? -0.11 : 0;
       const bookT = i / 39;
@@ -717,11 +713,9 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const bookArc = Math.sin(bookT * Math.PI) * 0.055;
       const bookIndex = (shelfIndex * 34 + row * 7 + i) % BOOK_CATALOG.length;
       const bookInfo = BOOK_CATALOG[bookIndex];
-      const colorIndex = (i + row * 3 + shelfIndex) % bookColors.length;
-      const leatherColor = bookColors[colorIndex];
-      // Reuse one pair of materials per palette color across all shelves.
-      const bookMaterial = material(scene, `book-mat-palette-${colorIndex}`, leatherColor);
-      const leatherMaterial = material(scene, `book-leather-palette-${colorIndex}`, leatherColor);
+      // One shared pale material keeps every visible book consistent and light.
+      const bookMaterial = material(scene, "book-mat-uniform", uniformBookColor);
+      const leatherMaterial = material(scene, "book-leather-uniform", uniformBookColor);
       leatherMaterial.specularColor = new Color3(0.22, 0.17, 0.12);
       // Place the book directly on the board below this row, with only a tiny clearance.
       const shelfTopY = y - 0.15 + 0.07;
@@ -819,6 +813,9 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.046);
       titlePlate.material = createTitleMaterial(scene, bookInfo, titleMaterials);
       titlePlate.parent = root;
+      // Keep the shelf silhouette plain like the reference; the title texture
+      // remains available for the reading interaction but is not shown in-row.
+      titlePlate.isVisible = false;
       const bookParts = [book, roundedSpine, frontCover, openLeftPage, openRightPage, turningPage, titlePlate];
       const pageState = { pageIndex: 0, pageCount: bookInfo.pages?.length || (bookInfo.id === "hayy-ibn-yaqdhan" ? FALLBACK_HAYY_PAGE_COUNT : 1), pageRenderers };
       bookParts.forEach((target) => {
