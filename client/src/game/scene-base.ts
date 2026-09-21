@@ -722,14 +722,18 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const bookPosition = new Vector3(-1.92 + i * 0.098, shelfTopY + bookHeight * 0.5 + 0.008, -0.04 + bookArc);
       const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
       book.parent = root;
+      // Physical book silhouettes remain visible in the shelf from the start.
+      book.isVisible = true;
       const roundedSpine = MeshBuilder.CreateCylinder(`book-rounded-spine-${shelfIndex}-${row}-${i}`, { diameter: Math.min(bookDepth * 0.9, 0.28), height: bookHeight * 0.94, tessellation: 10 }, scene);
       roundedSpine.position = new Vector3(bookPosition.x - bookWidth * 0.46, bookPosition.y, bookPosition.z);
       roundedSpine.material = leatherMaterial;
       roundedSpine.parent = root;
       roundedSpine.isPickable = false;
+      roundedSpine.isVisible = true;
 
       const frontCover = box(scene, `book-front-cover-${shelfIndex}-${row}-${i}`, { width: bookWidth * 1.04, height: bookHeight * 1.02, depth: 0.035 }, new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.014), leatherMaterial, false);
       frontCover.parent = root;
+      frontCover.isVisible = true;
       // Closed books carry a hidden physical reading spread that unfolds in front of the cover.
       const pageRenderers: { left?: (pageIndex: number) => void; right?: (pageIndex: number) => void } = {};
       const makeReadingMaterial = (bookToRead: BookInfo, _initialPageIndex: number, side: "left" | "right") => {
@@ -813,8 +817,8 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.046);
       titlePlate.material = createTitleMaterial(scene, bookInfo, titleMaterials);
       titlePlate.parent = root;
-      // Keep the shelf silhouette plain like the reference; the title texture
-      // remains available for the reading interaction but is not shown in-row.
+      // Keep catalog text out of the closed shelf view so the pale book shapes
+      // read clearly; titles remain available when a book is opened.
       titlePlate.isVisible = false;
       const bookParts = [book, roundedSpine, frontCover, openLeftPage, openRightPage, turningPage, titlePlate];
       const pageState = { pageIndex: 0, pageCount: bookInfo.pages?.length || (bookInfo.id === "hayy-ibn-yaqdhan" ? FALLBACK_HAYY_PAGE_COUNT : 1), pageRenderers };
@@ -822,7 +826,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
         // Roll around the spine for the occasional naturally leaning book;
         // every decorative part receives the same transform as the volume.
         target.rotation.z = bookLean;
-        target.metadata = { book: bookInfo, format: "uniform-hardcover", openPageWidth, openPageHeight, bookParts, pageState, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, bookDetail: target !== book && target !== openLeftPage && target !== openRightPage && target !== turningPage, readingPage: target === openLeftPage || target === openRightPage, pageSide: target === openLeftPage ? "left" : target === openRightPage ? "right" : undefined, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate };
+        target.metadata = { book: bookInfo, format: "uniform-hardcover", openPageWidth, openPageHeight, bookParts, pageState, bookRestPosition: target.position.clone(), bookRestRotation: target.rotation.clone(), bookRestVisible: target.isVisible, bookPulled: false, bookOpened: false, bookDetail: target !== book && target !== openLeftPage && target !== openRightPage && target !== turningPage, readingPage: target === openLeftPage || target === openRightPage, pageSide: target === openLeftPage ? "left" : target === openRightPage ? "right" : undefined, turningPage: target === turningPage, closedCover: target === frontCover || target === titlePlate, titlePlate: target === titlePlate };
         // Only the main volume is pickable; decorative binding parts move with it but do not create duplicate hits.
         target.isPickable = target === book || target === openLeftPage || target === openRightPage;
       });
@@ -1491,7 +1495,13 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     if (pulledBook) {
       window.dispatchEvent(new CustomEvent("library:book-opened", { detail: { type: "book-opened", bookId: pulledBook.id, title: pulledBook.title } }));
     }
-    parts.forEach((part) => { part.metadata = { ...part.metadata, bookPulled: true }; });
+    parts.forEach((part) => {
+      // Replace the catalog label with the physical book as soon as it is
+      // selected; reading pages stay hidden until the opening animation.
+      if (part.metadata?.titlePlate) part.isVisible = false;
+      else if (!part.metadata?.readingPage) part.isVisible = true;
+      part.metadata = { ...part.metadata, bookPulled: true };
+    });
     activePullObserver = scene.onBeforeRenderObservable.add(() => {
       const progress = Math.min((performance.now() - startedAt) / 360, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
@@ -1502,6 +1512,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         // Keep the selected book pulled out after the animation; only explicit return or a new selection resets it.
         parts.forEach((part, index) => {
           part.position = targetPositions[index].clone();
+          if (part.metadata?.titlePlate) part.isVisible = false;
+          else if (!part.metadata?.readingPage) part.isVisible = true;
           part.metadata = { ...part.metadata, bookPulled: true };
         });
         scene.onBeforeRenderObservable.remove(activePullObserver);
@@ -1544,7 +1556,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const firstBookHit = hits.find((hit) => hit.hit && hit.pickedMesh);
     if (firstBookHit?.pickedMesh) return firstBookHit.pickedMesh;
     const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
-    const screenCandidates = scene.meshes.filter((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book);
+    const screenCandidates = scene.meshes.filter((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book && mesh.isVisible);
     let closest: any = null;
     let closestDistance = Number.POSITIVE_INFINITY;
     screenCandidates.forEach((mesh) => {
@@ -1600,7 +1612,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   window.addEventListener("blur", onWindowBlur);
 
   const openNearestBook = () => {
-    const candidates = scene.meshes.filter((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book);
+    const candidates = scene.meshes.filter((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book && mesh.isVisible);
     if (!candidates.length) return false;
     const nearest = candidates.reduce((closest, candidate) => Vector3.DistanceSquared(candidate.getAbsolutePosition(), player.mesh.position) < Vector3.DistanceSquared(closest.getAbsolutePosition(), player.mesh.position) ? candidate : closest);
     return openBook(nearest);
@@ -1618,7 +1630,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const hasActiveBook = () => Boolean(activeBookParts);
   const getBookScreenRects = (): BookScreenRect[] => {
     const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight());
-    return scene.meshes.filter((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book).map((mesh) => {
+    return scene.meshes.filter((mesh) => /^book-\d+-\d+-\d+$/.test(mesh.name) && mesh.metadata?.book && mesh.isVisible).map((mesh) => {
       const projected = Vector3.Project(mesh.getAbsolutePosition(), Matrix.Identity(), scene.getTransformMatrix(), viewport);
       const distance = Vector3.Distance(mesh.getAbsolutePosition(), camera.position);
       const scale = Math.min(2.4, Math.max(0.7, 4.2 / Math.max(distance, 1)));
