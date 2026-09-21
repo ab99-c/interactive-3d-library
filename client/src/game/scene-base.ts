@@ -865,10 +865,12 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   scene.fogColor = new Color3(0.07, 0.055, 0.04);
 
   const player = createThirdPersonCharacter(scene);
-  player.mesh.position = new Vector3(0, 0.8, 8.6);
+  // Start in the central aisle, not behind the south bookcase where its solid
+  // backing panel hides the books from the over-the-shoulder camera.
+  player.mesh.position = new Vector3(0, 0.8, 0);
   player.root.rotation.y = Math.PI;
 
-  const camera = new UniversalCamera("player-camera", new Vector3(0.65, 2.35, 12.4), scene);
+  const camera = new UniversalCamera("player-camera", new Vector3(0.65, 2.35, 3.8), scene);
   scene.activeCamera = camera;
   camera.minZ = 0.1;
   camera.maxZ = 50;
