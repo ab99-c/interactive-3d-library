@@ -1109,20 +1109,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const ceilingMesh = box(scene, "ceiling", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, 7, 0), woodLight, false);
   ceilingMesh.freezeWorldMatrix();
   ceilingMesh.isPickable = false;
+  // Keep the hall open for this clean library-room presentation: no shelves
+  // or book meshes are instantiated in the scene.
   const shelfRoots: Mesh[] = [];
-  const addTrackedShelf = (shelfIndex: number, x: number, z: number, rotationY: number) => {
-    const root = addShelf(scene, shelfIndex, x, z, rotationY, woodLight, olive, brass, shadow, titleMaterials);
-    shelfRoots.push(root);
-    return root;
-  };
-  // Sixteen grand bookcases: balanced wings and a north archive, leaving the central table and aisles open.
-  const shelfLayout = [
-    [-8.0, -8.2, Math.PI / 2], [-8.0, -2.7, Math.PI / 2], [-8.0, 2.7, Math.PI / 2], [-8.0, 8.2, Math.PI / 2],
-    [8.0, -8.2, -Math.PI / 2], [8.0, -2.7, -Math.PI / 2], [8.0, 2.7, -Math.PI / 2], [8.0, 8.2, -Math.PI / 2],
-    [-8.0, -12.0, 0], [-2.7, -12.0, 0], [2.7, -12.0, 0], [8.0, -12.0, 0],
-    [-8.0, 12.0, Math.PI], [-2.7, 12.0, Math.PI], [2.7, 12.0, Math.PI], [8.0, 12.0, Math.PI],
-  ] as const;
-  shelfLayout.forEach(([x, z, rotationY], shelfIndex) => addTrackedShelf(shelfIndex, x, z, rotationY));
   const progressiveLoadTimer = 0;
   // Keep the 174 KB literary text out of the initial scene chunk while warming it shortly after the room appears.
   const pagePreloadTimer = window.setTimeout(() => {
