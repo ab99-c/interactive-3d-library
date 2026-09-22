@@ -653,12 +653,9 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
   root.rotation.y = rotationY;
   const rusticWood = material(scene, "rustic-timber-wood", new Color3(0.38, 0.18, 0.08), new Color3(0.08, 0.05, 0.03), new Color3(0.12, 0.06, 0.02));
   const shelfTrimMat = material(scene, "rustic-shelf-trim", new Color3(0.48, 0.25, 0.12), new Color3(0.12, 0.08, 0.04), new Color3(0.14, 0.07, 0.03));
-  const shelfBackMat = material(scene, "shelf-rear-wood", new Color3(0.30, 0.13, 0.055), new Color3(0.07, 0.035, 0.015), new Color3(0.08, 0.03, 0.01));
 
   const shelfBoardsY = [0.48, 1.38, 2.28, 3.18, 4.08];
   const parts = [
-    // Full rear wooden panel covers the backs of all books.
-    box(scene, `shelf-back-${shelfIndex}`, { width: 4.45, height: 5.2, depth: 0.10 }, new Vector3(0, 2.6, -0.56), shelfBackMat, false),
     // Chunky rustic timber side uprights
     box(scene, `shelf-side-l-${shelfIndex}`, { width: 0.30, height: 5.2, depth: 1.22 }, new Vector3(-2.15, 2.6, 0), rusticWood),
     box(scene, `shelf-side-r-${shelfIndex}`, { width: 0.30, height: 5.2, depth: 1.22 }, new Vector3(2.15, 2.6, 0), rusticWood),
