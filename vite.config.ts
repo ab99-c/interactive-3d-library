@@ -227,11 +227,9 @@ function vitePluginDualDist(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy(), vitePluginDualDist()];
-
 export default defineConfig({
   base: "./",
-  plugins,
+  plugins: [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy(), vitePluginDualDist()],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
