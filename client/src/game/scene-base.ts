@@ -715,7 +715,9 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const bookWidth = bookWidths[i];
       const bookHeight = bookHeights[i];
       const bookDepth = 0.30 + ((i + row + shelfIndex) % 3) * 0.035;
-      const bookLean = 0;
+      // Most volumes stand upright like the reference; a few lean naturally
+      // against their neighbors without leaving the wooden ledge.
+      const bookLean = i % 17 === 4 ? 0.12 : i % 19 === 11 ? -0.10 : 0;
       const bookIndex = (shelfIndex * bookCount + row * 7 + i) % BOOK_CATALOG.length;
       const bookInfo = BOOK_CATALOG[bookIndex];
       const colorIndex = (i + row * 2 + shelfIndex) % bookCoverColors.length;
