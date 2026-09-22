@@ -20,7 +20,12 @@ import {
 
 type LiveToast = Toast & { key: number };
 
-const SHELF_MAP_SPOTS: Array<{ x: number; z: number }> = [];
+const SHELF_MAP_SPOTS = [
+  { x: -8.0, z: -8.2 }, { x: -8.0, z: -2.7 }, { x: -8.0, z: 2.7 }, { x: -8.0, z: 8.2 },
+  { x: 8.0, z: -8.2 }, { x: 8.0, z: -2.7 }, { x: 8.0, z: 2.7 }, { x: 8.0, z: 8.2 },
+  { x: -8.0, z: -12.0 }, { x: -2.7, z: -12.0 }, { x: 2.7, z: -12.0 }, { x: 8.0, z: -12.0 },
+  { x: -8.0, z: 12.0 }, { x: -2.7, z: 12.0 }, { x: 2.7, z: 12.0 }, { x: 8.0, z: 12.0 },
+];
 
 export default function GameCanvas() {
   const isDebug = useRef(new URLSearchParams(window.location.search).has("debug")).current;

@@ -653,11 +653,12 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
   root.rotation.y = rotationY;
   const rusticWood = material(scene, "rustic-timber-wood", new Color3(0.38, 0.18, 0.08), new Color3(0.08, 0.05, 0.03), new Color3(0.12, 0.06, 0.02));
   const shelfTrimMat = material(scene, "rustic-shelf-trim", new Color3(0.48, 0.25, 0.12), new Color3(0.12, 0.08, 0.04), new Color3(0.14, 0.07, 0.03));
+  const shelfBackMat = material(scene, "shelf-rear-wood", new Color3(0.30, 0.13, 0.055), new Color3(0.07, 0.035, 0.015), new Color3(0.08, 0.03, 0.01));
 
   const shelfBoardsY = [0.48, 1.38, 2.28, 3.18, 4.08];
   const parts = [
-    // The large solid backing panels were removed: the red-marked areas should
-    // remain open so the books and horizontal shelf boards are visible.
+    // Full rear wooden panel covers the backs of all books.
+    box(scene, `shelf-back-${shelfIndex}`, { width: 4.45, height: 5.2, depth: 0.10 }, new Vector3(0, 2.6, -0.56), shelfBackMat, false),
     // Chunky rustic timber side uprights
     box(scene, `shelf-side-l-${shelfIndex}`, { width: 0.30, height: 5.2, depth: 1.22 }, new Vector3(-2.15, 2.6, 0), rusticWood),
     box(scene, `shelf-side-r-${shelfIndex}`, { width: 0.30, height: 5.2, depth: 1.22 }, new Vector3(2.15, 2.6, 0), rusticWood),
@@ -665,6 +666,8 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
     box(scene, `shelf-top-${shelfIndex}`, { width: 4.60, height: 0.26, depth: 1.25 }, new Vector3(0, 5.15, 0), rusticWood),
     // Horizontal rustic wooden boards
     ...shelfBoardsY.map((y, bIdx) => box(scene, `shelf-board-${shelfIndex}-${bIdx}`, { width: 4.35, height: 0.14, depth: 1.15 }, new Vector3(0, y, 0), wood)),
+    // Broad ledges directly under each row keep the books grounded.
+    ...shelfBoardsY.map((y, bIdx) => box(scene, `shelf-book-ledge-${shelfIndex}-${bIdx}`, { width: 4.30, height: 0.10, depth: 0.58 }, new Vector3(0, y + 0.10, 0.08), wood)),
     // Front edge timber trim strips with warm golden-brown highlights
     ...shelfBoardsY.map((y, bIdx) => box(scene, `shelf-trim-${shelfIndex}-${bIdx}`, { width: 4.35, height: 0.06, depth: 0.05 }, new Vector3(0, y, 0.58), shelfTrimMat, false)),
     box(scene, `shelf-marker-${shelfIndex}`, { width: 0.7, height: 0.28, depth: 0.05 }, new Vector3(0, 4.85, -0.62), olive, false),
@@ -702,7 +705,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const bookWidth = 0.112;
       const bookHeight = 0.72;
       const bookDepth = 0.34;
-      const bookLean = (i % 17 === 4) ? 0.14 : (i % 19 === 11) ? -0.11 : 0;
+      const bookLean = 0;
       const bookT = i / 39;
       // A shallow spline-like arc keeps the row organic without pushing books
       // beyond the shelf ends or changing the interaction raycast geometry.
@@ -714,7 +717,7 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       const leatherMaterial = material(scene, "book-leather-uniform", uniformBookColor);
       leatherMaterial.specularColor = new Color3(0.22, 0.17, 0.12);
       // Place the book directly on the board below this row, with only a tiny clearance.
-      const shelfTopY = y - 0.15 + 0.07;
+      const shelfTopY = y;
       const bookPosition = new Vector3(-1.92 + i * 0.098, shelfTopY + bookHeight * 0.5 + 0.008, -0.04 + bookArc);
       const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
       book.parent = root;
@@ -1109,9 +1112,19 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const ceilingMesh = box(scene, "ceiling", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, 7, 0), woodLight, false);
   ceilingMesh.freezeWorldMatrix();
   ceilingMesh.isPickable = false;
-  // Keep the hall open for this clean library-room presentation: no shelves
-  // or book meshes are instantiated in the scene.
   const shelfRoots: Mesh[] = [];
+  const addTrackedShelf = (shelfIndex: number, x: number, z: number, rotationY: number) => {
+    const root = addShelf(scene, shelfIndex, x, z, rotationY, woodLight, olive, brass, shadow, titleMaterials);
+    shelfRoots.push(root);
+    return root;
+  };
+  const shelfLayout = [
+    [-8.0, -8.2, Math.PI / 2], [-8.0, -2.7, Math.PI / 2], [-8.0, 2.7, Math.PI / 2], [-8.0, 8.2, Math.PI / 2],
+    [8.0, -8.2, -Math.PI / 2], [8.0, -2.7, -Math.PI / 2], [8.0, 2.7, -Math.PI / 2], [8.0, 8.2, -Math.PI / 2],
+    [-8.0, -12.0, 0], [-2.7, -12.0, 0], [2.7, -12.0, 0], [8.0, -12.0, 0],
+    [-8.0, 12.0, Math.PI], [-2.7, 12.0, Math.PI], [2.7, 12.0, Math.PI], [8.0, 12.0, Math.PI],
+  ] as const;
+  shelfLayout.forEach(([x, z, rotationY], shelfIndex) => addTrackedShelf(shelfIndex, x, z, rotationY));
   const progressiveLoadTimer = 0;
   // Keep the 174 KB literary text out of the initial scene chunk while warming it shortly after the room appears.
   const pagePreloadTimer = window.setTimeout(() => {
