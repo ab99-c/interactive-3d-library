@@ -686,9 +686,17 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
   addShelfCandleSconce(scene, root, new Vector3(-2.15, 3.2, 0.30), brass, `${shelfIndex}-l`);
   addShelfCandleSconce(scene, root, new Vector3(2.15, 2.3, 0.30), brass, `${shelfIndex}-r`);
 
-  // Reference-style shelves: pale uniform books create the dense architectural
-  // silhouette while the catalog and click interaction remain unchanged.
-  const uniformBookColor = new Color3(0.82, 0.82, 0.79);
+  // Visible library volumes: varied heights, widths, and cover colors make every
+  // row read as real books instead of a hidden or uniform wall of geometry.
+  const bookCoverColors = [
+    new Color3(0.72, 0.12, 0.08), // red
+    new Color3(0.08, 0.28, 0.48), // blue
+    new Color3(0.10, 0.42, 0.25), // green
+    new Color3(0.82, 0.42, 0.08), // amber
+    new Color3(0.42, 0.12, 0.34), // plum
+    new Color3(0.12, 0.12, 0.16), // navy
+    new Color3(0.72, 0.64, 0.34), // parchment
+  ];
 
   const rowBookYs = [0.63, 1.53, 2.43, 3.33, 4.23];
   rowBookYs.forEach((y, row) => {
@@ -698,24 +706,27 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
     const bookendRight = box(scene, `bookend-r-${shelfIndex}-${row}`, { width: 0.05, height: 0.38, depth: 0.44 }, new Vector3(2.04, y - 0.15 + 0.22, -0.04), brass, false);
     bookendRight.parent = root;
 
-    for (let i = 0; i < 40; i += 1) {
-      const bookWidth = 0.112;
-      const bookHeight = 0.72;
-      const bookDepth = 0.34;
+    const bookCount = 34;
+    const bookWidths = Array.from({ length: bookCount }, (_, i) => 0.078 + ((i * 7 + row * 3 + shelfIndex) % 6) * 0.011);
+    const bookHeights = Array.from({ length: bookCount }, (_, i) => 0.54 + ((i * 11 + row * 5 + shelfIndex) % 8) * 0.043);
+    const bookTotalWidth = bookWidths.reduce((sum, width) => sum + width, 0) + (bookCount - 1) * 0.012;
+    let bookCursor = -bookTotalWidth * 0.5;
+    for (let i = 0; i < bookCount; i += 1) {
+      const bookWidth = bookWidths[i];
+      const bookHeight = bookHeights[i];
+      const bookDepth = 0.30 + ((i + row + shelfIndex) % 3) * 0.035;
       const bookLean = 0;
-      const bookT = i / 39;
-      // A shallow spline-like arc keeps the row organic without pushing books
-      // beyond the shelf ends or changing the interaction raycast geometry.
-      const bookArc = Math.sin(bookT * Math.PI) * 0.055;
-      const bookIndex = (shelfIndex * 34 + row * 7 + i) % BOOK_CATALOG.length;
+      const bookIndex = (shelfIndex * bookCount + row * 7 + i) % BOOK_CATALOG.length;
       const bookInfo = BOOK_CATALOG[bookIndex];
-      // One shared pale material keeps every visible book consistent and light.
-      const bookMaterial = material(scene, "book-mat-uniform", uniformBookColor);
-      const leatherMaterial = material(scene, "book-leather-uniform", uniformBookColor);
-      leatherMaterial.specularColor = new Color3(0.22, 0.17, 0.12);
-      // Place the book directly on the board below this row, with only a tiny clearance.
+      const colorIndex = (i + row * 2 + shelfIndex) % bookCoverColors.length;
+      const coverColor = bookCoverColors[colorIndex];
+      const bookMaterial = material(scene, `book-cover-${colorIndex}`, coverColor);
+      const leatherMaterial = material(scene, `book-binding-${colorIndex}`, coverColor.scale(0.72));
+      leatherMaterial.specularColor = new Color3(0.24, 0.18, 0.12);
       const shelfTopY = y;
-      const bookPosition = new Vector3(-1.92 + i * 0.098, shelfTopY + bookHeight * 0.5 + 0.008, -0.04 + bookArc);
+      const bookX = bookCursor + bookWidth * 0.5;
+      bookCursor += bookWidth + 0.012;
+      const bookPosition = new Vector3(bookX, shelfTopY + bookHeight * 0.5 + 0.012, 0.08);
       const book = box(scene, `book-${shelfIndex}-${row}-${i}`, { width: bookWidth, height: bookHeight, depth: bookDepth }, bookPosition, bookMaterial, false);
       book.parent = root;
       // Physical book silhouettes remain visible in the shelf from the start.
@@ -813,9 +824,9 @@ function addShelf(scene: Scene, shelfIndex: number, x: number, z: number, rotati
       titlePlate.position = new Vector3(bookPosition.x, bookPosition.y, bookPosition.z + bookDepth * 0.5 + 0.046);
       titlePlate.material = createTitleMaterial(scene, bookInfo, titleMaterials);
       titlePlate.parent = root;
-      // Keep catalog text out of the closed shelf view so the pale book shapes
-      // read clearly; titles remain available when a book is opened.
-      titlePlate.isVisible = false;
+      // Show the front label while closed so visitors can recognize individual
+      // books; opening a book still replaces the cover with the reading spread.
+      titlePlate.isVisible = true;
       const bookParts = [book, roundedSpine, frontCover, openLeftPage, openRightPage, turningPage, titlePlate];
       const pageState = { pageIndex: 0, pageCount: bookInfo.pages?.length || (bookInfo.id === "hayy-ibn-yaqdhan" ? FALLBACK_HAYY_PAGE_COUNT : 1), pageRenderers };
       bookParts.forEach((target) => {
