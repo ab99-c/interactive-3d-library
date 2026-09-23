@@ -12,7 +12,8 @@ import "@babylonjs/core/Collisions/collisionCoordinator";
 import "@babylonjs/core/Culling/ray";
 
 export type PerformanceMode = "cinematic" | "light";
-export type BookInfo = never;
+export type BookInfo = { id: string; title: string };
+export let BOOK_COUNT = 0;
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
 export type GameHandle = {
   scene: Scene;
@@ -68,38 +69,50 @@ function addReferenceBookcases(scene: Scene) {
     new Color3(0.86, 0.25, 0.48), new Color3(0.20, 0.46, 0.72), new Color3(0.76, 0.57, 0.20),
     new Color3(0.16, 0.52, 0.35), new Color3(0.12, 0.10, 0.16),
   ].map((color, index) => makeMaterial(scene, `reference-book-${index}`, color));
-  const makeBook = (name: string, x: number, y: number, width: number, height: number, lean: number, material: StandardMaterial) => {
+  const titles = ["مقدمة ابن خلدون", "رسالة الغفران", "كليلة ودمنة", "حي بن يقظان", "نهج البلاغة", "الأغاني", "جمهرة اللغة", "البيان والتبيين", "طوق الحمامة", "العقد الفريد", "الحيوان", "الشفا", "الأمالي", "سير أعلام النبلاء", "المعلقات", "رحلة المعرفة"];
+  let bookSerial = 0;
+  const makeBook = (name: string, position: Vector3, width: number, height: number, lean: number, material: StandardMaterial) => {
     const book = MeshBuilder.CreateBox(name, { width, height, depth: 0.25 }, scene);
-    book.position = new Vector3(x, y + height * 0.5, -12.18);
+    book.position = position;
     book.rotation.z = lean;
     book.material = material;
-    book.isPickable = false;
+    book.isPickable = true;
+    book.metadata = { book: { id: `reference-book-${bookSerial}`, title: titles[bookSerial % titles.length] } satisfies BookInfo };
+    bookSerial += 1;
     book.freezeWorldMatrix();
   };
-  const addCase = (left: number, right: number, id: string) => {
-    const width = right - left;
-    const center = (left + right) * 0.5;
-    makeBox(scene, `bookcase-${id}-left`, { width: 0.28, height: 6.45, depth: 0.48 }, new Vector3(left, 3.2, -12.72), wood, false);
-    makeBox(scene, `bookcase-${id}-right`, { width: 0.28, height: 6.45, depth: 0.48 }, new Vector3(right, 3.2, -12.72), wood, false);
+  const world = (centerX: number, centerZ: number, rotation: number, x: number, z: number, y: number) => {
+    const local = Vector3.TransformCoordinates(new Vector3(x, y, z), Matrix.RotationY(rotation));
+    return new Vector3(centerX + local.x, local.y, centerZ + local.z);
+  };
+  const addCase = (centerX: number, centerZ: number, width: number, rotation: number, id: string) => {
+    makeBox(scene, `bookcase-${id}-left`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, -width * 0.5, 0, 3.2), wood, false);
+    makeBox(scene, `bookcase-${id}-right`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, width * 0.5, 0, 3.2), wood, false);
     [0.78, 2.02, 3.26, 4.50, 5.74].forEach((y, row) => {
-      makeBox(scene, `bookcase-${id}-shelf-${row}`, { width, height: 0.14, depth: 0.62 }, new Vector3(center, y, -12.72), wood, false);
-      let x = left + 0.16;
-      let index = row * 13 + Math.round((left + 10) * 3);
-      while (x < right - 0.16) {
+      const shelf = makeBox(scene, `bookcase-${id}-shelf-${row}`, { width, height: 0.14, depth: 0.62 }, world(centerX, centerZ, rotation, 0, 0, y), wood, false);
+      shelf.rotation.y = rotation;
+      let x = -width * 0.5 + 0.16;
+      let index = row * 13 + id.length;
+      while (x < width * 0.5 - 0.16) {
         const widthPattern = [0.22, 0.28, 0.34, 0.25, 0.38, 0.30][index % 6];
         const heightPattern = [0.68, 0.83, 0.94, 0.76, 0.88][(index + row) % 5];
         const lean = index % 11 === 3 ? 0.13 : index % 17 === 8 ? -0.11 : 0;
-        const bookWidth = Math.min(widthPattern, right - 0.16 - x);
+        const bookWidth = Math.min(widthPattern, width * 0.5 - 0.16 - x);
         if (bookWidth < 0.12) break;
-        makeBook(`reference-book-${id}-${row}-${index}`, x + bookWidth * 0.5, y + 0.07, bookWidth, heightPattern, lean, bookColors[index % bookColors.length]);
+        makeBook(`reference-book-${id}-${row}-${index}`, world(centerX, centerZ, rotation, x + bookWidth * 0.5, 0.33, y + 0.07 + heightPattern * 0.5), bookWidth, heightPattern, lean, bookColors[index % bookColors.length]);
         x += bookWidth + 0.025;
         index += 1;
       }
     });
   };
-  addCase(-10.4, -0.7, "left");
-  addCase(0.7, 10.4, "right");
-  makeBox(scene, "bookcase-center-divider", { width: 0.34, height: 6.45, depth: 0.48 }, new Vector3(0, 3.2, -12.72), wood, false);
+  addCase(-5.1, -12.72, 9.7, 0, "back-left");
+  addCase(5.1, -12.72, 9.7, 0, "back-right");
+  [-8.7, -2.9, 2.9, 8.7].forEach((z, index) => addCase(-10.55, z, 4.6, Math.PI / 2, `left-${index}`));
+  [ -8.7, -2.9, 2.9, 8.7 ].forEach((z, index) => addCase(10.55, z, 4.6, -Math.PI / 2, `right-${index}`));
+  [-5.6, 0, 5.6].forEach((z, index) => addCase(-5.0, z, 4.2, 0, `island-left-${index}`));
+  [-5.6, 0, 5.6].forEach((z, index) => addCase(5.0, z, 4.2, 0, `island-right-${index}`));
+  BOOK_COUNT = bookSerial;
+  window.dispatchEvent(new CustomEvent("library:catalog-ready", { detail: { count: BOOK_COUNT } }));
 }
 
 function createPlayer(scene: Scene, materials: MaterialSet) {
@@ -180,8 +193,44 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   let audioEnabled = true;
   let velocityY = 0;
   let lastMoveEventAt = 0;
+  let activeBook: BookInfo | null = null;
 
-  const onKeyDown = (event: KeyboardEvent) => pressed.add(event.key.toLowerCase());
+  const announceBook = (book: BookInfo) => {
+    activeBook = book;
+    window.dispatchEvent(new CustomEvent("library:book-state", { detail: { active: true } }));
+    window.dispatchEvent(new CustomEvent("library:book-preview", { detail: book }));
+    window.dispatchEvent(new CustomEvent("library:book-opened", { detail: { type: "book-opened", bookId: book.id, title: book.title } }));
+    return true;
+  };
+  const bookMeshes = () => scene.meshes.filter((mesh) => Boolean(mesh.metadata?.book));
+  const openBookByMeshName = (meshName: string) => {
+    const mesh = scene.getMeshByName(meshName);
+    const book = mesh?.metadata?.book as BookInfo | undefined;
+    return book ? announceBook(book) : false;
+  };
+  const openNearestBook = () => {
+    const nearest = bookMeshes().sort((a, b) => Vector3.DistanceSquared(a.position, player.root.position) - Vector3.DistanceSquared(b.position, player.root.position))[0];
+    const book = nearest?.metadata?.book as BookInfo | undefined;
+    return book ? announceBook(book) : false;
+  };
+  const openBookById = (bookId: string) => {
+    const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === bookId);
+    const book = mesh?.metadata?.book as BookInfo | undefined;
+    return book ? announceBook(book) : false;
+  };
+  const closeBook = () => {
+    if (!activeBook) return false;
+    activeBook = null;
+    window.dispatchEvent(new CustomEvent("library:book-state", { detail: { active: false } }));
+    window.dispatchEvent(new CustomEvent("library:book-preview", { detail: null }));
+    return true;
+  };
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    const key = event.key.toLowerCase();
+    if (key === "e") { openNearestBook(); return; }
+    pressed.add(key);
+  };
   const onKeyUp = (event: KeyboardEvent) => pressed.delete(event.key.toLowerCase());
   const onBlur = () => pressed.clear();
   const onPointerMove = (event: MouseEvent) => {
@@ -196,11 +245,17 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     lastPointerY = event.clientY;
   };
   const resetPointer = () => { lastPointerX = null; lastPointerY = null; };
+  const onCanvasClick = () => {
+    const picked = scene.pick(scene.pointerX, scene.pointerY);
+    const book = picked?.pickedMesh?.metadata?.book as BookInfo | undefined;
+    if (book) announceBook(book);
+  };
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", onBlur);
   canvas.addEventListener("mousemove", onPointerMove);
   canvas.addEventListener("mouseleave", resetPointer);
+  canvas.addEventListener("click", onCanvasClick);
 
   scene.onBeforeRenderObservable.add(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.05);
@@ -236,25 +291,25 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     camera.setTarget(target.add(new Vector3(0, pitch, 0)));
   });
 
-  const noBook = () => false;
   const dispose = () => {
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
     window.removeEventListener("blur", onBlur);
     canvas.removeEventListener("mousemove", onPointerMove);
     canvas.removeEventListener("mouseleave", resetPointer);
+    canvas.removeEventListener("click", onCanvasClick);
     camera.detachControl();
     scene.dispose();
   };
   return {
     scene,
     dispose,
-    openNearestBook: noBook,
-    openBookById: noBook,
-    openBookByMeshName: noBook,
-    returnActiveBook: noBook,
-    turnActivePage: noBook,
-    hasActiveBook: () => false,
+    openNearestBook,
+    openBookById,
+    openBookByMeshName,
+    returnActiveBook: closeBook,
+    turnActivePage: () => false,
+    hasActiveBook: () => Boolean(activeBook),
     getBookScreenRects: () => [],
     setTouchMove: (x, z) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, z)); },
     setPerformanceMode: (mode) => { performanceMode = mode; scene.getLightByName("ceiling-light")!.intensity = mode === "light" ? 2.8 : 3.8; },
