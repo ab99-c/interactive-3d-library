@@ -9,6 +9,7 @@ import {
   resetProgress,
   rankFor,
   OBJECTIVES,
+  setCatalogSize,
   toArabicDigits,
   type GameEvent,
   type ProgressState,
@@ -36,7 +37,7 @@ export default function GameCanvas() {
   const [bookRects, setBookRects] = useState<BookScreenRect[]>([]);
   const bookRectsRef = useRef<BookScreenRect[]>([]);
   const [hasActiveBook, setHasActiveBook] = useState(false);
-  const [bookPreview, setBookPreview] = useState<{ title: string } | null>(null);
+  const [bookPreview, setBookPreview] = useState<{ title: string; section?: string; callNumber?: string } | null>(null);
   const [bookCount, setBookCount] = useState(0);
   const [showMap, setShowMap] = useState(false);
   const [performanceMode, setPerformanceMode] = useState<PerformanceMode>(() => (window.matchMedia("(max-width: 720px)").matches || (navigator.hardwareConcurrency ?? 8) <= 4) ? "light" : "cinematic");
@@ -107,8 +108,13 @@ export default function GameCanvas() {
       const detail = (event as CustomEvent<{ active?: boolean }>).detail;
       setHasActiveBook(Boolean(detail?.active));
     };
-    const onBookPreview = (event: Event) => setBookPreview((event as CustomEvent<{ title: string } | null>).detail ?? null);
-    const onCatalogReady = (event: Event) => setBookCount((event as CustomEvent<{ count: number }>).detail?.count ?? 0);
+    const onBookPreview = (event: Event) => setBookPreview((event as CustomEvent<{ title: string; section?: string; callNumber?: string } | null>).detail ?? null);
+    const onCatalogReady = (event: Event) => {
+      const count = (event as CustomEvent<{ count: number }>).detail?.count ?? 0;
+      setCatalogSize(count);
+      setBookCount(count);
+      setProgress({ ...progressRef.current });
+    };
     window.addEventListener("library:book-state", onBookState);
     window.addEventListener("library:book-preview", onBookPreview);
     window.addEventListener("library:catalog-ready", onCatalogReady);
@@ -237,7 +243,7 @@ export default function GameCanvas() {
       <div className="mobile-controls" aria-label="عناصر التحكم باللمس"><div ref={joystickRef} className="touch-joystick" onPointerDown={onJoystickPointerDown} onPointerMove={onJoystickPointerMove} onPointerUp={resetJoystick} onPointerCancel={resetJoystick}><div ref={joystickKnobRef} className="touch-joystick-knob" /></div></div>
       <div className="hud-bottom"><div className="crosshair" aria-hidden="true">+</div><div className="controls"><span><b>W A S D</b> تحرّك</span><span><b>Shift</b> للجري</span><span><b>حرّك الفأرة</b> لتدوير المشهد</span><span><b>نقر / E</b> للتفاعل</span></div><div className="hud-actions"><button className="inspect-button" onClick={() => openNearestBookRef.current()}>فحص أقرب كتاب <span>↗</span></button><div className="page-actions" aria-label="أزرار الكتاب"><button className="page-turn-button page-turn-left" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("ltr")}>اليسرى <span>→</span></button><button className="return-button" disabled={!hasActiveBook} onClick={() => returnActiveBookRef.current()}>إرجاع الكتاب <span>↩</span></button><button className="page-turn-button page-turn-right" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("rtl")}>اليمنى <span>←</span></button></div><button className="help-button" onClick={() => setShowHelp((value) => !value)}>{showHelp ? "إخفاء الدليل" : "إظهار الدليل"}</button><button className="help-button" onClick={() => setShowMap((value) => !value)}>{showMap ? "إخفاء الخريطة" : "خريطة القاعة"}</button><button className="help-button audio-button" onClick={() => { const next = !audioEnabled; setAudioEnabledState(next); setAudioEnabledRef.current(next); }} aria-label="تشغيل أو كتم الصوت">{audioEnabled ? "الصوت مفعّل" : "الصوت مكتوم"}</button><button className="help-button performance-button" onClick={() => { const nextMode = performanceMode === "light" ? "cinematic" : "light"; setPerformanceMode(nextMode); setPerformanceModeRef.current(nextMode); }} aria-label="تبديل جودة العرض">{performanceMode === "light" ? "أداء خفيف" : "جودة سينمائية"}</button></div></div>
       {started && <div className="book-hotspots" aria-label="كتب قابلة للتفاعل">{bookRects.map((rect) => <button key={rect.meshName} className="book-hotspot" style={{ left: rect.x - rect.width / 2, top: rect.y - rect.height / 2, width: rect.width, height: rect.height }} aria-label={`فتح ${rect.title}`} title={rect.title} onClick={() => { setShowHelp(false); openBookByMeshNameRef.current(rect.meshName); }}><span>{rect.title}</span></button>)}</div>}
-      {bookPreview && <section className="book-preview-card" role="dialog" aria-label="معاينة الكتاب"><span className="eyebrow">معاينة سريعة</span><h2>{bookPreview.title}</h2><button className="return-button" onClick={() => returnActiveBookRef.current()}>إغلاق</button></section>}
+      {bookPreview && <section className="book-preview-card" role="dialog" aria-label="معاينة الكتاب"><span className="eyebrow">معاينة سريعة</span><h2>{bookPreview.title}</h2><p className="book-preview-meta">{bookPreview.section ?? "الأرشيف"} · {bookPreview.callNumber ?? "REF-001"}</p><button className="return-button" onClick={() => returnActiveBookRef.current()}>إغلاق</button></section>}
       {started && <aside className="quest-card" aria-live="polite"><div className="quest-card-head"><span className="eyebrow">رحلة الباحث</span><span className="rank-pill">{rank.title} · {toArabicDigits(progress.xp)} نقطة</span></div>{activeObjective ? <><h2>{activeObjective.title}</h2><p>{activeObjective.description}</p><div className="quest-bar"><i style={{ width: `${activePercent}%` }} /></div><span className="quest-count">{activeProgress?.label}</span></> : <><h2>اكتملت جميع المهام</h2><p>القاعة كلها ملك لفضولك الآن — واصل القراءة والتأمل.</p></>}<div className="quest-card-foot"><span>اكتشفت {toArabicDigits(discoveredCount)} من {toArabicDigits(bookCount)} كتاباً</span><button className="reset-progress-button" onClick={() => { const fresh = resetProgress(); progressRef.current = fresh; setProgress(fresh); }}>إعادة ضبط التقدم</button></div></aside>}
       {showHelp && <section className="welcome-card"><div className="eyebrow">غرفة للفضوليين</div><h1>اختر رفاً،<br /><em>ودع المكان يروي حكايته.</em></h1><p>تجوّل بهدوء بين الرفوف. كل كتاب يقود إلى حكاية خفية في هذه القاعة، وكل صفحة تقرؤها تقرّبك من رتبة حكيم المكتبة.</p><div className="welcome-actions"><button className="enter-button" onClick={() => setShowHelp(false)}>ادخل إلى المكتبة <span>↗</span></button><button className="enter-button sample-book-button" onClick={() => { setShowHelp(false); window.setTimeout(() => openNearestBookRef.current(), 80); }}>افتح كتاباً مقترحاً <span>↗</span></button></div></section>}
       {showMap && <div className="library-map" aria-label="خريطة القاعة"><svg viewBox="0 0 280 270" role="img"><rect className="map-room" x="14" y="8" width="252" height="252" />{SHELF_MAP_SPOTS.map((spot) => { const { x, y } = mapToSvg(spot.x, spot.z); return <rect key={`${spot.x}-${spot.z}`} className="map-shelf" x={x - 7} y={y - 7} width="14" height="14" />; })}{playerMapPos && <><circle className="map-player" cx={mapToSvg(playerMapPos.x, playerMapPos.z).x} cy={mapToSvg(playerMapPos.x, playerMapPos.z).y} r="4.5" /><circle className="map-player-halo" cx={mapToSvg(playerMapPos.x, playerMapPos.z).x} cy={mapToSvg(playerMapPos.x, playerMapPos.z).y} r="9" /></>}<text className="map-label" x="140" y="266" textAnchor="middle">خريطة القاعة — أنت النقطة النحاسية</text></svg></div>}

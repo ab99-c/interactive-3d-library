@@ -30,7 +30,9 @@ export type Toast = { id: number; kind: "discovery" | "objective" | "rank"; titl
 
 export const PROGRESS_STORAGE_KEY = "quiet-study-hall:progression-v1";
 export const AUDIO_STORAGE_KEY = "quiet-study-hall:audio-enabled";
-export const CATALOG_SIZE = 16;
+let catalogSize = 16;
+export const setCatalogSize = (count: number) => { catalogSize = Math.max(1, Math.floor(count)); };
+export const getCatalogSize = () => catalogSize;
 
 export const RANKS: Rank[] = [
   { id: "visitor", title: "زائر القاعة", minXp: 0 },
@@ -109,14 +111,14 @@ export const OBJECTIVES: Objective[] = [
   {
     id: "archivist",
     title: "أمين المكتبة",
-    description: "اكتشف فهرس القاعة كاملاً: ستة عشر كتاباً.",
+    description: "اكتشف فهرس القاعة كاملاً.",
     rewardXp: 80,
     progress: (state) => ({
       current: state.openedBooks.length,
-      target: CATALOG_SIZE,
-      label: `${toArabicDigits(state.openedBooks.length)} / ${toArabicDigits(CATALOG_SIZE)} كتب`,
+      target: getCatalogSize(),
+      label: `${toArabicDigits(Math.min(state.openedBooks.length, getCatalogSize()))} / ${toArabicDigits(getCatalogSize())} كتب`,
     }),
-    isComplete: (state) => state.openedBooks.length >= CATALOG_SIZE,
+    isComplete: (state) => state.openedBooks.length >= getCatalogSize(),
   },
 ];
 

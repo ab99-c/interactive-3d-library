@@ -12,7 +12,7 @@ import "@babylonjs/core/Collisions/collisionCoordinator";
 import "@babylonjs/core/Culling/ray";
 
 export type PerformanceMode = "cinematic" | "light";
-export type BookInfo = { id: string; title: string };
+export type BookInfo = { id: string; title: string; section: string; callNumber: string };
 export let BOOK_COUNT = 0;
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
 export type GameHandle = {
@@ -69,7 +69,12 @@ function addReferenceBookcases(scene: Scene) {
     new Color3(0.86, 0.25, 0.48), new Color3(0.20, 0.46, 0.72), new Color3(0.76, 0.57, 0.20),
     new Color3(0.16, 0.52, 0.35), new Color3(0.12, 0.10, 0.16),
   ].map((color, index) => makeMaterial(scene, `reference-book-${index}`, color));
-  const titles = ["مقدمة ابن خلدون", "رسالة الغفران", "كليلة ودمنة", "حي بن يقظان", "نهج البلاغة", "الأغاني", "جمهرة اللغة", "البيان والتبيين", "طوق الحمامة", "العقد الفريد", "الحيوان", "الشفا", "الأمالي", "سير أعلام النبلاء", "المعلقات", "رحلة المعرفة"];
+  const catalog = [
+    ["مقدمة ابن خلدون", "التاريخ", "HIS"], ["رسالة الغفران", "الأدب", "LIT"], ["كليلة ودمنة", "التراث", "HER"], ["حي بن يقظان", "الفلسفة", "PHI"],
+    ["نهج البلاغة", "التراث", "HER"], ["الأغاني", "الأدب", "LIT"], ["جمهرة اللغة", "اللغة", "LAN"], ["البيان والتبيين", "الأدب", "LIT"],
+    ["طوق الحمامة", "التراث", "HER"], ["العقد الفريد", "التاريخ", "HIS"], ["الحيوان", "اللغة", "LAN"], ["الشفا", "الفلسفة", "PHI"],
+    ["الأمالي", "الأدب", "LIT"], ["سير أعلام النبلاء", "التاريخ", "HIS"], ["المعلقات", "الأدب", "LIT"], ["رحلة المعرفة", "الأرشيف", "ARC"],
+  ] as const;
   let bookSerial = 0;
   const makeBook = (name: string, position: Vector3, width: number, height: number, lean: number, material: StandardMaterial) => {
     const book = MeshBuilder.CreateBox(name, { width, height, depth: 0.25 }, scene);
@@ -77,7 +82,8 @@ function addReferenceBookcases(scene: Scene) {
     book.rotation.z = lean;
     book.material = material;
     book.isPickable = true;
-    book.metadata = { book: { id: `reference-book-${bookSerial}`, title: titles[bookSerial % titles.length] } satisfies BookInfo };
+    const [title, section, prefix] = catalog[bookSerial % catalog.length];
+    book.metadata = { book: { id: `reference-book-${bookSerial}`, title, section, callNumber: `${prefix}-${String(101 + (bookSerial % 899)).padStart(3, "0")}` } satisfies BookInfo };
     bookSerial += 1;
     book.freezeWorldMatrix();
   };
@@ -86,10 +92,10 @@ function addReferenceBookcases(scene: Scene) {
     return new Vector3(centerX + local.x, local.y, centerZ + local.z);
   };
   const addCase = (centerX: number, centerZ: number, width: number, rotation: number, id: string) => {
-    makeBox(scene, `bookcase-${id}-left`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, -width * 0.5, 0, 3.2), wood, false);
-    makeBox(scene, `bookcase-${id}-right`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, width * 0.5, 0, 3.2), wood, false);
+    makeBox(scene, `bookcase-${id}-left`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, -width * 0.5, 0, 3.2), wood, true);
+    makeBox(scene, `bookcase-${id}-right`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, width * 0.5, 0, 3.2), wood, true);
     [0.78, 2.02, 3.26, 4.50, 5.74].forEach((y, row) => {
-      const shelf = makeBox(scene, `bookcase-${id}-shelf-${row}`, { width, height: 0.14, depth: 0.62 }, world(centerX, centerZ, rotation, 0, 0, y), wood, false);
+      const shelf = makeBox(scene, `bookcase-${id}-shelf-${row}`, { width, height: 0.14, depth: 0.62 }, world(centerX, centerZ, rotation, 0, 0, y), wood, true);
       shelf.rotation.y = rotation;
       let x = -width * 0.5 + 0.16;
       let index = row * 13 + id.length;
