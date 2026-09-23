@@ -61,6 +61,47 @@ function makeBox(scene: Scene, name: string, size: { width: number; height: numb
   return mesh;
 }
 
+function addReferenceBookcases(scene: Scene) {
+  const wood = makeMaterial(scene, "reference-bookcase-walnut", new Color3(0.28, 0.105, 0.028));
+  const bookColors = [
+    new Color3(0.88, 0.87, 0.76), new Color3(0.62, 0.78, 0.32), new Color3(0.93, 0.29, 0.10),
+    new Color3(0.86, 0.25, 0.48), new Color3(0.20, 0.46, 0.72), new Color3(0.76, 0.57, 0.20),
+    new Color3(0.16, 0.52, 0.35), new Color3(0.12, 0.10, 0.16),
+  ].map((color, index) => makeMaterial(scene, `reference-book-${index}`, color));
+  const makeBook = (name: string, x: number, y: number, width: number, height: number, lean: number, material: StandardMaterial) => {
+    const book = MeshBuilder.CreateBox(name, { width, height, depth: 0.25 }, scene);
+    book.position = new Vector3(x, y + height * 0.5, -12.18);
+    book.rotation.z = lean;
+    book.material = material;
+    book.isPickable = false;
+    book.freezeWorldMatrix();
+  };
+  const addCase = (left: number, right: number, id: string) => {
+    const width = right - left;
+    const center = (left + right) * 0.5;
+    makeBox(scene, `bookcase-${id}-left`, { width: 0.28, height: 6.45, depth: 0.48 }, new Vector3(left, 3.2, -12.72), wood, false);
+    makeBox(scene, `bookcase-${id}-right`, { width: 0.28, height: 6.45, depth: 0.48 }, new Vector3(right, 3.2, -12.72), wood, false);
+    [0.78, 2.02, 3.26, 4.50, 5.74].forEach((y, row) => {
+      makeBox(scene, `bookcase-${id}-shelf-${row}`, { width, height: 0.14, depth: 0.62 }, new Vector3(center, y, -12.72), wood, false);
+      let x = left + 0.16;
+      let index = row * 13 + Math.round((left + 10) * 3);
+      while (x < right - 0.16) {
+        const widthPattern = [0.22, 0.28, 0.34, 0.25, 0.38, 0.30][index % 6];
+        const heightPattern = [0.68, 0.83, 0.94, 0.76, 0.88][(index + row) % 5];
+        const lean = index % 11 === 3 ? 0.13 : index % 17 === 8 ? -0.11 : 0;
+        const bookWidth = Math.min(widthPattern, right - 0.16 - x);
+        if (bookWidth < 0.12) break;
+        makeBook(`reference-book-${id}-${row}-${index}`, x + bookWidth * 0.5, y + 0.07, bookWidth, heightPattern, lean, bookColors[index % bookColors.length]);
+        x += bookWidth + 0.025;
+        index += 1;
+      }
+    });
+  };
+  addCase(-10.4, -0.7, "left");
+  addCase(0.7, 10.4, "right");
+  makeBox(scene, "bookcase-center-divider", { width: 0.34, height: 6.45, depth: 0.48 }, new Vector3(0, 3.2, -12.72), wood, false);
+}
+
 function createPlayer(scene: Scene, materials: MaterialSet) {
   const root = new Mesh("player-root", scene);
   root.position = new Vector3(0, 0, 7.5);
@@ -103,12 +144,13 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     shoe: makeMaterial(scene, "player-shoe", COLORS.shoe),
   };
 
-  // The only meshes in the room: the 24 x 28 floor, four walls, and ceiling.
+  // Room shell plus the two reference-style bookcases on the rear wall.
   makeBox(scene, "floor", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, -0.15, 0), materials.floor, true);
   makeBox(scene, "back-wall", { width: 24, height: 7, depth: 0.3 }, new Vector3(0, 3.5, -13.5), materials.wall, true);
   makeBox(scene, "left-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(-12, 3.5, 0), materials.wall, true);
   makeBox(scene, "right-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(12, 3.5, 0), materials.wall, true);
   makeBox(scene, "ceiling", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, 7, 0), materials.ceiling, false);
+  addReferenceBookcases(scene);
 
   const ambient = new HemisphericLight("ambient", new Vector3(0, 1, 0), scene);
   ambient.intensity = 0.86;
