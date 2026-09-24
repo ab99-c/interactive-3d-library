@@ -12,9 +12,12 @@ import "@babylonjs/core/Collisions/collisionCoordinator";
 import "@babylonjs/core/Culling/ray";
 import { WorldStateStore } from "./engine/world-state";
 import { parseCommand } from "./engine/command-parser";
+import { createSpring, stepSpring, damp, type Spring } from "./engine/simulation";
+import pageData from "./hayy-pages-data.json";
 
 export type PerformanceMode = "cinematic" | "light";
 export type BookInfo = { id: string; title: string; section: string; callNumber: string };
+type BookVisual = { frontCover: Mesh; backCover: Mesh; pageBlock: Mesh; pageLeaves: Mesh[]; coverSpring: Spring; pageSpring: Spring; pageIndex: number; pages: string[] };
 export let BOOK_COUNT = 0;
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
 export type GameHandle = {
@@ -75,6 +78,8 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     new Color3(0.86, 0.25, 0.48), new Color3(0.20, 0.46, 0.72), new Color3(0.76, 0.57, 0.20),
     new Color3(0.16, 0.52, 0.35), new Color3(0.12, 0.10, 0.16),
   ].map((color, index) => makeMaterial(scene, `reference-book-${index}`, color));
+  const pageMaterial = makeMaterial(scene, "book-page-ivory", new Color3(0.92, 0.87, 0.72));
+  const coverMaterial = makeMaterial(scene, "book-cover-highlight", new Color3(0.46, 0.22, 0.08));
   const catalog = [
     ["مقدمة ابن خلدون", "التاريخ", "HIS"], ["رسالة الغفران", "الأدب", "LIT"], ["كليلة ودمنة", "التراث", "HER"], ["حي بن يقظان", "الفلسفة", "PHI"],
     ["نهج البلاغة", "التراث", "HER"], ["الأغاني", "الأدب", "LIT"], ["جمهرة اللغة", "اللغة", "LAN"], ["البيان والتبيين", "الأدب", "LIT"],
@@ -82,6 +87,7 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     ["الأمالي", "الأدب", "LIT"], ["سير أعلام النبلاء", "التاريخ", "HIS"], ["المعلقات", "الأدب", "LIT"], ["رحلة المعرفة", "الأرشيف", "ARC"],
   ] as const;
   let bookSerial = 0;
+  const bookVisuals = new Map<string, BookVisual>();
   const makeBook = (name: string, position: Vector3, width: number, height: number, lean: number, material: StandardMaterial) => {
     const book = MeshBuilder.CreateBox(name, { width, height, depth: 0.25 }, scene);
     book.position = position;
@@ -91,6 +97,20 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     const [title, section, prefix] = catalog[bookSerial % catalog.length];
     book.metadata = { book: { id: `reference-book-${bookSerial}`, title, section, callNumber: `${prefix}-${String(101 + (bookSerial % 899)).padStart(3, "0")}` } satisfies BookInfo };
     const bookInfo = book.metadata.book as BookInfo;
+    const frontCover = MeshBuilder.CreateBox(`${name}-front-cover`, { width: width + 0.045, height: height + 0.045, depth: 0.035 }, scene);
+    const backCover = MeshBuilder.CreateBox(`${name}-back-cover`, { width: width + 0.045, height: height + 0.045, depth: 0.035 }, scene);
+    const pageBlock = MeshBuilder.CreateBox(`${name}-pages`, { width: width - 0.035, height: height - 0.035, depth: 0.19 }, scene);
+    frontCover.parent = book; backCover.parent = book; pageBlock.parent = book;
+    frontCover.position.set(0, 0, 0.15); backCover.position.set(0, 0, -0.15); pageBlock.position.set(0, 0, 0);
+    frontCover.material = material; backCover.material = coverMaterial; pageBlock.material = pageMaterial;
+    frontCover.isPickable = false; backCover.isPickable = false; pageBlock.isPickable = false;
+    const pageLeaves = [0, 1, 2].map((index) => {
+      const leaf = MeshBuilder.CreateBox(`${name}-leaf-${index}`, { width: width - 0.08, height: height - 0.08, depth: 0.012 }, scene);
+      leaf.parent = book; leaf.position.set(0, 0, 0.11 + index * 0.006); leaf.material = pageMaterial; leaf.isPickable = false; leaf.setEnabled(false); return leaf;
+    });
+    const visual: BookVisual = { frontCover, backCover, pageBlock, pageLeaves, coverSpring: createSpring(0, 120, 20), pageSpring: createSpring(0, 210, 26), pageIndex: 0, pages: pageData.pages };
+    book.metadata.bookVisual = visual;
+    bookVisuals.set(bookInfo.id, visual);
     const saved = worldState.register({ id: bookInfo.id, type: "book", name: bookInfo.title, model: "procedural-book", transform: book, metadata: bookInfo, onShelf: true });
     if (saved.currentTransform.position.x !== saved.originalTransform.position.x || saved.currentTransform.position.z !== saved.originalTransform.position.z) {
       book.position.set(saved.currentTransform.position.x, saved.currentTransform.position.y, saved.currentTransform.position.z);
@@ -132,6 +152,7 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
   [-5.6, 0, 5.6].forEach((z, index) => addCase(5.0, z, 4.2, 0, `island-right-${index}`));
   BOOK_COUNT = bookSerial;
   window.dispatchEvent(new CustomEvent("library:catalog-ready", { detail: { count: BOOK_COUNT } }));
+  return bookVisuals;
 }
 
 function createPlayer(scene: Scene, materials: MaterialSet) {
@@ -183,7 +204,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   makeBox(scene, "left-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(-12, 3.5, 0), materials.wall, true);
   makeBox(scene, "right-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(12, 3.5, 0), materials.wall, true);
   makeBox(scene, "ceiling", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, 7, 0), materials.ceiling, false);
-  addReferenceBookcases(scene, worldState);
+  const bookVisuals = addReferenceBookcases(scene, worldState);
 
   const ambient = new HemisphericLight("ambient", new Vector3(0, 1, 0), scene);
   ambient.intensity = 0.86;
@@ -215,9 +236,25 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   let lastMoveEventAt = 0;
   let activeBook: BookInfo | null = null;
   let heldBookId: string | null = null;
+  let activePageIndex = 0;
+
+  const publishPage = (book: BookInfo, visual: BookVisual) => {
+    const text = visual.pages[visual.pageIndex % visual.pages.length] ?? "هذه الصفحة هادئة مثل القاعة.";
+    window.dispatchEvent(new CustomEvent("library:book-page", { detail: { bookId: book.id, pageIndex: visual.pageIndex, pageCount: visual.pages.length, text } }));
+  };
+  const setBookOpen = (book: BookInfo, opened: boolean) => {
+    const visual = bookVisuals.get(book.id);
+    if (!visual) return;
+    visual.coverSpring.target = opened ? 1.18 : 0;
+    visual.pageSpring.target = 0;
+    visual.pageLeaves.forEach((leaf, index) => leaf.setEnabled(opened && index === activePageIndex % visual.pageLeaves.length));
+    if (opened) publishPage(book, visual);
+  };
 
   const announceBook = (book: BookInfo) => {
     activeBook = book;
+    activePageIndex = bookVisuals.get(book.id)?.pageIndex ?? 0;
+    setBookOpen(book, true);
     window.dispatchEvent(new CustomEvent("library:book-state", { detail: { active: true } }));
     window.dispatchEvent(new CustomEvent("library:book-preview", { detail: book }));
     window.dispatchEvent(new CustomEvent("library:book-opened", { detail: { type: "book-opened", bookId: book.id, title: book.title } }));
@@ -309,9 +346,26 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   };
   const closeBook = () => {
     if (!activeBook) return false;
+    setBookOpen(activeBook, false);
     activeBook = null;
     window.dispatchEvent(new CustomEvent("library:book-state", { detail: { active: false } }));
     window.dispatchEvent(new CustomEvent("library:book-preview", { detail: null }));
+    return true;
+  };
+  const turnActivePage = (direction: "rtl" | "ltr") => {
+    if (!activeBook) return false;
+    const visual = bookVisuals.get(activeBook.id);
+    if (!visual) return false;
+    const nextIndex = direction === "rtl" ? Math.min(visual.pages.length - 1, visual.pageIndex + 1) : Math.max(0, visual.pageIndex - 1);
+    if (nextIndex === visual.pageIndex) return false;
+    visual.pageSpring.value = direction === "rtl" ? 0.98 : -0.98;
+    visual.pageSpring.velocity = 0;
+    visual.pageSpring.target = 0;
+    visual.pageIndex = nextIndex;
+    activePageIndex = nextIndex;
+    visual.pageLeaves.forEach((leaf, index) => leaf.setEnabled(index === nextIndex % visual.pageLeaves.length));
+    publishPage(activeBook, visual);
+    window.dispatchEvent(new CustomEvent("library:page-turned", { detail: { type: "page-turned", bookId: activeBook.id, direction, pageIndex: nextIndex } }));
     return true;
   };
 
@@ -351,6 +405,16 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
 
   scene.onBeforeRenderObservable.add(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.05);
+    bookVisuals.forEach((visual) => {
+      const cover = stepSpring(visual.coverSpring, dt);
+      const page = stepSpring(visual.pageSpring, dt);
+      visual.frontCover.rotation.y = damp(visual.frontCover.rotation.y, -cover, 18, dt);
+      visual.backCover.rotation.y = damp(visual.backCover.rotation.y, cover, 18, dt);
+      visual.pageBlock.rotation.y = damp(visual.pageBlock.rotation.y, cover * 0.08, 16, dt);
+      visual.pageLeaves.forEach((leaf, index) => {
+        leaf.rotation.y = damp(leaf.rotation.y, index === activePageIndex % visual.pageLeaves.length ? page : 0, 22, dt);
+      });
+    });
     const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     const right = new Vector3(forward.z, 0, -forward.x);
     const input = new Vector3(0, 0, 0);
@@ -404,7 +468,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     returnNearestBook,
     executeTextCommand,
     returnActiveBook: closeBook,
-    turnActivePage: () => false,
+    turnActivePage,
     hasActiveBook: () => Boolean(activeBook),
     getBookScreenRects: () => [],
     setTouchMove: (x, z) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, z)); },
