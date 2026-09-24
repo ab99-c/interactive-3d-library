@@ -188,6 +188,22 @@ function createPlayer(scene: Scene, materials: MaterialSet) {
   return { root, torso, head, leftArm, rightArm, parts: [torso, head, leftArm, rightArm, leftLeg, rightLeg, leftShoe, rightShoe] };
 }
 
+function createFirstPersonHands(scene: Scene, camera: UniversalCamera, materials: MaterialSet) {
+  const makeHand = (name: string, position: Vector3) => {
+    const hand = MeshBuilder.CreateBox(name, { width: 0.18, height: 0.25, depth: 0.22 }, scene);
+    hand.parent = camera;
+    hand.position.copyFrom(position);
+    hand.material = materials.skin;
+    hand.isPickable = false;
+    hand.checkCollisions = false;
+    return hand;
+  };
+  return {
+    left: makeHand("first-person-left-hand", new Vector3(-0.42, -0.38, 0.82)),
+    right: makeHand("first-person-right-hand", new Vector3(0.42, -0.38, 0.82)),
+  };
+}
+
 export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement): Promise<GameHandle> {
   const scene = new Scene(engine);
   const worldState = new WorldStateStore();
@@ -222,13 +238,13 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   ceilingLight.range = 22;
 
   const player = createPlayer(scene, materials);
-  const camera = new UniversalCamera("third-person-camera", new Vector3(0.65, 3.1, 3.7), scene);
-  camera.setTarget(new Vector3(0, 1.25, 7.5));
-  camera.attachControl(canvas, true);
+  const camera = new UniversalCamera("first-person-camera", new Vector3(0, 1.72, 7.5), scene);
+  camera.setTarget(new Vector3(0, 1.72, 6.5));
   camera.minZ = 0.1;
   camera.maxZ = 100;
   camera.fov = 0.82;
   scene.activeCamera = camera;
+  const hands = createFirstPersonHands(scene, camera, materials);
 
   const pressed = new Set<string>();
   const touchMove = { x: 0, z: 0 };
@@ -245,7 +261,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   let activePageIndex = 0;
   let handSpread = 1.18;
   const physicalBookStates = new Map<string, PhysicalBookState>();
-  let physicalInteraction: { phase: "approach" | "reach" | "pull" | "open" | "close"; bookId: string; elapsed: number; start?: Vector3 } | null = null;
+  let physicalInteraction: { phase: "approach" | "reach" | "pull" | "open" | "close" | "return"; bookId: string; elapsed: number; start?: Vector3 } | null = null;
 
   const publishPage = (book: BookInfo, visual: BookVisual) => {
     const text = visual.pages[visual.pageIndex % visual.pages.length] ?? "هذه الصفحة هادئة مثل القاعة.";
@@ -268,8 +284,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
       const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === book.id);
       if (mesh) {
         mesh.unfreezeWorldMatrix();
-        mesh.parent = player.root;
-        mesh.position.set(0, 1.34, 0.72);
+        mesh.parent = camera;
+        mesh.position.set(0, -0.08, 0.78);
         mesh.rotation.set(0, 0, 0);
         physicalBookStates.set(book.id, "OPENING");
         physicalInteraction = { phase: "open", bookId: book.id, elapsed: 0 };
@@ -339,21 +355,18 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     return true;
   };
   const returnNearestBook = () => {
-    const targetId = heldBookId ?? (nearestBookMesh()?.metadata?.book as BookInfo | undefined)?.id;
+    const targetId = heldBookId;
     if (!targetId) return false;
     const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === targetId);
     const saved = worldState.get(targetId);
     if (!mesh || !saved) return false;
-    mesh.unfreezeWorldMatrix();
-    mesh.parent = null;
-    mesh.position.set(saved.originalTransform.position.x, saved.originalTransform.position.y, saved.originalTransform.position.z);
-    mesh.rotation.set(saved.originalTransform.rotation.x, saved.originalTransform.rotation.y, saved.originalTransform.rotation.z);
-    mesh.scaling.set(saved.originalTransform.scale.x, saved.originalTransform.scale.y, saved.originalTransform.scale.z);
-    mesh.checkCollisions = false;
-    physicalBookStates.set(targetId, "RETURNED");
-    worldState.resetObject(targetId);
-    heldBookId = null;
-    window.dispatchEvent(new CustomEvent("library:object-returned", { detail: { objectId: targetId } }));
+    const originalPosition = new Vector3(saved.originalTransform.position.x, saved.originalTransform.position.y, saved.originalTransform.position.z);
+    if (Vector3.Distance(player.root.position, originalPosition) > 3.2) {
+      window.dispatchEvent(new CustomEvent("library:command-failed", { detail: { message: "قرب الكتاب من مكانه الأصلي قبل ما ترجّعو للرف." } }));
+      return false;
+    }
+    physicalBookStates.set(targetId, "RETURNING");
+    physicalInteraction = { phase: "return", bookId: targetId, elapsed: 0, start: mesh.getAbsolutePosition().clone() };
     return true;
   };
   const executeTextCommand = (raw: string) => {
@@ -442,6 +455,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     lastPointerY = event.clientY;
   };
   const resetPointer = () => { lastPointerX = null; lastPointerY = null; };
+  const onPointerDown = (event: PointerEvent) => { lastPointerX = event.clientX; lastPointerY = event.clientY; };
   const onCanvasClick = () => {
     const picked = scene.pick(scene.pointerX, scene.pointerY);
     const book = picked?.pickedMesh?.metadata?.book as BookInfo | undefined;
@@ -454,6 +468,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", onBlur);
   canvas.addEventListener("mousemove", onPointerMove);
+  canvas.addEventListener("pointerdown", onPointerDown);
+  canvas.addEventListener("pointermove", onPointerMove as EventListener);
+  canvas.addEventListener("pointerup", resetPointer);
+  canvas.addEventListener("pointercancel", resetPointer);
   canvas.addEventListener("mouseleave", resetPointer);
   canvas.addEventListener("click", onCanvasClick);
 
@@ -498,17 +516,20 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         } else if (active.phase === "reach") {
           player.rightArm.rotation.z = damp(player.rightArm.rotation.z, -0.72, 12, dt);
           player.rightArm.rotation.x = damp(player.rightArm.rotation.x, -0.22, 12, dt);
+          hands.right.position.x = damp(hands.right.position.x, 0.34, 12, dt);
+          hands.right.position.y = damp(hands.right.position.y, -0.28, 12, dt);
+          hands.right.position.z = damp(hands.right.position.z, 0.72, 12, dt);
           if (active.elapsed > 0.42) { active.phase = "pull"; active.elapsed = 0; active.start = mesh.position.clone(); mesh.unfreezeWorldMatrix(); mesh.checkCollisions = false; }
         } else if (active.phase === "pull") {
           const progress = Math.min(1, active.elapsed / 0.48);
-          const handTarget = player.root.position.add(new Vector3(0.55, 1.38, 0.48));
+          const handTarget = camera.position.add(new Vector3(0.42, -0.38, 0.78));
           const shelfExit = (active.start ?? mesh.position).add(new Vector3(0, 0, 0.55));
           mesh.position.copyFrom(Vector3.Lerp(active.start ?? mesh.position, shelfExit, Math.min(1, progress * 2)));
           if (progress > 0.5) mesh.position.copyFrom(Vector3.Lerp(shelfExit, handTarget, (progress - 0.5) * 2));
           mesh.rotation.y = damp(mesh.rotation.y, player.root.rotation.y, 12, dt);
           if (progress >= 1) {
-            mesh.parent = player.rightArm;
-            mesh.position.set(0, -0.46, 0.2);
+            mesh.parent = hands.right;
+            mesh.position.set(0, 0, 0.18);
             mesh.rotation.set(0, 0, 0);
             heldBookId = book.id;
             physicalBookStates.set(book.id, "HELD_RIGHT");
@@ -517,29 +538,53 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
             physicalInteraction = null;
           }
         } else if (active.phase === "open") {
-          player.leftArm.rotation.z = damp(player.leftArm.rotation.z, 0.58, 10, dt);
-          player.leftArm.rotation.x = damp(player.leftArm.rotation.x, -0.18, 10, dt);
-          player.rightArm.rotation.z = damp(player.rightArm.rotation.z, -0.58, 10, dt);
-          player.rightArm.rotation.x = damp(player.rightArm.rotation.x, -0.18, 10, dt);
-          mesh.parent = player.root;
+          hands.left.position.x = damp(hands.left.position.x, -0.36, 10, dt);
+          hands.left.position.y = damp(hands.left.position.y, -0.22, 10, dt);
+          hands.left.position.z = damp(hands.left.position.z, 0.72, 10, dt);
+          hands.right.position.x = damp(hands.right.position.x, 0.36, 10, dt);
+          hands.right.position.y = damp(hands.right.position.y, -0.22, 10, dt);
+          hands.right.position.z = damp(hands.right.position.z, 0.72, 10, dt);
+          mesh.parent = camera;
           mesh.position.x = damp(mesh.position.x, 0, 12, dt);
-          mesh.position.y = damp(mesh.position.y, 1.34, 12, dt);
-          mesh.position.z = damp(mesh.position.z, 0.72, 12, dt);
+          mesh.position.y = damp(mesh.position.y, -0.12, 12, dt);
+          mesh.position.z = damp(mesh.position.z, 0.76, 12, dt);
           if (active.elapsed > 0.62) {
             physicalBookStates.set(book.id, "OPEN");
             syncBookState(mesh, book, { state: "open", isHeld: true, isOpen: true, holder: "player", holdMode: "TWO_HANDS", leftHandHolding: true, rightHandHolding: true, lastAction: "OPEN" });
             physicalInteraction = null;
           }
         } else if (active.phase === "close") {
-          player.leftArm.rotation.z = damp(player.leftArm.rotation.z, 0.2, 10, dt);
-          player.rightArm.rotation.z = damp(player.rightArm.rotation.z, -0.72, 10, dt);
+          hands.left.position.x = damp(hands.left.position.x, -0.42, 10, dt);
+          hands.left.position.y = damp(hands.left.position.y, -0.38, 10, dt);
+          hands.right.position.x = damp(hands.right.position.x, 0.42, 10, dt);
+          hands.right.position.y = damp(hands.right.position.y, -0.38, 10, dt);
           if (active.elapsed > 0.7) {
-            mesh.parent = player.rightArm;
-            mesh.position.set(0, -0.46, 0.2);
+            mesh.parent = hands.right;
+            mesh.position.set(0, 0, 0.18);
             mesh.rotation.set(0, 0, 0);
             physicalBookStates.set(book.id, "HELD_RIGHT");
             syncBookState(mesh, book, { state: "held", isHeld: true, isOpen: false, holdMode: "RIGHT_HAND", leftHandHolding: false, rightHandHolding: true, lastAction: "CLOSE" });
             physicalInteraction = null;
+          }
+        } else if (active.phase === "return") {
+          const saved = worldState.get(book.id);
+          if (!saved) { physicalInteraction = null; }
+          else {
+            const progress = Math.min(1, active.elapsed / 0.7);
+            const originalPosition = new Vector3(saved.originalTransform.position.x, saved.originalTransform.position.y, saved.originalTransform.position.z);
+            mesh.parent = null;
+            mesh.position.copyFrom(Vector3.Lerp(active.start ?? mesh.getAbsolutePosition(), originalPosition, progress));
+            mesh.rotation.y = damp(mesh.rotation.y, saved.originalTransform.rotation.y, 10, dt);
+            if (progress >= 1) {
+              mesh.position.copyFrom(originalPosition);
+              mesh.rotation.set(saved.originalTransform.rotation.x, saved.originalTransform.rotation.y, saved.originalTransform.rotation.z);
+              mesh.checkCollisions = false;
+              physicalBookStates.set(book.id, "RETURNED");
+              worldState.resetObject(book.id);
+              heldBookId = null;
+              physicalInteraction = null;
+              window.dispatchEvent(new CustomEvent("library:object-returned", { detail: { objectId: book.id } }));
+            }
           }
         }
       }
@@ -557,7 +602,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
       input.normalize();
       const speed = pressed.has("shift") ? 4.2 : 2.35;
       player.root.moveWithCollisions(input.scale(speed * dt));
-      player.root.rotation.y = Math.atan2(input.x, input.z);
+      yaw = Math.atan2(input.x, input.z);
+      player.root.rotation.y = yaw;
       const now = performance.now();
       if (now - lastMoveEventAt > 700) {
         lastMoveEventAt = now;
@@ -570,10 +616,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const minX = -10.8; const maxX = 10.8; const minZ = -12.1; const maxZ = 12.1;
     player.root.position.x = Math.max(minX, Math.min(maxX, player.root.position.x));
     player.root.position.z = Math.max(minZ, Math.min(maxZ, player.root.position.z));
-    const target = player.root.position.add(new Vector3(0, 1.25, 0));
-    const shoulder = Vector3.TransformCoordinates(new Vector3(0.75, 1.55, -4.1), Matrix.RotationY(yaw));
-    camera.position = Vector3.Lerp(camera.position, target.add(shoulder), Math.min(1, dt * 8));
-    camera.setTarget(target.add(new Vector3(0, pitch, 0)));
+    player.root.rotation.y = yaw;
+    camera.position.copyFrom(player.root.position.add(new Vector3(0, 1.72, 0)));
+    const lookDirection = new Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+    camera.setTarget(camera.position.add(lookDirection));
   });
 
   const dispose = () => {
@@ -581,6 +627,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     window.removeEventListener("keyup", onKeyUp);
     window.removeEventListener("blur", onBlur);
     canvas.removeEventListener("mousemove", onPointerMove);
+    canvas.removeEventListener("pointerdown", onPointerDown);
+    canvas.removeEventListener("pointermove", onPointerMove as EventListener);
+    canvas.removeEventListener("pointerup", resetPointer);
+    canvas.removeEventListener("pointercancel", resetPointer);
     canvas.removeEventListener("mouseleave", resetPointer);
     canvas.removeEventListener("click", onCanvasClick);
     camera.detachControl();
