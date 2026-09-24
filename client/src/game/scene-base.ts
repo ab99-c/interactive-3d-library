@@ -7,6 +7,7 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { PointLight } from "@babylonjs/core/Lights/pointLight";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import "@babylonjs/core/Collisions/collisionCoordinator";
 import "@babylonjs/core/Culling/ray";
@@ -17,6 +18,7 @@ import pageData from "./hayy-pages-data.json";
 
 export type PerformanceMode = "cinematic" | "light";
 export type BookInfo = { id: string; title: string; section: string; callNumber: string };
+type PhysicalBookState = "ON_SHELF" | "TAKING" | "HELD_RIGHT" | "OPENING" | "HELD_TWO_HANDS" | "OPEN" | "TURNING_PAGE" | "CLOSING" | "CLOSED" | "RELEASING" | "PLACED" | "RETURNING" | "RETURNED";
 type BookVisual = { frontCover: Mesh; backCover: Mesh; pageBlock: Mesh; pageLeaves: Mesh[]; coverSpring: Spring; pageSpring: Spring; pageIndex: number; pages: string[] };
 export let BOOK_COUNT = 0;
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
@@ -179,7 +181,7 @@ function createPlayer(scene: Scene, materials: MaterialSet) {
   leftShoe.parent = root;
   const rightShoe = makeBox(scene, "player-right-shoe", { width: 0.30, height: 0.16, depth: 0.46 }, new Vector3(0.20, 0.06, 0.08), materials.shoe);
   rightShoe.parent = root;
-  return { root, parts: [torso, head, leftArm, rightArm, leftLeg, rightLeg, leftShoe, rightShoe] };
+  return { root, torso, head, leftArm, rightArm, parts: [torso, head, leftArm, rightArm, leftLeg, rightLeg, leftShoe, rightShoe] };
 }
 
 export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement): Promise<GameHandle> {
@@ -237,6 +239,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   let activeBook: BookInfo | null = null;
   let heldBookId: string | null = null;
   let activePageIndex = 0;
+  const physicalBookStates = new Map<string, PhysicalBookState>();
+  let physicalInteraction: { phase: "approach" | "reach" | "pull" | "open" | "close"; bookId: string; elapsed: number; start?: Vector3 } | null = null;
 
   const publishPage = (book: BookInfo, visual: BookVisual) => {
     const text = visual.pages[visual.pageIndex % visual.pages.length] ?? "هذه الصفحة هادئة مثل القاعة.";
@@ -254,20 +258,42 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const announceBook = (book: BookInfo) => {
     activeBook = book;
     activePageIndex = bookVisuals.get(book.id)?.pageIndex ?? 0;
+    if (heldBookId === book.id) {
+      const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === book.id);
+      if (mesh) {
+        mesh.unfreezeWorldMatrix();
+        mesh.parent = player.root;
+        mesh.position.set(0, 1.34, 0.72);
+        mesh.rotation.set(0, 0, 0);
+        physicalBookStates.set(book.id, "OPENING");
+        physicalInteraction = { phase: "open", bookId: book.id, elapsed: 0 };
+      }
+    }
     setBookOpen(book, true);
     window.dispatchEvent(new CustomEvent("library:book-state", { detail: { active: true } }));
     window.dispatchEvent(new CustomEvent("library:book-preview", { detail: book }));
     window.dispatchEvent(new CustomEvent("library:book-opened", { detail: { type: "book-opened", bookId: book.id, title: book.title } }));
     return true;
   };
-  const bookMeshes = () => scene.meshes.filter((mesh) => Boolean(mesh.metadata?.book));
+  const bookMeshes = () => {
+    const meshes = scene.meshes.filter((mesh) => Boolean(mesh.metadata?.book));
+    meshes.forEach((mesh) => {
+      const book = mesh.metadata.book as BookInfo;
+      if (!physicalBookStates.has(book.id)) physicalBookStates.set(book.id, "ON_SHELF");
+    });
+    return meshes;
+  };
+  const syncBookState = (mesh: AbstractMesh, book: BookInfo, patch: Record<string, unknown> = {}) => {
+    worldState.updateTransform(book.id, { position: mesh.getAbsolutePosition(), rotation: mesh.rotation, scaling: mesh.scaling }, patch as never);
+    window.dispatchEvent(new CustomEvent("library:book-physical-state", { detail: { bookId: book.id, state: physicalBookStates.get(book.id), ...patch } }));
+  };
   const openBookByMeshName = (meshName: string) => {
     const mesh = scene.getMeshByName(meshName);
     const book = mesh?.metadata?.book as BookInfo | undefined;
     return book ? announceBook(book) : false;
   };
   const openNearestBook = () => {
-    const nearest = bookMeshes().sort((a, b) => Vector3.DistanceSquared(a.position, player.root.position) - Vector3.DistanceSquared(b.position, player.root.position))[0];
+    const nearest = heldBookId ? bookMeshes().find((candidate) => candidate.metadata?.book?.id === heldBookId) : bookMeshes().sort((a, b) => Vector3.DistanceSquared(a.getAbsolutePosition(), player.root.position) - Vector3.DistanceSquared(b.getAbsolutePosition(), player.root.position))[0];
     const book = nearest?.metadata?.book as BookInfo | undefined;
     return book ? announceBook(book) : false;
   };
@@ -277,24 +303,19 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     return book ? announceBook(book) : false;
   };
   const nearestBookMesh = () => bookMeshes().sort((a, b) => Vector3.DistanceSquared(a.position, player.root.position) - Vector3.DistanceSquared(b.position, player.root.position))[0];
-  const takeNearestBook = () => {
-    if (heldBookId) return false;
-    const nearest = nearestBookMesh();
-    const book = nearest?.metadata?.book as BookInfo | undefined;
-    if (!nearest || !book || Vector3.Distance(nearest.position, player.root.position) > 4.2) {
+  const beginTake = (candidate: AbstractMesh | undefined) => {
+    if (heldBookId || physicalInteraction) return false;
+    const book = candidate?.metadata?.book as BookInfo | undefined;
+    if (!candidate || !book || !["ON_SHELF", "PLACED", "RETURNED"].includes(physicalBookStates.get(book.id) ?? "ON_SHELF")) {
       window.dispatchEvent(new CustomEvent("library:command-failed", { detail: { message: "الكتاب بعيد أو غير قابل للوصول." } }));
       return false;
     }
-    nearest.unfreezeWorldMatrix();
-    nearest.parent = player.root;
-    nearest.position = new Vector3(0.62, 1.42, 0.52);
-    nearest.rotation = new Vector3(0.04, 0.15, 0.02);
-    nearest.checkCollisions = false;
-    heldBookId = book.id;
-    worldState.updateTransform(book.id, nearest, { state: "held", isHeld: true, isOnShelf: false, holder: "player", surface: undefined, lastAction: "TAKE" });
-    window.dispatchEvent(new CustomEvent("library:object-grabbed", { detail: { objectId: book.id, title: book.title } }));
+    physicalBookStates.set(book.id, "TAKING");
+    physicalInteraction = { phase: "approach", bookId: book.id, elapsed: 0 };
+    syncBookState(candidate, book, { state: "moving", isMoving: true, lastAction: "TAKE_APPROACH" });
     return true;
   };
+  const takeNearestBook = () => beginTake(nearestBookMesh());
   const releaseHeldBook = () => {
     if (!heldBookId) return false;
     const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === heldBookId);
@@ -305,6 +326,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     mesh.position.copyFrom(player.root.position.add(new Vector3(Math.sin(yaw) * 1.15, 1.05, Math.cos(yaw) * 1.15)));
     mesh.rotation.set(0, player.root.rotation.y, 0);
     mesh.checkCollisions = true;
+    physicalBookStates.set(book.id, "PLACED");
     worldState.updateTransform(book.id, mesh, { state: "placed", isHeld: false, isPlaced: true, isOnShelf: false, holder: undefined, surface: "floor", lastAction: "RELEASE" });
     heldBookId = null;
     window.dispatchEvent(new CustomEvent("library:object-released", { detail: { objectId: book.id } }));
@@ -322,6 +344,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     mesh.rotation.set(saved.originalTransform.rotation.x, saved.originalTransform.rotation.y, saved.originalTransform.rotation.z);
     mesh.scaling.set(saved.originalTransform.scale.x, saved.originalTransform.scale.y, saved.originalTransform.scale.z);
     mesh.checkCollisions = false;
+    physicalBookStates.set(targetId, "RETURNED");
     worldState.resetObject(targetId);
     heldBookId = null;
     window.dispatchEvent(new CustomEvent("library:object-returned", { detail: { objectId: targetId } }));
@@ -346,6 +369,13 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   };
   const closeBook = () => {
     if (!activeBook) return false;
+    const closingBook = activeBook;
+    const visual = bookVisuals.get(closingBook.id);
+    if (visual) visual.coverSpring.target = 0;
+    if (heldBookId === closingBook.id) {
+      physicalBookStates.set(closingBook.id, "CLOSING");
+      physicalInteraction = { phase: "close", bookId: closingBook.id, elapsed: 0 };
+    }
     setBookOpen(activeBook, false);
     activeBook = null;
     window.dispatchEvent(new CustomEvent("library:book-state", { detail: { active: false } }));
@@ -394,7 +424,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const onCanvasClick = () => {
     const picked = scene.pick(scene.pointerX, scene.pointerY);
     const book = picked?.pickedMesh?.metadata?.book as BookInfo | undefined;
-    if (book) announceBook(book);
+    if (book && picked?.pickedMesh) {
+      const taken = !heldBookId && beginTake(picked.pickedMesh as Mesh);
+      if (!taken) announceBook(book);
+    }
   };
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
@@ -415,6 +448,74 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         leaf.rotation.y = damp(leaf.rotation.y, index === activePageIndex % visual.pageLeaves.length ? page : 0, 22, dt);
       });
     });
+    const interactionBusy = Boolean(physicalInteraction);
+    if (physicalInteraction) {
+      const active = physicalInteraction;
+      const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === active.bookId);
+      const book = mesh?.metadata?.book as BookInfo | undefined;
+      if (!mesh || !book) physicalInteraction = null;
+      else {
+        active.elapsed += dt;
+        const toBook = mesh.position.subtract(player.root.position);
+        toBook.y = 0;
+        if (active.phase === "approach") {
+          const distance = toBook.length();
+          if (distance > 1.9) {
+            toBook.normalize();
+            player.root.moveWithCollisions(toBook.scale(Math.min(2.0 * dt, distance - 1.75)));
+          }
+          player.root.rotation.y = damp(player.root.rotation.y, Math.atan2(toBook.x, toBook.z), 10, dt);
+          player.torso.rotation.z = damp(player.torso.rotation.z, Math.max(-0.12, Math.min(0.12, toBook.x * -0.035)), 8, dt);
+          if (distance <= 2.0 || active.elapsed > 2.5) { active.phase = "reach"; active.elapsed = 0; }
+        } else if (active.phase === "reach") {
+          player.rightArm.rotation.z = damp(player.rightArm.rotation.z, -0.72, 12, dt);
+          player.rightArm.rotation.x = damp(player.rightArm.rotation.x, -0.22, 12, dt);
+          if (active.elapsed > 0.42) { active.phase = "pull"; active.elapsed = 0; active.start = mesh.position.clone(); mesh.unfreezeWorldMatrix(); mesh.checkCollisions = false; }
+        } else if (active.phase === "pull") {
+          const progress = Math.min(1, active.elapsed / 0.48);
+          const handTarget = player.root.position.add(new Vector3(0.55, 1.38, 0.48));
+          const shelfExit = (active.start ?? mesh.position).add(new Vector3(0, 0, 0.55));
+          mesh.position.copyFrom(Vector3.Lerp(active.start ?? mesh.position, shelfExit, Math.min(1, progress * 2)));
+          if (progress > 0.5) mesh.position.copyFrom(Vector3.Lerp(shelfExit, handTarget, (progress - 0.5) * 2));
+          mesh.rotation.y = damp(mesh.rotation.y, player.root.rotation.y, 12, dt);
+          if (progress >= 1) {
+            mesh.parent = player.rightArm;
+            mesh.position.set(0, -0.46, 0.2);
+            mesh.rotation.set(0, 0, 0);
+            heldBookId = book.id;
+            physicalBookStates.set(book.id, "HELD_RIGHT");
+            syncBookState(mesh, book, { state: "held", isHeld: true, isMoving: false, isOnShelf: false, holder: "player", holdHand: "right", lastAction: "TAKE" });
+            window.dispatchEvent(new CustomEvent("library:object-grabbed", { detail: { objectId: book.id, title: book.title, holdHand: "right" } }));
+            physicalInteraction = null;
+          }
+        } else if (active.phase === "open") {
+          player.leftArm.rotation.z = damp(player.leftArm.rotation.z, 0.58, 10, dt);
+          player.leftArm.rotation.x = damp(player.leftArm.rotation.x, -0.18, 10, dt);
+          player.rightArm.rotation.z = damp(player.rightArm.rotation.z, -0.58, 10, dt);
+          player.rightArm.rotation.x = damp(player.rightArm.rotation.x, -0.18, 10, dt);
+          mesh.parent = player.root;
+          mesh.position.x = damp(mesh.position.x, 0, 12, dt);
+          mesh.position.y = damp(mesh.position.y, 1.34, 12, dt);
+          mesh.position.z = damp(mesh.position.z, 0.72, 12, dt);
+          if (active.elapsed > 0.62) {
+            physicalBookStates.set(book.id, "OPEN");
+            syncBookState(mesh, book, { state: "open", isHeld: true, isOpen: true, holder: "player", holdMode: "TWO_HANDS", leftHandHolding: true, rightHandHolding: true, lastAction: "OPEN" });
+            physicalInteraction = null;
+          }
+        } else if (active.phase === "close") {
+          player.leftArm.rotation.z = damp(player.leftArm.rotation.z, 0.2, 10, dt);
+          player.rightArm.rotation.z = damp(player.rightArm.rotation.z, -0.72, 10, dt);
+          if (active.elapsed > 0.7) {
+            mesh.parent = player.rightArm;
+            mesh.position.set(0, -0.46, 0.2);
+            mesh.rotation.set(0, 0, 0);
+            physicalBookStates.set(book.id, "HELD_RIGHT");
+            syncBookState(mesh, book, { state: "held", isHeld: true, isOpen: false, holdMode: "RIGHT_HAND", leftHandHolding: false, rightHandHolding: true, lastAction: "CLOSE" });
+            physicalInteraction = null;
+          }
+        }
+      }
+    }
     const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     const right = new Vector3(forward.z, 0, -forward.x);
     const input = new Vector3(0, 0, 0);
@@ -424,7 +525,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     if (pressed.has("a")) input.subtractInPlace(right);
     input.x += touchMove.x;
     input.z += touchMove.z;
-    if (input.lengthSquared() > 0.001) {
+    if (!interactionBusy && input.lengthSquared() > 0.001) {
       input.normalize();
       const speed = pressed.has("shift") ? 4.2 : 2.35;
       player.root.moveWithCollisions(input.scale(speed * dt));
