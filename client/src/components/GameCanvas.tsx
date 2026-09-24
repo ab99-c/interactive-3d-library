@@ -20,6 +20,18 @@ import {
 
 type LiveToast = Toast & { key: number };
 
+type SpeechRecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  start: () => void;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+};
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+declare global { interface Window { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor; } }
+
 const SHELF_MAP_SPOTS = [
   { x: -8.0, z: -8.2 }, { x: -8.0, z: -2.7 }, { x: -8.0, z: 2.7 }, { x: -8.0, z: 8.2 },
   { x: 8.0, z: -8.2 }, { x: 8.0, z: -2.7 }, { x: 8.0, z: 2.7 }, { x: 8.0, z: 8.2 },
@@ -44,6 +56,10 @@ export default function GameCanvas() {
   const setPerformanceModeRef = useRef<(mode: PerformanceMode) => void>(() => undefined);
   const openNearestBookRef = useRef<() => boolean>(() => false);
   const openBookByMeshNameRef = useRef<(meshName: string) => boolean>(() => false);
+  const takeNearestBookRef = useRef<() => boolean>(() => false);
+  const releaseHeldBookRef = useRef<() => boolean>(() => false);
+  const returnNearestBookRef = useRef<() => boolean>(() => false);
+  const executeTextCommandRef = useRef<(raw: string) => boolean>(() => false);
   const returnActiveBookRef = useRef<() => boolean>(() => false);
   const turnActivePageRef = useRef<(direction: "rtl" | "ltr") => boolean>(() => false);
   const setTouchMoveRef = useRef<(x: number, y: number) => void>(() => undefined);
@@ -57,6 +73,9 @@ export default function GameCanvas() {
   const [toasts, setToasts] = useState<LiveToast[]>([]);
   const toastSequenceRef = useRef(0);
   const [playerMapPos, setPlayerMapPos] = useState<{ x: number; z: number } | null>(null);
+  const [commandInput, setCommandInput] = useState("");
+  const [commandMessage, setCommandMessage] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
 
   const pushToasts = useCallback((items: Toast[]) => {
     if (!items.length) return;
@@ -85,15 +104,23 @@ export default function GameCanvas() {
       const detail = (event as CustomEvent<{ x: number; z: number }>).detail;
       if (detail) setPlayerMapPos({ x: detail.x, z: detail.z });
     };
+    const onCommandFailed = (event: Event) => {
+      const message = (event as CustomEvent<{ message?: string }>).detail?.message;
+      if (!message) return;
+      setCommandMessage(message);
+      window.setTimeout(() => setCommandMessage(null), 3000);
+    };
     window.addEventListener("library:book-opened", onGameEvent);
     window.addEventListener("library:page-turned", onGameEvent);
     window.addEventListener("library:walked", onGameEvent);
     window.addEventListener("library:player-moved", onPlayerMoved);
+    window.addEventListener("library:command-failed", onCommandFailed);
     return () => {
       window.removeEventListener("library:book-opened", onGameEvent);
       window.removeEventListener("library:page-turned", onGameEvent);
       window.removeEventListener("library:walked", onGameEvent);
       window.removeEventListener("library:player-moved", onPlayerMoved);
+      window.removeEventListener("library:command-failed", onCommandFailed);
     };
   }, [pushToasts]);
 
@@ -139,6 +166,10 @@ export default function GameCanvas() {
         setHasActiveBook(nextHandle.hasActiveBook());
         return opened;
       };
+      takeNearestBookRef.current = nextHandle.takeNearestBook;
+      releaseHeldBookRef.current = nextHandle.releaseHeldBook;
+      returnNearestBookRef.current = nextHandle.returnNearestBook;
+      executeTextCommandRef.current = nextHandle.executeTextCommand;
       returnActiveBookRef.current = () => {
         const returned = nextHandle.returnActiveBook();
         setHasActiveBook(nextHandle.hasActiveBook());
@@ -177,6 +208,10 @@ export default function GameCanvas() {
       window.removeEventListener("resize", onResize);
       openNearestBookRef.current = () => false;
       openBookByMeshNameRef.current = () => false;
+      takeNearestBookRef.current = () => false;
+      releaseHeldBookRef.current = () => false;
+      returnNearestBookRef.current = () => false;
+      executeTextCommandRef.current = () => false;
       returnActiveBookRef.current = () => false;
       turnActivePageRef.current = () => false;
       setTouchMoveRef.current = () => undefined;
@@ -226,6 +261,34 @@ export default function GameCanvas() {
   const onJoystickPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (joystickPointerRef.current === event.pointerId) updateJoystick(event.clientX, event.clientY);
   };
+  const submitCommand = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const raw = commandInput.trim();
+    if (!raw) return;
+    executeTextCommandRef.current(raw);
+    setCommandInput("");
+  };
+  const startVoiceCommand = () => {
+    const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!Recognition) {
+      setCommandMessage("التعرف الصوتي غير متوفر فهاد المتصفح.");
+      window.setTimeout(() => setCommandMessage(null), 3000);
+      return;
+    }
+    const recognition = new Recognition();
+    recognition.lang = "ar-MA";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    setIsListening(true);
+    recognition.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript?.trim() ?? "";
+      setCommandInput(transcript);
+      if (transcript) executeTextCommandRef.current(transcript);
+    };
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => { setIsListening(false); setCommandMessage("ماقدرناش نسمعو الأمر الصوتي."); };
+    recognition.start();
+  };
 
   const activeObjective = OBJECTIVES.find((objective) => !progress.completed.includes(objective.id));
   const activeProgress = activeObjective ? activeObjective.progress(progress) : null;
@@ -240,8 +303,9 @@ export default function GameCanvas() {
       <canvas ref={canvasRef} className="game-canvas" style={{ touchAction: "none" }} />
       {!started && <div className="loading-overlay" role="status" aria-live="polite"><div className="loading-shelf-silhouette" aria-hidden="true" /><div className="loading-copy"><div className="loading-mark" aria-hidden="true">۞</div><div className="loading-kicker">قاعة الدراسة الهادئة</div><strong>يجري تجهيز القاعة</strong><span>لحظات، وتُضاء الرفوف أمامك</span></div></div>}
       <div className="hud-topline"><div className="brand-lockup"><img src="./library-mark.svg" alt="" /><span>قاعة الدراسة الهادئة</span></div><div className="status-pill"><i /> {started ? "مفتوحة للاستكشاف" : "يجري تجهيز القاعة"}</div></div>
+      {started && <form className="command-console" onSubmit={submitCommand}><input value={commandInput} onChange={(event) => setCommandInput(event.target.value)} placeholder="اكتب أمراً: خذ الكتاب / رجّع الكتاب" aria-label="أمر نصي" /><button type="submit">تنفيذ</button><button type="button" onClick={startVoiceCommand} aria-label="أمر صوتي">{isListening ? "كيصنت..." : "ميكروفون"}</button>{commandMessage && <span role="status">{commandMessage}</span>}</form>}
       <div className="mobile-controls" aria-label="عناصر التحكم باللمس"><div ref={joystickRef} className="touch-joystick" onPointerDown={onJoystickPointerDown} onPointerMove={onJoystickPointerMove} onPointerUp={resetJoystick} onPointerCancel={resetJoystick}><div ref={joystickKnobRef} className="touch-joystick-knob" /></div></div>
-      <div className="hud-bottom"><div className="crosshair" aria-hidden="true">+</div><div className="controls"><span><b>W A S D</b> تحرّك</span><span><b>Shift</b> للجري</span><span><b>حرّك الفأرة</b> لتدوير المشهد</span><span><b>نقر / E</b> للتفاعل</span></div><div className="hud-actions"><button className="inspect-button" onClick={() => openNearestBookRef.current()}>فحص أقرب كتاب <span>↗</span></button><div className="page-actions" aria-label="أزرار الكتاب"><button className="page-turn-button page-turn-left" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("ltr")}>اليسرى <span>→</span></button><button className="return-button" disabled={!hasActiveBook} onClick={() => returnActiveBookRef.current()}>إرجاع الكتاب <span>↩</span></button><button className="page-turn-button page-turn-right" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("rtl")}>اليمنى <span>←</span></button></div><button className="help-button" onClick={() => setShowHelp((value) => !value)}>{showHelp ? "إخفاء الدليل" : "إظهار الدليل"}</button><button className="help-button" onClick={() => setShowMap((value) => !value)}>{showMap ? "إخفاء الخريطة" : "خريطة القاعة"}</button><button className="help-button audio-button" onClick={() => { const next = !audioEnabled; setAudioEnabledState(next); setAudioEnabledRef.current(next); }} aria-label="تشغيل أو كتم الصوت">{audioEnabled ? "الصوت مفعّل" : "الصوت مكتوم"}</button><button className="help-button performance-button" onClick={() => { const nextMode = performanceMode === "light" ? "cinematic" : "light"; setPerformanceMode(nextMode); setPerformanceModeRef.current(nextMode); }} aria-label="تبديل جودة العرض">{performanceMode === "light" ? "أداء خفيف" : "جودة سينمائية"}</button></div></div>
+      <div className="hud-bottom"><div className="crosshair" aria-hidden="true">+</div><div className="controls"><span><b>W A S D</b> تحرّك</span><span><b>Shift</b> للجري</span><span><b>G</b> خذ الكتاب</span><span><b>F</b> أفلت</span><span><b>R</b> رجّع للرف</span><span><b>E</b> معاينة</span></div><div className="hud-actions"><button className="inspect-button" onClick={() => openNearestBookRef.current()}>فحص أقرب كتاب <span>↗</span></button><button className="help-button" onClick={() => takeNearestBookRef.current()}>خذ الكتاب</button><button className="help-button" onClick={() => releaseHeldBookRef.current()}>أفلت الكتاب</button><button className="help-button" onClick={() => returnNearestBookRef.current()}>رجّع للرف</button><div className="page-actions" aria-label="أزرار الكتاب"><button className="page-turn-button page-turn-left" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("ltr")}>اليسرى <span>→</span></button><button className="return-button" disabled={!hasActiveBook} onClick={() => returnActiveBookRef.current()}>إغلاق المعاينة <span>↩</span></button><button className="page-turn-button page-turn-right" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("rtl")}>اليمنى <span>←</span></button></div><button className="help-button" onClick={() => setShowHelp((value) => !value)}>{showHelp ? "إخفاء الدليل" : "إظهار الدليل"}</button><button className="help-button" onClick={() => setShowMap((value) => !value)}>{showMap ? "إخفاء الخريطة" : "خريطة القاعة"}</button><button className="help-button audio-button" onClick={() => { const next = !audioEnabled; setAudioEnabledState(next); setAudioEnabledRef.current(next); }} aria-label="تشغيل أو كتم الصوت">{audioEnabled ? "الصوت مفعّل" : "الصوت مكتوم"}</button><button className="help-button performance-button" onClick={() => { const nextMode = performanceMode === "light" ? "cinematic" : "light"; setPerformanceMode(nextMode); setPerformanceModeRef.current(nextMode); }} aria-label="تبديل جودة العرض">{performanceMode === "light" ? "أداء خفيف" : "جودة سينمائية"}</button></div></div>
       {started && <div className="book-hotspots" aria-label="كتب قابلة للتفاعل">{bookRects.map((rect) => <button key={rect.meshName} className="book-hotspot" style={{ left: rect.x - rect.width / 2, top: rect.y - rect.height / 2, width: rect.width, height: rect.height }} aria-label={`فتح ${rect.title}`} title={rect.title} onClick={() => { setShowHelp(false); openBookByMeshNameRef.current(rect.meshName); }}><span>{rect.title}</span></button>)}</div>}
       {bookPreview && <section className="book-preview-card" role="dialog" aria-label="معاينة الكتاب"><span className="eyebrow">معاينة سريعة</span><h2>{bookPreview.title}</h2><p className="book-preview-meta">{bookPreview.section ?? "الأرشيف"} · {bookPreview.callNumber ?? "REF-001"}</p><button className="return-button" onClick={() => returnActiveBookRef.current()}>إغلاق</button></section>}
       {started && <aside className="quest-card" aria-live="polite"><div className="quest-card-head"><span className="eyebrow">رحلة الباحث</span><span className="rank-pill">{rank.title} · {toArabicDigits(progress.xp)} نقطة</span></div>{activeObjective ? <><h2>{activeObjective.title}</h2><p>{activeObjective.description}</p><div className="quest-bar"><i style={{ width: `${activePercent}%` }} /></div><span className="quest-count">{activeProgress?.label}</span></> : <><h2>اكتملت جميع المهام</h2><p>القاعة كلها ملك لفضولك الآن — واصل القراءة والتأمل.</p></>}<div className="quest-card-foot"><span>اكتشفت {toArabicDigits(discoveredCount)} من {toArabicDigits(bookCount)} كتاباً</span><button className="reset-progress-button" onClick={() => { const fresh = resetProgress(); progressRef.current = fresh; setProgress(fresh); }}>إعادة ضبط التقدم</button></div></aside>}

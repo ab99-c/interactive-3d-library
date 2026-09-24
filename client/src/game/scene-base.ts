@@ -10,6 +10,8 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import "@babylonjs/core/Collisions/collisionCoordinator";
 import "@babylonjs/core/Culling/ray";
+import { WorldStateStore } from "./engine/world-state";
+import { parseCommand } from "./engine/command-parser";
 
 export type PerformanceMode = "cinematic" | "light";
 export type BookInfo = { id: string; title: string; section: string; callNumber: string };
@@ -21,6 +23,10 @@ export type GameHandle = {
   openNearestBook: () => boolean;
   openBookById: (bookId: string) => boolean;
   openBookByMeshName: (meshName: string) => boolean;
+  takeNearestBook: () => boolean;
+  releaseHeldBook: () => boolean;
+  returnNearestBook: () => boolean;
+  executeTextCommand: (raw: string) => boolean;
   returnActiveBook: () => boolean;
   turnActivePage: (direction: "rtl" | "ltr") => boolean;
   hasActiveBook: () => boolean;
@@ -62,7 +68,7 @@ function makeBox(scene: Scene, name: string, size: { width: number; height: numb
   return mesh;
 }
 
-function addReferenceBookcases(scene: Scene) {
+function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
   const wood = makeMaterial(scene, "reference-bookcase-walnut", new Color3(0.28, 0.105, 0.028));
   const bookColors = [
     new Color3(0.88, 0.87, 0.76), new Color3(0.62, 0.78, 0.32), new Color3(0.93, 0.29, 0.10),
@@ -84,6 +90,13 @@ function addReferenceBookcases(scene: Scene) {
     book.isPickable = true;
     const [title, section, prefix] = catalog[bookSerial % catalog.length];
     book.metadata = { book: { id: `reference-book-${bookSerial}`, title, section, callNumber: `${prefix}-${String(101 + (bookSerial % 899)).padStart(3, "0")}` } satisfies BookInfo };
+    const bookInfo = book.metadata.book as BookInfo;
+    const saved = worldState.register({ id: bookInfo.id, type: "book", name: bookInfo.title, model: "procedural-book", transform: book, metadata: bookInfo, onShelf: true });
+    if (saved.currentTransform.position.x !== saved.originalTransform.position.x || saved.currentTransform.position.z !== saved.originalTransform.position.z) {
+      book.position.set(saved.currentTransform.position.x, saved.currentTransform.position.y, saved.currentTransform.position.z);
+      book.rotation.set(saved.currentTransform.rotation.x, saved.currentTransform.rotation.y, saved.currentTransform.rotation.z);
+      book.scaling.set(saved.currentTransform.scale.x, saved.currentTransform.scale.y, saved.currentTransform.scale.z);
+    }
     bookSerial += 1;
     book.freezeWorldMatrix();
   };
@@ -150,6 +163,7 @@ function createPlayer(scene: Scene, materials: MaterialSet) {
 
 export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement): Promise<GameHandle> {
   const scene = new Scene(engine);
+  const worldState = new WorldStateStore();
   scene.collisionsEnabled = true;
   scene.gravity = new Vector3(0, -0.18, 0);
   scene.clearColor.set(0.035, 0.025, 0.018, 1);
@@ -169,7 +183,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   makeBox(scene, "left-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(-12, 3.5, 0), materials.wall, true);
   makeBox(scene, "right-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(12, 3.5, 0), materials.wall, true);
   makeBox(scene, "ceiling", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, 7, 0), materials.ceiling, false);
-  addReferenceBookcases(scene);
+  addReferenceBookcases(scene, worldState);
 
   const ambient = new HemisphericLight("ambient", new Vector3(0, 1, 0), scene);
   ambient.intensity = 0.86;
@@ -200,6 +214,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   let velocityY = 0;
   let lastMoveEventAt = 0;
   let activeBook: BookInfo | null = null;
+  let heldBookId: string | null = null;
 
   const announceBook = (book: BookInfo) => {
     activeBook = book;
@@ -224,6 +239,74 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const book = mesh?.metadata?.book as BookInfo | undefined;
     return book ? announceBook(book) : false;
   };
+  const nearestBookMesh = () => bookMeshes().sort((a, b) => Vector3.DistanceSquared(a.position, player.root.position) - Vector3.DistanceSquared(b.position, player.root.position))[0];
+  const takeNearestBook = () => {
+    if (heldBookId) return false;
+    const nearest = nearestBookMesh();
+    const book = nearest?.metadata?.book as BookInfo | undefined;
+    if (!nearest || !book || Vector3.Distance(nearest.position, player.root.position) > 4.2) {
+      window.dispatchEvent(new CustomEvent("library:command-failed", { detail: { message: "الكتاب بعيد أو غير قابل للوصول." } }));
+      return false;
+    }
+    nearest.unfreezeWorldMatrix();
+    nearest.parent = player.root;
+    nearest.position = new Vector3(0.62, 1.42, 0.52);
+    nearest.rotation = new Vector3(0.04, 0.15, 0.02);
+    nearest.checkCollisions = false;
+    heldBookId = book.id;
+    worldState.updateTransform(book.id, nearest, { state: "held", isHeld: true, isOnShelf: false, holder: "player", surface: undefined, lastAction: "TAKE" });
+    window.dispatchEvent(new CustomEvent("library:object-grabbed", { detail: { objectId: book.id, title: book.title } }));
+    return true;
+  };
+  const releaseHeldBook = () => {
+    if (!heldBookId) return false;
+    const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === heldBookId);
+    const book = mesh?.metadata?.book as BookInfo | undefined;
+    if (!mesh || !book) return false;
+    mesh.unfreezeWorldMatrix();
+    mesh.parent = null;
+    mesh.position.copyFrom(player.root.position.add(new Vector3(Math.sin(yaw) * 1.15, 1.05, Math.cos(yaw) * 1.15)));
+    mesh.rotation.set(0, player.root.rotation.y, 0);
+    mesh.checkCollisions = true;
+    worldState.updateTransform(book.id, mesh, { state: "placed", isHeld: false, isPlaced: true, isOnShelf: false, holder: undefined, surface: "floor", lastAction: "RELEASE" });
+    heldBookId = null;
+    window.dispatchEvent(new CustomEvent("library:object-released", { detail: { objectId: book.id } }));
+    return true;
+  };
+  const returnNearestBook = () => {
+    const targetId = heldBookId ?? (nearestBookMesh()?.metadata?.book as BookInfo | undefined)?.id;
+    if (!targetId) return false;
+    const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === targetId);
+    const saved = worldState.get(targetId);
+    if (!mesh || !saved) return false;
+    mesh.unfreezeWorldMatrix();
+    mesh.parent = null;
+    mesh.position.set(saved.originalTransform.position.x, saved.originalTransform.position.y, saved.originalTransform.position.z);
+    mesh.rotation.set(saved.originalTransform.rotation.x, saved.originalTransform.rotation.y, saved.originalTransform.rotation.z);
+    mesh.scaling.set(saved.originalTransform.scale.x, saved.originalTransform.scale.y, saved.originalTransform.scale.z);
+    mesh.checkCollisions = false;
+    worldState.resetObject(targetId);
+    heldBookId = null;
+    window.dispatchEvent(new CustomEvent("library:object-returned", { detail: { objectId: targetId } }));
+    return true;
+  };
+  const executeTextCommand = (raw: string) => {
+    const command = parseCommand(raw);
+    if (!command) {
+      window.dispatchEvent(new CustomEvent("library:command-failed", { detail: { message: "مافهمتش الأمر. جرّب: خذ الكتاب، أفلت الكتاب، أو رجّع الكتاب." } }));
+      return false;
+    }
+    window.dispatchEvent(new CustomEvent("library:command-received", { detail: command }));
+    let result = false;
+    if (command.intent === "TAKE_OBJECT") result = takeNearestBook();
+    if (command.intent === "PLACE_OBJECT") result = releaseHeldBook();
+    if (command.intent === "RETURN_OBJECT") result = returnNearestBook();
+    if (command.intent === "OPEN_OBJECT") result = openNearestBook();
+    if (command.intent === "CLOSE_OBJECT") result = closeBook();
+    if (!result) window.dispatchEvent(new CustomEvent("library:command-failed", { detail: { message: "الأمر غير ممكن حالياً: تحقق من المسافة وحالة الكتاب." } }));
+    else window.dispatchEvent(new CustomEvent("library:command-executed", { detail: command }));
+    return result;
+  };
   const closeBook = () => {
     if (!activeBook) return false;
     activeBook = null;
@@ -235,6 +318,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const onKeyDown = (event: KeyboardEvent) => {
     const key = event.key.toLowerCase();
     if (key === "e") { openNearestBook(); return; }
+    if (key === "g") { takeNearestBook(); return; }
+    if (key === "f") { releaseHeldBook(); return; }
+    if (key === "r") { returnNearestBook(); return; }
     pressed.add(key);
   };
   const onKeyUp = (event: KeyboardEvent) => pressed.delete(event.key.toLowerCase());
@@ -313,6 +399,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     openNearestBook,
     openBookById,
     openBookByMeshName,
+    takeNearestBook,
+    releaseHeldBook,
+    returnNearestBook,
+    executeTextCommand,
     returnActiveBook: closeBook,
     turnActivePage: () => false,
     hasActiveBook: () => Boolean(activeBook),
