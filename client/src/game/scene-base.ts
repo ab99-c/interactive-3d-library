@@ -97,6 +97,7 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     book.rotation.z = lean;
     book.material = material;
     book.isPickable = true;
+    book.checkCollisions = false;
     const [title, section, prefix] = catalog[bookSerial % catalog.length];
     book.metadata = { book: { id: `reference-book-${bookSerial}`, title, section, callNumber: `${prefix}-${String(101 + (bookSerial % 899)).padStart(3, "0")}` } satisfies BookInfo };
     const bookInfo = book.metadata.book as BookInfo;
@@ -132,10 +133,14 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     return new Vector3(centerX + local.x, local.y, centerZ + local.z);
   };
   const addCase = (centerX: number, centerZ: number, width: number, rotation: number, id: string) => {
-    makeBox(scene, `bookcase-${id}-left`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, -width * 0.5, 0, 3.2), wood, true);
-    makeBox(scene, `bookcase-${id}-right`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, width * 0.5, 0, 3.2), wood, true);
+    const collider = makeBox(scene, `bookcase-${id}-collision`, { width: width + 0.56, height: 6.45, depth: 0.82 }, world(centerX, centerZ, rotation, 0, 0, 3.2), wood, true);
+    collider.isVisible = false;
+    collider.rotation.y = rotation;
+    collider.freezeWorldMatrix();
+    makeBox(scene, `bookcase-${id}-left`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, -width * 0.5, 0, 3.2), wood, false);
+    makeBox(scene, `bookcase-${id}-right`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, width * 0.5, 0, 3.2), wood, false);
     [0.78, 2.02, 3.26, 4.50, 5.74].forEach((y, row) => {
-      const shelf = makeBox(scene, `bookcase-${id}-shelf-${row}`, { width, height: 0.14, depth: 0.62 }, world(centerX, centerZ, rotation, 0, 0, y), wood, true);
+      const shelf = makeBox(scene, `bookcase-${id}-shelf-${row}`, { width, height: 0.14, depth: 0.62 }, world(centerX, centerZ, rotation, 0, 0, y), wood, false);
       shelf.rotation.y = rotation;
       let x = -width * 0.5 + 0.16;
       let index = row * 13 + id.length;
@@ -238,22 +243,6 @@ function createPlayer(scene: Scene, materials: MaterialSet) {
   return { root, torso, head, leftArm, rightArm, parts: [torso, head, leftArm, rightArm, leftLeg, rightLeg, leftShoe, rightShoe] };
 }
 
-function createFirstPersonHands(scene: Scene, camera: UniversalCamera, materials: MaterialSet) {
-  const makeHand = (name: string, position: Vector3) => {
-    const hand = MeshBuilder.CreateBox(name, { width: 0.18, height: 0.25, depth: 0.22 }, scene);
-    hand.parent = camera;
-    hand.position.copyFrom(position);
-    hand.material = materials.skin;
-    hand.isPickable = false;
-    hand.checkCollisions = false;
-    return hand;
-  };
-  return {
-    left: makeHand("first-person-left-hand", new Vector3(-0.42, -0.38, 0.82)),
-    right: makeHand("first-person-right-hand", new Vector3(0.42, -0.38, 0.82)),
-  };
-}
-
 export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement): Promise<GameHandle> {
   const scene = new Scene(engine);
   const worldState = new WorldStateStore();
@@ -285,17 +274,21 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   ceilingLight.range = 22;
 
   const player = createPlayer(scene, materials);
-  const camera = new UniversalCamera("first-person-camera", player.root.position.add(new Vector3(0, 1.72, 0)), scene);
-  camera.setTarget(camera.position.add(new Vector3(0, 0, -1)));
+  const camera = new UniversalCamera("third-person-follow-camera", player.root.position.add(new Vector3(0, 2.6, -3.2)), scene);
+  camera.setTarget(player.root.position.add(new Vector3(0, 1.35, 0)));
   camera.minZ = 0.1;
   camera.maxZ = 100;
   camera.fov = 0.82;
   scene.activeCamera = camera;
-  const hands = createFirstPersonHands(scene, camera, materials);
+  player.root.isVisible = true;
+  player.parts.forEach((part) => { part.isVisible = true; });
+  const hands = { left: player.leftArm, right: player.rightArm };
+  let cameraPosition = camera.position.clone();
+  let cameraTarget = player.root.position.add(new Vector3(0, 1.35, 0));
 
   const pressed = new Set<string>();
   const touchMove = { x: 0, z: 0 };
-  let yaw = Math.PI;
+  let yaw = 0;
   let pitch = -0.08;
   let lastPointerX: number | null = null;
   let lastPointerY: number | null = null;
@@ -331,7 +324,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
       const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === book.id);
       if (mesh) {
         mesh.unfreezeWorldMatrix();
-        mesh.parent = camera;
+        mesh.parent = player.root;
         mesh.position.set(0, -0.08, 0.78);
         mesh.rotation.set(0, 0, 0);
         physicalBookStates.set(book.id, "OPENING");
@@ -394,7 +387,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     mesh.parent = null;
     mesh.position.copyFrom(player.root.position.add(new Vector3(Math.sin(yaw) * 1.15, 1.05, Math.cos(yaw) * 1.15)));
     mesh.rotation.set(0, player.root.rotation.y, 0);
-    mesh.checkCollisions = true;
+    mesh.checkCollisions = false;
     physicalBookStates.set(book.id, "PLACED");
     worldState.updateTransform(book.id, mesh, { state: "placed", isHeld: false, isPlaced: true, isOnShelf: false, holder: undefined, surface: "floor", lastAction: "RELEASE" });
     heldBookId = null;
@@ -504,7 +497,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const resetPointer = () => { lastPointerX = null; lastPointerY = null; };
   const onPointerDown = (event: PointerEvent) => { lastPointerX = event.clientX; lastPointerY = event.clientY; };
   const onCanvasClick = () => {
-    const picked = scene.pick(scene.pointerX, scene.pointerY);
+    const picked = scene.pick(scene.getEngine().getRenderWidth() * 0.5, scene.getEngine().getRenderHeight() * 0.5);
     const book = picked?.pickedMesh?.metadata?.book as BookInfo | undefined;
     if (book && picked?.pickedMesh) {
       const taken = !heldBookId && beginTake(picked.pickedMesh as Mesh);
@@ -569,7 +562,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
           if (active.elapsed > 0.42) { active.phase = "pull"; active.elapsed = 0; active.start = mesh.position.clone(); mesh.unfreezeWorldMatrix(); mesh.checkCollisions = false; }
         } else if (active.phase === "pull") {
           const progress = Math.min(1, active.elapsed / 0.48);
-          const handTarget = camera.position.add(new Vector3(0.42, -0.38, 0.78));
+          const handTarget = player.root.position.add(new Vector3(0.42, 1.35, 0.72));
           const shelfExit = (active.start ?? mesh.position).add(new Vector3(0, 0, 0.55));
           mesh.position.copyFrom(Vector3.Lerp(active.start ?? mesh.position, shelfExit, Math.min(1, progress * 2)));
           if (progress > 0.5) mesh.position.copyFrom(Vector3.Lerp(shelfExit, handTarget, (progress - 0.5) * 2));
@@ -591,9 +584,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
           hands.right.position.x = damp(hands.right.position.x, 0.36, 10, dt);
           hands.right.position.y = damp(hands.right.position.y, -0.22, 10, dt);
           hands.right.position.z = damp(hands.right.position.z, 0.72, 10, dt);
-          mesh.parent = camera;
+          mesh.parent = player.root;
           mesh.position.x = damp(mesh.position.x, 0, 12, dt);
-          mesh.position.y = damp(mesh.position.y, -0.12, 12, dt);
+          mesh.position.y = damp(mesh.position.y, 1.45, 12, dt);
           mesh.position.z = damp(mesh.position.z, 0.76, 12, dt);
           if (active.elapsed > 0.62) {
             physicalBookStates.set(book.id, "OPEN");
@@ -639,10 +632,11 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     const right = new Vector3(forward.z, 0, -forward.x);
     const input = new Vector3(0, 0, 0);
-    if (pressed.has("w")) input.addInPlace(forward);
-    if (pressed.has("s")) input.subtractInPlace(forward);
-    if (pressed.has("d")) input.addInPlace(right);
-    if (pressed.has("a")) input.subtractInPlace(right);
+    const pageMode = Boolean(activeBook && physicalBookStates.get(activeBook.id) === "OPEN");
+    if (pressed.has("w") || (!pageMode && pressed.has("arrowup"))) input.addInPlace(forward);
+    if (pressed.has("s") || (!pageMode && pressed.has("arrowdown"))) input.subtractInPlace(forward);
+    if (pressed.has("d") || (!pageMode && pressed.has("arrowright"))) input.addInPlace(right);
+    if (pressed.has("a") || (!pageMode && pressed.has("arrowleft"))) input.subtractInPlace(right);
     input.x += touchMove.x;
     input.z += touchMove.z;
     if (!interactionBusy && input.lengthSquared() > 0.001) {
@@ -665,9 +659,15 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     player.root.position.x = Math.max(minX, Math.min(maxX, player.root.position.x));
     player.root.position.z = Math.max(minZ, Math.min(maxZ, player.root.position.z));
     player.root.rotation.y = yaw;
-    camera.position.copyFrom(player.root.position.add(new Vector3(0, 1.72, 0)));
     const lookDirection = new Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
-    camera.setTarget(camera.position.add(lookDirection));
+    const followOffset = new Vector3(0, 2.6, -3.2);
+    const rotatedOffset = Vector3.TransformCoordinates(followOffset, Matrix.RotationY(yaw));
+    const desiredCameraPosition = player.root.position.add(rotatedOffset);
+    const desiredTarget = player.root.position.add(new Vector3(0, 1.25, 0)).add(lookDirection.scale(1.4));
+    cameraPosition = Vector3.Lerp(cameraPosition, desiredCameraPosition, Math.min(1, dt * 7));
+    cameraTarget = Vector3.Lerp(cameraTarget, desiredTarget, Math.min(1, dt * 9));
+    camera.position.copyFrom(cameraPosition);
+    camera.setTarget(cameraTarget);
   });
 
   const dispose = () => {
