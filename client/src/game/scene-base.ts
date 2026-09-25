@@ -183,6 +183,34 @@ function addUniversityShell(scene: Scene, materials: MaterialSet) {
   makeBox(scene, "central-hall-inlay", { width: centralHall.width, height: 0.025, depth: centralHall.length }, new Vector3(0, 0.03, -5), materials.ceiling, false);
 }
 
+function addCoreFacilities(scene: Scene, materials: MaterialSet) {
+  const { building, floors, reading, study, stairs, elevator } = LIBRARY_CONFIG;
+  const tableMaterial = materials.wall;
+  const seatMaterial = materials.uniform;
+  const addTable = (name: string, x: number, z: number, y = 0) => {
+    makeBox(scene, `${name}-top`, { width: 2.4, height: 0.12, depth: 1.0 }, new Vector3(x, y + 0.78, z), tableMaterial, true);
+    makeBox(scene, `${name}-leg-a`, { width: 0.10, height: 0.76, depth: 0.10 }, new Vector3(x - 0.92, y + 0.38, z - 0.34), tableMaterial, true);
+    makeBox(scene, `${name}-leg-b`, { width: 0.10, height: 0.76, depth: 0.10 }, new Vector3(x + 0.92, y + 0.38, z - 0.34), tableMaterial, true);
+    [-0.78, 0.78].forEach((offset, index) => makeBox(scene, `${name}-chair-${index}`, { width: 0.42, height: 0.72, depth: 0.42 }, new Vector3(x + offset, y + 0.36, z + 0.85), seatMaterial, true));
+  };
+  [-4, 0, 4].forEach((x, index) => addTable(`reading-table-${index}`, x, 22));
+  [-4, 0, 4].forEach((x, index) => makeBox(scene, `study-desk-${index}`, { width: study.deskWidth, height: 0.75, depth: study.deskDepth }, new Vector3(x, 0.4, 15), tableMaterial, true));
+  const stairStepCount = 12;
+  [-(building.width * 0.5 - 5), building.width * 0.5 - 5].forEach((x, side) => {
+    for (let step = 0; step < stairStepCount; step += 1) {
+      const y = step * (floors.first / stairStepCount);
+      makeBox(scene, `stair-${side}-${step}`, { width: stairs.width, height: Math.max(0.16, y + 0.16), depth: 0.45 }, new Vector3(x, y * 0.5, 3 + step * 0.45), tableMaterial, true);
+    }
+    makeBox(scene, `stair-${side}-rail`, { width: 0.08, height: 1.1, depth: 5.8 }, new Vector3(x + (side ? 0.75 : -0.75), 1.0, 5.6), seatMaterial, true);
+  });
+  makeBox(scene, "elevator-shaft", { width: elevator.width + 0.5, height: 12.6, depth: elevator.depth + 0.5 }, new Vector3(18, 4.2, 0), tableMaterial, true);
+  makeBox(scene, "elevator-door", { width: elevator.doorWidth, height: 2.1, depth: 0.10 }, new Vector3(18, 1.05, -1.15), seatMaterial, false);
+  makeBox(scene, "reading-zone-marker", { width: reading.width, height: 0.02, depth: reading.length }, new Vector3(0, 0.02, 22), materials.ceiling, false);
+  ["GENERAL", "REFERENCE", "PERIODICALS", "SPECIAL COLLECTIONS"].forEach((label, index) => {
+    makeBox(scene, `section-sign-${label.toLowerCase().replaceAll(" ", "-")}`, { width: 2.2, height: 0.18, depth: 0.06 }, new Vector3(-9 + index * 6, 2.7, -11.7), materials.ceiling, false);
+  });
+}
+
 function createPlayer(scene: Scene, materials: MaterialSet) {
   const root = new Mesh("player-root", scene);
   root.position = new Vector3(0, 0, LIBRARY_CONFIG.entrance.southZ + 5.5);
@@ -244,6 +272,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
 
   // University shell and entrance, then the existing reference-style bookcases.
   addUniversityShell(scene, materials);
+  addCoreFacilities(scene, materials);
   const bookVisuals = addReferenceBookcases(scene, worldState);
 
   const ambient = new HemisphericLight("ambient", new Vector3(0, 1, 0), scene);
