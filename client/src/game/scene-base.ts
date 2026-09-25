@@ -243,6 +243,22 @@ function createPlayer(scene: Scene, materials: MaterialSet) {
   return { root, torso, head, leftArm, rightArm, parts: [torso, head, leftArm, rightArm, leftLeg, rightLeg, leftShoe, rightShoe] };
 }
 
+function createFirstPersonHands(scene: Scene, camera: UniversalCamera, materials: MaterialSet) {
+  const makeHand = (name: string, position: Vector3) => {
+    const hand = MeshBuilder.CreateBox(name, { width: 0.18, height: 0.25, depth: 0.22 }, scene);
+    hand.parent = camera;
+    hand.position.copyFrom(position);
+    hand.material = materials.skin;
+    hand.isPickable = false;
+    hand.checkCollisions = false;
+    return hand;
+  };
+  return {
+    left: makeHand("first-person-left-hand", new Vector3(-0.42, -0.38, 0.82)),
+    right: makeHand("first-person-right-hand", new Vector3(0.42, -0.38, 0.82)),
+  };
+}
+
 export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement): Promise<GameHandle> {
   const scene = new Scene(engine);
   const worldState = new WorldStateStore();
@@ -274,17 +290,14 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   ceilingLight.range = 22;
 
   const player = createPlayer(scene, materials);
-  const camera = new UniversalCamera("third-person-follow-camera", player.root.position.add(new Vector3(0, 2.6, -3.2)), scene);
-  camera.setTarget(player.root.position.add(new Vector3(0, 1.35, 0)));
+  const camera = new UniversalCamera("first-person-camera", player.root.position.add(new Vector3(0, 1.72, 0)), scene);
+  camera.setTarget(camera.position.add(new Vector3(0, 0, 1)));
   camera.minZ = 0.1;
   camera.maxZ = 100;
   camera.fov = 0.82;
   scene.activeCamera = camera;
-  player.root.isVisible = true;
-  player.parts.forEach((part) => { part.isVisible = true; });
-  const hands = { left: player.leftArm, right: player.rightArm };
-  let cameraPosition = camera.position.clone();
-  let cameraTarget = player.root.position.add(new Vector3(0, 1.35, 0));
+  player.root.isVisible = false;
+  const hands = createFirstPersonHands(scene, camera, materials);
 
   const pressed = new Set<string>();
   const touchMove = { x: 0, z: 0 };
@@ -324,7 +337,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
       const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === book.id);
       if (mesh) {
         mesh.unfreezeWorldMatrix();
-        mesh.parent = player.root;
+        mesh.parent = camera;
         mesh.position.set(0, -0.08, 0.78);
         mesh.rotation.set(0, 0, 0);
         physicalBookStates.set(book.id, "OPENING");
@@ -562,7 +575,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
           if (active.elapsed > 0.42) { active.phase = "pull"; active.elapsed = 0; active.start = mesh.position.clone(); mesh.unfreezeWorldMatrix(); mesh.checkCollisions = false; }
         } else if (active.phase === "pull") {
           const progress = Math.min(1, active.elapsed / 0.48);
-          const handTarget = player.root.position.add(new Vector3(0.42, 1.35, 0.72));
+          const handTarget = camera.position.add(new Vector3(0.42, -0.38, 0.78));
           const shelfExit = (active.start ?? mesh.position).add(new Vector3(0, 0, 0.55));
           mesh.position.copyFrom(Vector3.Lerp(active.start ?? mesh.position, shelfExit, Math.min(1, progress * 2)));
           if (progress > 0.5) mesh.position.copyFrom(Vector3.Lerp(shelfExit, handTarget, (progress - 0.5) * 2));
@@ -584,9 +597,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
           hands.right.position.x = damp(hands.right.position.x, 0.36, 10, dt);
           hands.right.position.y = damp(hands.right.position.y, -0.22, 10, dt);
           hands.right.position.z = damp(hands.right.position.z, 0.72, 10, dt);
-          mesh.parent = player.root;
+          mesh.parent = camera;
           mesh.position.x = damp(mesh.position.x, 0, 12, dt);
-          mesh.position.y = damp(mesh.position.y, 1.45, 12, dt);
+          mesh.position.y = damp(mesh.position.y, -0.12, 12, dt);
           mesh.position.z = damp(mesh.position.z, 0.76, 12, dt);
           if (active.elapsed > 0.62) {
             physicalBookStates.set(book.id, "OPEN");
@@ -659,15 +672,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     player.root.position.x = Math.max(minX, Math.min(maxX, player.root.position.x));
     player.root.position.z = Math.max(minZ, Math.min(maxZ, player.root.position.z));
     player.root.rotation.y = yaw;
+    camera.position.copyFrom(player.root.position.add(new Vector3(0, 1.72, 0)));
     const lookDirection = new Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
-    const followOffset = new Vector3(0, 2.6, -3.2);
-    const rotatedOffset = Vector3.TransformCoordinates(followOffset, Matrix.RotationY(yaw));
-    const desiredCameraPosition = player.root.position.add(rotatedOffset);
-    const desiredTarget = player.root.position.add(new Vector3(0, 1.25, 0)).add(lookDirection.scale(1.4));
-    cameraPosition = Vector3.Lerp(cameraPosition, desiredCameraPosition, Math.min(1, dt * 7));
-    cameraTarget = Vector3.Lerp(cameraTarget, desiredTarget, Math.min(1, dt * 9));
-    camera.position.copyFrom(cameraPosition);
-    camera.setTarget(cameraTarget);
+    camera.setTarget(camera.position.add(lookDirection));
   });
 
   const dispose = () => {
