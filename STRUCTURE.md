@@ -27,3 +27,12 @@ React 19 كإطار خارجي فقط، وBabylon.js كمالك للـ canvas و
 ## Hosting notes
 
 الأصول الكبيرة تستعمل روابط `/manus-storage/...` الخاصة بالمشروع بدل ملفات محلية داخل source tree. المشروع يبقى Vite static ويدعم build مناسباً لـ Vercel.
+
+
+## Phase 2 architecture
+
+- `client/src/game/architecture-config.ts` centralizes building, floor, corridor, room, door, stair, elevator, and shelf dimensions.
+- World hierarchy: `Building → Floor → Section → Row → Shelf → Slot → Book`.
+- Coordinate system: X east/west, Y vertical, Z north/south; floor levels are basement `-4.2`, ground `0`, first `4.2`, second `8.4`; building envelope is X `-24..24`, Z `-36..36`.
+- Existing scene and interaction code remains the owner of Babylon nodes. New architectural factories layer onto `scene-base.ts` and preserve the existing `GameHandle` contract.
+- Static architecture uses shared materials, frozen world matrices, simple collision boxes, and distance-aware visibility for mobile performance.

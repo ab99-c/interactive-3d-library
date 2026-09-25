@@ -73,3 +73,27 @@
 ## ما هو خارج الخطة حالياً
 
 الشخصية المرئية من منظور ثالث، الألغاز، الأعداء، المهام الطويلة، الحفظ بين الجلسات، الصوت المتقدم، ودعم الهاتف باللمس. يمكن إضافتها في مرحلة ثانية بعد تجربة النسخة الأولى.
+
+
+# Phase 2 Plan: University Library Expansion
+
+## Scope
+Preserve the existing First Person player, visible hands, book opening, carrying, manual return, persistence, HUD, and progression. Add the university-building layer incrementally.
+
+## Risk tasks
+
+1. **Multi-floor traversal:** use one world coordinate system with basement `-4.2`, ground `0`, first `4.2`, and second `8.4`. Verify stairs and elevator transitions without clipping or camera jumps.
+2. **Book hierarchy and persistence:** retain WorldStateStore and add immutable building/floor/section/row/shelf/slot metadata. Verify take, carry, place, reload, and return behavior.
+3. **Mobile scale:** share materials, freeze static meshes, simplify collision boxes, and use light-mode visibility/detail reductions. Verify portrait and landscape touch control.
+
+## Build slices
+
+- Centralize dimensions in `architecture-config.ts`.
+- Expand shell, entrance, reception, central hall, corridors, and floor slabs.
+- Add facilities, stairs, elevator, exits, windows, reading/study areas, and signs.
+- Extend shelf/book metadata without replacing the existing book system.
+- Add mobile interaction affordances only where needed.
+
+## Verification
+
+Run `pnpm test`, `pnpm check`, `pnpm build`, and `git diff --check` after every slice. The browser proof must show first-person entrance, central hall circulation, shelf approach, and book interaction without console errors.

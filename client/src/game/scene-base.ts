@@ -15,6 +15,7 @@ import { WorldStateStore } from "./engine/world-state";
 import { parseCommand } from "./engine/command-parser";
 import { createSpring, stepSpring, damp, type Spring } from "./engine/simulation";
 import pageData from "./hayy-pages-data.json";
+import { LIBRARY_CONFIG } from "./architecture-config";
 
 export type PerformanceMode = "cinematic" | "light";
 export type BookInfo = { id: string; title: string; section: string; callNumber: string };
@@ -161,9 +162,30 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
   return bookVisuals;
 }
 
+function addUniversityShell(scene: Scene, materials: MaterialSet) {
+  const { building, floors, entrance, reception, centralHall } = LIBRARY_CONFIG;
+  const wallHeight = floors.second + building.floorHeight - floors.basement;
+  const shellCenterY = floors.basement + wallHeight * 0.5;
+  [floors.basement, floors.ground, floors.first, floors.second].forEach((level, index) => {
+    makeBox(scene, `library-floor-${index}`, { width: building.width, height: building.floorThickness, depth: building.length }, new Vector3(0, level - building.floorThickness * 0.5, 0), materials.floor, true);
+  });
+  makeBox(scene, "university-north-wall", { width: building.width, height: wallHeight, depth: building.wallThickness }, new Vector3(0, shellCenterY, building.maxZ), materials.wall, true);
+  makeBox(scene, "university-west-wall", { width: building.wallThickness, height: wallHeight, depth: building.length }, new Vector3(building.minX, shellCenterY, 0), materials.wall, true);
+  makeBox(scene, "university-east-wall", { width: building.wallThickness, height: wallHeight, depth: building.length }, new Vector3(building.maxX, shellCenterY, 0), materials.wall, true);
+  const sideWidth = (building.width - entrance.width) * 0.5;
+  makeBox(scene, "university-south-west", { width: sideWidth, height: wallHeight, depth: building.wallThickness }, new Vector3(-(building.width + entrance.width) * 0.25, shellCenterY, building.minZ), materials.wall, true);
+  makeBox(scene, "university-south-east", { width: sideWidth, height: wallHeight, depth: building.wallThickness }, new Vector3((building.width + entrance.width) * 0.25, shellCenterY, building.minZ), materials.wall, true);
+  makeBox(scene, "entrance-left-door", { width: entrance.width * 0.48, height: 2.4, depth: 0.12 }, new Vector3(-entrance.width * 0.25, 1.2, building.minZ + 0.08), materials.ceiling, false);
+  makeBox(scene, "entrance-right-door", { width: entrance.width * 0.48, height: 2.4, depth: 0.12 }, new Vector3(entrance.width * 0.25, 1.2, building.minZ + 0.08), materials.ceiling, false);
+  makeBox(scene, "entrance-mat", { width: entrance.width, height: 0.02, depth: entrance.depth }, new Vector3(0, 0.02, building.minZ + entrance.depth * 0.5), materials.ceiling, false);
+  makeBox(scene, "reception-desk", { width: reception.width, height: 1.05, depth: 0.8 }, new Vector3(0, 0.55, building.minZ + 8), materials.wall, true);
+  makeBox(scene, "reception-sign", { width: reception.width * 0.72, height: 0.18, depth: 0.06 }, new Vector3(0, 1.35, building.minZ + 7.55), materials.ceiling, false);
+  makeBox(scene, "central-hall-inlay", { width: centralHall.width, height: 0.025, depth: centralHall.length }, new Vector3(0, 0.03, -5), materials.ceiling, false);
+}
+
 function createPlayer(scene: Scene, materials: MaterialSet) {
   const root = new Mesh("player-root", scene);
-  root.position = new Vector3(0, 0, 7.5);
+  root.position = new Vector3(0, 0, LIBRARY_CONFIG.entrance.southZ + 5.5);
   root.ellipsoid = new Vector3(0.42, 1.0, 0.42);
   root.ellipsoidOffset = new Vector3(0, 1.0, 0);
   root.checkCollisions = true;
@@ -220,12 +242,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     shoe: makeMaterial(scene, "player-shoe", COLORS.shoe),
   };
 
-  // Room shell plus the two reference-style bookcases on the rear wall.
-  makeBox(scene, "floor", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, -0.15, 0), materials.floor, true);
-  makeBox(scene, "back-wall", { width: 24, height: 7, depth: 0.3 }, new Vector3(0, 3.5, -13.5), materials.wall, true);
-  makeBox(scene, "left-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(-12, 3.5, 0), materials.wall, true);
-  makeBox(scene, "right-wall", { width: 0.3, height: 7, depth: 28 }, new Vector3(12, 3.5, 0), materials.wall, true);
-  makeBox(scene, "ceiling", { width: 24, height: 0.25, depth: 28 }, new Vector3(0, 7, 0), materials.ceiling, false);
+  // University shell and entrance, then the existing reference-style bookcases.
+  addUniversityShell(scene, materials);
   const bookVisuals = addReferenceBookcases(scene, worldState);
 
   const ambient = new HemisphericLight("ambient", new Vector3(0, 1, 0), scene);
@@ -238,8 +256,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   ceilingLight.range = 22;
 
   const player = createPlayer(scene, materials);
-  const camera = new UniversalCamera("first-person-camera", new Vector3(0, 1.72, 7.5), scene);
-  camera.setTarget(new Vector3(0, 1.72, 6.5));
+  const camera = new UniversalCamera("first-person-camera", player.root.position.add(new Vector3(0, 1.72, 0)), scene);
+  camera.setTarget(camera.position.add(new Vector3(0, 0, -1)));
   camera.minZ = 0.1;
   camera.maxZ = 100;
   camera.fov = 0.82;
@@ -613,7 +631,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     velocityY += -9.8 * dt;
     player.root.moveWithCollisions(new Vector3(0, velocityY * dt, 0));
     if (player.root.position.y <= 0) { player.root.position.y = 0; velocityY = 0; }
-    const minX = -10.8; const maxX = 10.8; const minZ = -12.1; const maxZ = 12.1;
+    const minX = LIBRARY_CONFIG.building.minX + 0.6; const maxX = LIBRARY_CONFIG.building.maxX - 0.6;
+    const minZ = LIBRARY_CONFIG.building.minZ + 0.6; const maxZ = LIBRARY_CONFIG.building.maxZ - 0.6;
     player.root.position.x = Math.max(minX, Math.min(maxX, player.root.position.x));
     player.root.position.z = Math.max(minZ, Math.min(maxZ, player.root.position.z));
     player.root.rotation.y = yaw;
