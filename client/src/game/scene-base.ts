@@ -291,7 +291,9 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
 
   const player = createPlayer(scene, materials);
   const camera = new UniversalCamera("first-person-camera", player.root.position.add(new Vector3(0, 1.72, 0)), scene);
-  camera.setTarget(camera.position.add(new Vector3(0, 0, 1)));
+  camera.parent = player.root;
+  camera.position.set(0, 1.72, 0);
+  camera.rotation.set(-0.08, 0, 0);
   camera.minZ = 0.1;
   camera.maxZ = 100;
   camera.fov = 0.82;
@@ -365,23 +367,29 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const openBookByMeshName = (meshName: string) => {
     const mesh = scene.getMeshByName(meshName);
     const book = mesh?.metadata?.book as BookInfo | undefined;
-    return book ? announceBook(book) : false;
+    return book && heldBookId === book.id ? announceBook(book) : false;
   };
   const openNearestBook = () => {
-    const nearest = heldBookId ? bookMeshes().find((candidate) => candidate.metadata?.book?.id === heldBookId) : bookMeshes().sort((a, b) => Vector3.DistanceSquared(a.getAbsolutePosition(), player.root.position) - Vector3.DistanceSquared(b.getAbsolutePosition(), player.root.position))[0];
+    const nearest = heldBookId ? bookMeshes().find((candidate) => candidate.metadata?.book?.id === heldBookId) : undefined;
     const book = nearest?.metadata?.book as BookInfo | undefined;
     return book ? announceBook(book) : false;
   };
   const openBookById = (bookId: string) => {
     const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === bookId);
     const book = mesh?.metadata?.book as BookInfo | undefined;
-    return book ? announceBook(book) : false;
+    return book && heldBookId === book.id ? announceBook(book) : false;
   };
-  const nearestBookMesh = () => bookMeshes().sort((a, b) => Vector3.DistanceSquared(a.position, player.root.position) - Vector3.DistanceSquared(b.position, player.root.position))[0];
+  const lookedAtBook = () => {
+    const picked = scene.pick(scene.getEngine().getRenderWidth() * 0.5, scene.getEngine().getRenderHeight() * 0.5);
+    const mesh = picked?.pickedMesh;
+    if (!mesh?.metadata?.book) return undefined;
+    return Vector3.Distance(mesh.getAbsolutePosition(), player.root.getAbsolutePosition()) <= 1.5 ? mesh : undefined;
+  };
+  const nearestBookMesh = () => bookMeshes().sort((a, b) => Vector3.DistanceSquared(a.getAbsolutePosition(), player.root.getAbsolutePosition()) - Vector3.DistanceSquared(b.getAbsolutePosition(), player.root.getAbsolutePosition()))[0];
   const beginTake = (candidate: AbstractMesh | undefined) => {
     if (heldBookId || physicalInteraction) return false;
     const book = candidate?.metadata?.book as BookInfo | undefined;
-    if (!candidate || !book || !["ON_SHELF", "PLACED", "RETURNED"].includes(physicalBookStates.get(book.id) ?? "ON_SHELF")) {
+    if (!candidate || !book || Vector3.Distance(candidate.getAbsolutePosition(), player.root.getAbsolutePosition()) > 1.5 || !["ON_SHELF", "PLACED", "RETURNED"].includes(physicalBookStates.get(book.id) ?? "ON_SHELF")) {
       window.dispatchEvent(new CustomEvent("library:command-failed", { detail: { message: "الكتاب بعيد أو غير قابل للوصول." } }));
       return false;
     }
@@ -390,7 +398,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     syncBookState(candidate, book, { state: "moving", isMoving: true, lastAction: "TAKE_APPROACH" });
     return true;
   };
-  const takeNearestBook = () => beginTake(nearestBookMesh());
+  const takeNearestBook = () => beginTake(lookedAtBook());
   const releaseHeldBook = () => {
     if (!heldBookId) return false;
     const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === heldBookId);
@@ -480,7 +488,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
       if (handSpread <= 0.3) closeBook();
       return;
     }
-    if (key === "e") { openNearestBook(); return; }
+    if (key === "e") { if (heldBookId) openNearestBook(); else takeNearestBook(); return; }
     if (key === "g") { takeNearestBook(); return; }
     if (key === "f") { releaseHeldBook(); return; }
     if (key === "r") { returnNearestBook(); return; }
@@ -512,10 +520,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const onCanvasClick = () => {
     const picked = scene.pick(scene.getEngine().getRenderWidth() * 0.5, scene.getEngine().getRenderHeight() * 0.5);
     const book = picked?.pickedMesh?.metadata?.book as BookInfo | undefined;
-    if (book && picked?.pickedMesh) {
-      const taken = !heldBookId && beginTake(picked.pickedMesh as Mesh);
-      if (!taken) announceBook(book);
-    }
+    if (book && heldBookId === book.id) announceBook(book);
   };
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
@@ -672,9 +677,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     player.root.position.x = Math.max(minX, Math.min(maxX, player.root.position.x));
     player.root.position.z = Math.max(minZ, Math.min(maxZ, player.root.position.z));
     player.root.rotation.y = yaw;
-    camera.position.copyFrom(player.root.position.add(new Vector3(0, 1.72, 0)));
-    const lookDirection = new Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
-    camera.setTarget(camera.position.add(lookDirection));
+    camera.rotation.x = pitch;
+    camera.rotation.y = 0;
   });
 
   const dispose = () => {
