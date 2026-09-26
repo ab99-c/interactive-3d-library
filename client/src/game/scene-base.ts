@@ -19,8 +19,24 @@ import pageData from "./hayy-pages-data.json";
 import { LIBRARY_CONFIG } from "./architecture-config";
 
 export type PerformanceMode = "cinematic" | "light";
-export type BookInfo = { id: string; title: string; section: string; callNumber: string };
 type PhysicalBookState = "ON_SHELF" | "TAKING" | "HELD_RIGHT" | "OPENING" | "HELD_TWO_HANDS" | "OPEN" | "TURNING_PAGE" | "CLOSING" | "CLOSED" | "RELEASING" | "PLACED" | "RETURNING" | "RETURNED";
+export type BookInfo = {
+  id: string;
+  title: string;
+  section: string;
+  callNumber: string;
+  floor: string;
+  shelf: string;
+  shelfId: string;
+  row: number;
+  slot: number;
+  color: string;
+  width: number;
+  height: number;
+  thickness: number;
+  state: PhysicalBookState;
+  contentAvailable: boolean;
+};
 type BookVisual = { leftCover: Mesh; rightCover: Mesh; leftPages: Mesh; rightPages: Mesh; spine: Mesh; pageLeaves: Mesh[]; coverSpring: Spring; pageSpring: Spring; pageIndex: number; pages: string[]; width: number; height: number };
 export let BOOK_COUNT = 0;
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
@@ -140,8 +156,17 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     book.isPickable = true;
     book.checkCollisions = false;
     const [title, section, prefix] = catalog[bookSerial % catalog.length];
-    book.metadata = { book: { id: `BOOK-${prefix}-${String(bookSerial + 1).padStart(4, "0")}`, title, section, callNumber: `${prefix}-${String(101 + (bookSerial % 899)).padStart(3, "0")}`, ...location } satisfies BookInfo, bookRoot: true };
-    const bookInfo = book.metadata.book as BookInfo;
+    const bookId = `BOOK-F${location.floor === "ground" ? "0" : "1"}-${prefix}-${String(bookSerial + 1).padStart(4, "0")}`;
+    const contentAvailable = bookSerial % 7 !== 0;
+    const bookInfo = { id: bookId, title, section, callNumber: `${prefix}-${String(101 + (bookSerial % 899)).padStart(3, "0")}`, ...location, shelfId: location.shelf, color: material.diffuseColor.toHexString(), width, height, thickness: 0.25, state: "ON_SHELF" as PhysicalBookState, contentAvailable } satisfies BookInfo;
+    book.metadata = { book: bookInfo, bookRoot: true };
+    const interactionCollider = MeshBuilder.CreateBox(`${name}-interaction-collider`, { width: Math.max(width, 0.18), height: height + 0.10, depth: 0.32 }, scene);
+    interactionCollider.parent = book;
+    interactionCollider.position.set(0, 0, 0.02);
+    interactionCollider.isVisible = false;
+    interactionCollider.isPickable = true;
+    interactionCollider.checkCollisions = false;
+    interactionCollider.metadata = { book: bookInfo, bookRoot: false, interactionCollider: true };
     const leftCover = MeshBuilder.CreateBox(`${name}-left-cover`, { width: width * 0.5 + 0.025, height: height + 0.045, depth: 0.035 }, scene);
     const rightCover = MeshBuilder.CreateBox(`${name}-right-cover`, { width: width * 0.5 + 0.025, height: height + 0.045, depth: 0.035 }, scene);
     const leftPages = MeshBuilder.CreateBox(`${name}-left-pages`, { width: Math.max(0.08, width * 0.5 - 0.035), height: height - 0.035, depth: 0.19 }, scene);
@@ -157,7 +182,7 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
       leaf.position.set(index < 2 ? -width * 0.25 : width * 0.25, 0, 0.11 + (index % 2) * 0.006);
       leaf.material = pageMaterial; leaf.metadata = { book: bookInfo, bookRoot: false }; leaf.isPickable = true; leaf.setEnabled(false); return leaf;
     });
-    const visual: BookVisual = { leftCover, rightCover, leftPages, rightPages, spine: book, pageLeaves, coverSpring: createSpring(0, 120, 20), pageSpring: createSpring(0, 210, 26), pageIndex: 0, pages: pageData.pages, width, height };
+    const visual: BookVisual = { leftCover, rightCover, leftPages, rightPages, spine: book, pageLeaves, coverSpring: createSpring(0, 120, 20), pageSpring: createSpring(0, 210, 26), pageIndex: 0, pages: contentAvailable ? pageData.pages : [""], width, height };
     book.metadata.bookVisual = visual;
     bookVisuals.set(bookInfo.id, visual);
     const saved = worldState.register({ id: bookInfo.id, type: "book", name: bookInfo.title, model: "procedural-book", transform: book, metadata: bookInfo, onShelf: true });
@@ -412,13 +437,14 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   let lastTargetId: string | null = null;
   let activeBook: BookInfo | null = null;
   let heldBookId: string | null = null;
+  let selectedBookId: string | null = null;
   let activePageIndex = 0;
   let handSpread = 1.18;
   const physicalBookStates = new Map<string, PhysicalBookState>();
   let physicalInteraction: { phase: "approach" | "reach" | "pull" | "open" | "close" | "return"; bookId: string; elapsed: number; start?: Vector3 } | null = null;
 
   const publishPage = (book: BookInfo, visual: BookVisual) => {
-    const text = visual.pages[visual.pageIndex % visual.pages.length] ?? "هذه الصفحة هادئة مثل القاعة.";
+    const text = visual.pages[visual.pageIndex % visual.pages.length] || "صفحة فارغة — هذا الكتاب جاهز لإضافة المحتوى.";
     window.dispatchEvent(new CustomEvent("library:book-page", { detail: { bookId: book.id, pageIndex: visual.pageIndex, pageCount: visual.pages.length, text } }));
   };
   const setBookOpen = (book: BookInfo, opened: boolean) => {
@@ -460,6 +486,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     return meshes;
   };
   const syncBookState = (mesh: AbstractMesh, book: BookInfo, patch: Record<string, unknown> = {}) => {
+    book.state = physicalBookStates.get(book.id) ?? book.state;
     worldState.updateTransform(book.id, { position: mesh.getAbsolutePosition(), rotation: mesh.rotation, scaling: mesh.scaling }, patch as never);
     window.dispatchEvent(new CustomEvent("library:book-physical-state", { detail: { bookId: book.id, state: physicalBookStates.get(book.id), ...patch } }));
   };
@@ -632,10 +659,14 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const mesh = resolveBookRoot(picked?.pickedMesh);
     const book = mesh?.metadata?.book as BookInfo | undefined;
     if (!book || !mesh) return;
-    if (Vector3.Distance(mesh.getAbsolutePosition(), player.root.getAbsolutePosition()) > 1.5) {
-      window.dispatchEvent(new CustomEvent("library:command-failed", { detail: { message: "قرب من الكتاب حتى 1.5 متر باش تتفاعل معاه." } }));
+    const distance = Vector3.Distance(mesh.getAbsolutePosition(), player.root.getAbsolutePosition());
+    if (distance > 1.5) {
+      selectedBookId = book.id;
+      window.dispatchEvent(new CustomEvent("library:book-target", { detail: { bookId: book.id, title: book.title, distance, held: false, open: false, nearby: false, selected: true } }));
+      window.dispatchEvent(new CustomEvent("library:command-failed", { detail: { message: `تحدد الكتاب «${book.title}». قرب ليه حتى 1.5 متر باش تاخدو.` } }));
       return;
     }
+    selectedBookId = book.id;
     if (heldBookId === book.id) announceBook(book);
     else beginTake(mesh);
   };
@@ -682,13 +713,15 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         leaf.rotation.y = damp(leaf.rotation.y, index === activePageIndex % visual.pageLeaves.length ? page * side : 0, 22, dt);
       });
     });
-    const targetMesh = resolveBookRoot(scene.pick(scene.getEngine().getRenderWidth() * 0.5, scene.getEngine().getRenderHeight() * 0.5)?.pickedMesh);
+    const centerMesh = resolveBookRoot(scene.pick(scene.getEngine().getRenderWidth() * 0.5, scene.getEngine().getRenderHeight() * 0.5)?.pickedMesh);
+    const selectedMesh = selectedBookId ? bookMeshes().find((candidate) => candidate.metadata?.book?.id === selectedBookId) : undefined;
+    const targetMesh = centerMesh && Vector3.Distance(centerMesh.getAbsolutePosition(), player.root.getAbsolutePosition()) <= 1.5 ? centerMesh : selectedMesh;
     const targetBook = targetMesh?.metadata?.book as BookInfo | undefined;
     const targetDistance = targetMesh ? Vector3.Distance(targetMesh.getAbsolutePosition(), player.root.getAbsolutePosition()) : Infinity;
-    const nextTargetId = targetBook && targetDistance <= 1.5 ? targetBook.id : null;
+    const nextTargetId = targetBook && (targetDistance <= 1.5 || targetBook.id === selectedBookId) ? targetBook.id : null;
     if (nextTargetId !== lastTargetId) {
       lastTargetId = nextTargetId;
-      window.dispatchEvent(new CustomEvent("library:book-target", { detail: nextTargetId && targetBook ? { bookId: targetBook.id, title: targetBook.title, distance: targetDistance, held: heldBookId === targetBook.id, open: activeBook?.id === targetBook.id } : null }));
+      window.dispatchEvent(new CustomEvent("library:book-target", { detail: nextTargetId && targetBook ? { bookId: targetBook.id, title: targetBook.title, distance: targetDistance, held: heldBookId === targetBook.id, open: activeBook?.id === targetBook.id, nearby: targetDistance <= 1.5 } : null }));
     }
     const interactionBusy = Boolean(physicalInteraction);
     if (physicalInteraction) {
