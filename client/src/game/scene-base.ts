@@ -9,6 +9,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
 import "@babylonjs/core/Collisions/collisionCoordinator";
 import "@babylonjs/core/Culling/ray";
 import { WorldStateStore } from "./engine/world-state";
@@ -46,9 +47,9 @@ export type GameHandle = {
 type MaterialSet = { floor: StandardMaterial; wall: StandardMaterial; ceiling: StandardMaterial; uniform: StandardMaterial; skin: StandardMaterial; shoe: StandardMaterial };
 
 const COLORS = {
-  floor: new Color3(0.12, 0.065, 0.032),
-  wall: new Color3(0.42, 0.34, 0.23),
-  ceiling: new Color3(0.24, 0.12, 0.055),
+  floor: new Color3(0.24, 0.15, 0.085),
+  wall: new Color3(0.62, 0.50, 0.35),
+  ceiling: new Color3(0.20, 0.12, 0.065),
   navy: new Color3(0.035, 0.08, 0.18),
   skin: new Color3(0.72, 0.45, 0.30),
   shoe: new Color3(0.025, 0.02, 0.018),
@@ -61,6 +62,43 @@ function makeMaterial(scene: Scene, name: string, color: Color3) {
   material.diffuseColor = color;
   material.ambientColor = color.scale(0.38);
   material.specularColor = new Color3(0.12, 0.09, 0.06);
+  return material;
+}
+
+function makeCoverMaterial(scene: Scene, name: string, color: Color3, accent: string) {
+  const material = makeMaterial(scene, name, color);
+  material.specularColor = new Color3(0.28, 0.24, 0.20);
+  const texture = new DynamicTexture(`${name}-art`, { width: 256, height: 384 }, scene, true);
+  const context = texture.getContext();
+  context.fillStyle = `#${accent}`;
+  context.fillRect(0, 0, 256, 384);
+  context.strokeStyle = "rgba(232,198,122,0.82)";
+  context.lineWidth = 7;
+  context.strokeRect(15, 15, 226, 354);
+  context.strokeStyle = "rgba(232,198,122,0.32)";
+  context.lineWidth = 2;
+  context.strokeRect(29, 29, 198, 326);
+  context.fillStyle = "rgba(236,220,180,0.95)";
+  context.font = "bold 20px Georgia";
+  (context as unknown as CanvasRenderingContext2D).textAlign = "center";
+  context.fillText("QUIET STUDY", 128, 112);
+  context.font = "bold 25px Georgia";
+  context.fillText("LIBRARY", 128, 145);
+  context.fillStyle = "rgba(120,190,255,0.9)";
+  context.beginPath();
+  context.arc(128, 242, 48, 0, Math.PI * 2);
+  context.strokeStyle = "rgba(120,190,255,0.72)";
+  context.lineWidth = 2;
+  context.stroke();
+  for (let index = 0; index < 10; index += 1) {
+    const x = 82 + ((index * 37) % 92);
+    const y = 205 + ((index * 29) % 74);
+    context.fillStyle = "rgba(120,190,255,0.88)";
+    context.fillRect(x, y, 4, 4);
+  }
+  texture.update();
+  material.diffuseTexture = texture;
+  material.diffuseColor = Color3.White();
   return material;
 }
 
@@ -83,6 +121,7 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
   ].map((color, index) => makeMaterial(scene, `reference-book-${index}`, color));
   const pageMaterial = makeMaterial(scene, "book-page-ivory", new Color3(0.92, 0.87, 0.72));
   const coverMaterial = makeMaterial(scene, "book-cover-highlight", new Color3(0.46, 0.22, 0.08));
+  const coverArtMaterials = bookColors.map((material, index) => makeCoverMaterial(scene, `book-cover-art-${index}`, material.diffuseColor, ["152640", "203b58", "3b2635", "293b2d", "51331f", "1d2d48", "422d2a", "27313f"][index]));
   const catalog = [
     ["مقدمة ابن خلدون", "التاريخ", "HIS"], ["رسالة الغفران", "الأدب", "LIT"], ["كليلة ودمنة", "التراث", "HER"], ["حي بن يقظان", "الفلسفة", "PHI"],
     ["نهج البلاغة", "التراث", "HER"], ["الأغاني", "الأدب", "LIT"], ["جمهرة اللغة", "اللغة", "LAN"], ["البيان والتبيين", "الأدب", "LIT"],
@@ -108,7 +147,7 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     leftCover.parent = book; rightCover.parent = book; leftPages.parent = book; rightPages.parent = book;
     leftCover.position.set(-width * 0.25, 0, 0.15); rightCover.position.set(width * 0.25, 0, 0.15);
     leftPages.position.set(-width * 0.25, 0, 0); rightPages.position.set(width * 0.25, 0, 0);
-    leftCover.material = coverMaterial; rightCover.material = material; leftPages.material = pageMaterial; rightPages.material = pageMaterial;
+    leftCover.material = coverArtMaterials[bookSerial % coverArtMaterials.length] ?? coverMaterial; rightCover.material = material; leftPages.material = pageMaterial; rightPages.material = pageMaterial;
     leftCover.isPickable = false; rightCover.isPickable = false; leftPages.isPickable = false; rightPages.isPickable = false;
     const pageLeaves = [0, 1, 2, 3].map((index) => {
       const leaf = MeshBuilder.CreateBox(`${name}-leaf-${index}`, { width: Math.max(0.08, width * 0.5 - 0.08), height: height - 0.08, depth: 0.012 }, scene);
@@ -186,6 +225,17 @@ function addUniversityShell(scene: Scene, materials: MaterialSet) {
   makeBox(scene, "reception-desk", { width: reception.width, height: 1.05, depth: 0.8 }, new Vector3(0, 0.55, building.minZ + 8), materials.wall, true);
   makeBox(scene, "reception-sign", { width: reception.width * 0.72, height: 0.18, depth: 0.06 }, new Vector3(0, 1.35, building.minZ + 7.55), materials.ceiling, false);
   makeBox(scene, "central-hall-inlay", { width: centralHall.width, height: 0.025, depth: centralHall.length }, new Vector3(0, 0.03, -5), materials.ceiling, false);
+  const columnMaterial = makeMaterial(scene, "library-column-walnut", new Color3(0.31, 0.13, 0.045));
+  const glassMaterial = makeMaterial(scene, "library-window-glass", new Color3(0.18, 0.32, 0.38));
+  glassMaterial.alpha = 0.42;
+  [-18, -9, 0, 9, 18].forEach((x) => {
+    makeBox(scene, `north-column-${x}`, { width: 0.42, height: wallHeight, depth: 0.42 }, new Vector3(x, shellCenterY, building.maxZ - 0.34), columnMaterial, true);
+    makeBox(scene, `north-window-${x}`, { width: 3.8, height: 2.35, depth: 0.035 }, new Vector3(x, 6.1, building.maxZ - 0.18), glassMaterial, false);
+  });
+  [-14, 0, 14].forEach((z) => {
+    makeBox(scene, `west-column-${z}`, { width: 0.42, height: wallHeight, depth: 0.42 }, new Vector3(building.minX + 0.34, shellCenterY, z), columnMaterial, true);
+    makeBox(scene, `east-column-${z}`, { width: 0.42, height: wallHeight, depth: 0.42 }, new Vector3(building.maxX - 0.34, shellCenterY, z), columnMaterial, true);
+  });
 }
 
 function addCoreFacilities(scene: Scene, materials: MaterialSet) {
@@ -213,6 +263,14 @@ function addCoreFacilities(scene: Scene, materials: MaterialSet) {
   makeBox(scene, "reading-zone-marker", { width: reading.width, height: 0.02, depth: reading.length }, new Vector3(0, 0.02, 22), materials.ceiling, false);
   ["GENERAL", "REFERENCE", "PERIODICALS", "SPECIAL COLLECTIONS"].forEach((label, index) => {
     makeBox(scene, `section-sign-${label.toLowerCase().replaceAll(" ", "-")}`, { width: 2.2, height: 0.18, depth: 0.06 }, new Vector3(-9 + index * 6, 2.7, -11.7), materials.ceiling, false);
+  });
+  const signMaterial = makeMaterial(scene, "section-sign-ink", new Color3(0.035, 0.07, 0.12));
+  const signs: Array<[string, number, number, number]> = [
+    ["MAIN HALL", 0, 2.8, 7.5], ["READING AREA", -8, 2.8, 21.8], ["REFERENCE", 8, 2.8, 21.8],
+  ];
+  signs.forEach(([label, x, y, z], index) => {
+    const sign = makeBox(scene, `library-sign-${index}-${label.toLowerCase().replaceAll(" ", "-")}`, { width: 2.8, height: 0.52, depth: 0.06 }, new Vector3(x, y, z), signMaterial, false);
+    sign.isPickable = false;
   });
 }
 
@@ -245,12 +303,24 @@ function createPlayer(scene: Scene, materials: MaterialSet) {
 
 function createFirstPersonHands(scene: Scene, camera: UniversalCamera, materials: MaterialSet) {
   const makeHand = (name: string, position: Vector3) => {
-    const hand = MeshBuilder.CreateBox(name, { width: 0.18, height: 0.25, depth: 0.22 }, scene);
+    const hand = MeshBuilder.CreateBox(name, { width: 0.26, height: 0.18, depth: 0.24 }, scene);
     hand.parent = camera;
     hand.position.copyFrom(position);
     hand.material = materials.skin;
     hand.isPickable = false;
     hand.checkCollisions = false;
+    const cuff = MeshBuilder.CreateBox(`${name}-cuff`, { width: 0.34, height: 0.20, depth: 0.26 }, scene);
+    cuff.parent = hand;
+    cuff.position.z = -0.17;
+    cuff.material = materials.uniform;
+    cuff.isPickable = false;
+    [-0.09, -0.03, 0.03, 0.09].forEach((offset, index) => {
+      const finger = MeshBuilder.CreateBox(`${name}-finger-${index}`, { width: 0.045, height: 0.10, depth: 0.14 }, scene);
+      finger.parent = hand;
+      finger.position.set(offset, -0.02, 0.13);
+      finger.material = materials.skin;
+      finger.isPickable = false;
+    });
     return hand;
   };
   return {
@@ -288,6 +358,18 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   ceilingLight.diffuse = COLORS.brass;
   ceilingLight.intensity = 3.8;
   ceilingLight.range = 22;
+  [-14, 0, 14].forEach((x, index) => {
+    const light = new PointLight(`reading-light-${index}`, new Vector3(x, 3.6, 20), scene);
+    light.diffuse = new Color3(1.0, 0.72, 0.42);
+    light.intensity = 1.2;
+    light.range = 12;
+  });
+  [-12, 0, 12].forEach((x, index) => {
+    const light = new PointLight(`hall-light-${index}`, new Vector3(x, 3.5, 0), scene);
+    light.diffuse = new Color3(1.0, 0.84, 0.60);
+    light.intensity = 0.85;
+    light.range = 10;
+  });
 
   const player = createPlayer(scene, materials);
   const camera = new UniversalCamera("first-person-camera", player.root.position.add(new Vector3(0, 1.72, 0)), scene);
