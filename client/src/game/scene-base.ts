@@ -132,7 +132,7 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
   ] as const;
   let bookSerial = 0;
   const bookVisuals = new Map<string, BookVisual>();
-  const makeBook = (name: string, position: Vector3, width: number, height: number, lean: number, material: StandardMaterial) => {
+  const makeBook = (name: string, position: Vector3, width: number, height: number, lean: number, material: StandardMaterial, location: { floor: string; shelf: string; row: number; slot: number }) => {
     const book = MeshBuilder.CreateBox(name, { width: 0.045, height, depth: 0.25 }, scene);
     book.position = position;
     book.rotation.z = lean;
@@ -140,7 +140,7 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     book.isPickable = true;
     book.checkCollisions = false;
     const [title, section, prefix] = catalog[bookSerial % catalog.length];
-    book.metadata = { book: { id: `reference-book-${bookSerial}`, title, section, callNumber: `${prefix}-${String(101 + (bookSerial % 899)).padStart(3, "0")}` } satisfies BookInfo, bookRoot: true };
+    book.metadata = { book: { id: `BOOK-${prefix}-${String(bookSerial + 1).padStart(4, "0")}`, title, section, callNumber: `${prefix}-${String(101 + (bookSerial % 899)).padStart(3, "0")}`, ...location } satisfies BookInfo, bookRoot: true };
     const bookInfo = book.metadata.book as BookInfo;
     const leftCover = MeshBuilder.CreateBox(`${name}-left-cover`, { width: width * 0.5 + 0.025, height: height + 0.045, depth: 0.035 }, scene);
     const rightCover = MeshBuilder.CreateBox(`${name}-right-cover`, { width: width * 0.5 + 0.025, height: height + 0.045, depth: 0.035 }, scene);
@@ -150,13 +150,12 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     leftCover.position.set(-width * 0.25, 0, 0.15); rightCover.position.set(width * 0.25, 0, 0.15);
     leftPages.position.set(-width * 0.25, 0, 0); rightPages.position.set(width * 0.25, 0, 0);
     leftCover.material = coverArtMaterials[bookSerial % coverArtMaterials.length] ?? coverMaterial; rightCover.material = material; leftPages.material = pageMaterial; rightPages.material = pageMaterial;
-    [leftCover, rightCover, leftPages, rightPages].forEach((part) => { part.metadata = { book: bookInfo, bookRoot: false }; });
-    leftCover.isPickable = false; rightCover.isPickable = false; leftPages.isPickable = false; rightPages.isPickable = false;
+    [leftCover, rightCover, leftPages, rightPages].forEach((part) => { part.metadata = { book: bookInfo, bookRoot: false }; part.isPickable = true; });
     const pageLeaves = [0, 1, 2, 3].map((index) => {
       const leaf = MeshBuilder.CreateBox(`${name}-leaf-${index}`, { width: Math.max(0.08, width * 0.5 - 0.08), height: height - 0.08, depth: 0.012 }, scene);
       leaf.parent = book;
       leaf.position.set(index < 2 ? -width * 0.25 : width * 0.25, 0, 0.11 + (index % 2) * 0.006);
-      leaf.material = pageMaterial; leaf.isPickable = false; leaf.setEnabled(false); return leaf;
+      leaf.material = pageMaterial; leaf.metadata = { book: bookInfo, bookRoot: false }; leaf.isPickable = true; leaf.setEnabled(false); return leaf;
     });
     const visual: BookVisual = { leftCover, rightCover, leftPages, rightPages, spine: book, pageLeaves, coverSpring: createSpring(0, 120, 20), pageSpring: createSpring(0, 210, 26), pageIndex: 0, pages: pageData.pages, width, height };
     book.metadata.bookVisual = visual;
@@ -174,15 +173,15 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     const local = Vector3.TransformCoordinates(new Vector3(x, y, z), Matrix.RotationY(rotation));
     return new Vector3(centerX + local.x, local.y, centerZ + local.z);
   };
-  const addCase = (centerX: number, centerZ: number, width: number, rotation: number, id: string) => {
-    const collider = makeBox(scene, `bookcase-${id}-collision`, { width: width + 0.56, height: 6.45, depth: 0.82 }, world(centerX, centerZ, rotation, 0, 0, 3.2), wood, true);
+  const addCase = (centerX: number, centerZ: number, width: number, rotation: number, id: string, floor = "ground", floorY = 0) => {
+    const collider = makeBox(scene, `bookcase-${id}-collision`, { width: width + 0.56, height: 6.45, depth: 0.82 }, world(centerX, centerZ, rotation, 0, 0, floorY + 3.2), wood, true);
     collider.isVisible = false;
     collider.rotation.y = rotation;
     collider.freezeWorldMatrix();
-    makeBox(scene, `bookcase-${id}-left`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, -width * 0.5, 0, 3.2), wood, false);
-    makeBox(scene, `bookcase-${id}-right`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, width * 0.5, 0, 3.2), wood, false);
+    makeBox(scene, `bookcase-${id}-left`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, -width * 0.5, 0, floorY + 3.2), wood, false);
+    makeBox(scene, `bookcase-${id}-right`, { width: 0.28, height: 6.45, depth: 0.48 }, world(centerX, centerZ, rotation, width * 0.5, 0, floorY + 3.2), wood, false);
     [0.78, 2.02, 3.26, 4.50, 5.74].forEach((y, row) => {
-      const shelf = makeBox(scene, `bookcase-${id}-shelf-${row}`, { width, height: 0.14, depth: 0.62 }, world(centerX, centerZ, rotation, 0, 0, y), wood, false);
+      const shelf = makeBox(scene, `bookcase-${id}-shelf-${row}`, { width, height: 0.14, depth: 0.62 }, world(centerX, centerZ, rotation, 0, 0, floorY + y), wood, false);
       shelf.rotation.y = rotation;
       let x = -width * 0.5 + 0.16;
       let index = row * 13 + id.length;
@@ -192,7 +191,7 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
         const lean = index % 11 === 3 ? 0.13 : index % 17 === 8 ? -0.11 : 0;
         const bookWidth = Math.min(widthPattern, width * 0.5 - 0.16 - x);
         if (bookWidth < 0.12) break;
-        makeBook(`reference-book-${id}-${row}-${index}`, world(centerX, centerZ, rotation, x + bookWidth * 0.5, 0.33, y + 0.07 + heightPattern * 0.5), bookWidth, heightPattern, lean, bookColors[index % bookColors.length]);
+        makeBook(`reference-book-${id}-${row}-${index}`, world(centerX, centerZ, rotation, x + bookWidth * 0.5, floorY + 0.33, y + 0.07 + heightPattern * 0.5), bookWidth, heightPattern, lean, bookColors[index % bookColors.length], { floor, shelf: id.toUpperCase(), row, slot: Math.max(1, Math.round((x + width * 0.5) / 0.28)) });
         x += bookWidth + 0.025;
         index += 1;
       }
@@ -204,6 +203,8 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
   [ -8.7, -2.9, 2.9, 8.7 ].forEach((z, index) => addCase(10.55, z, 4.6, -Math.PI / 2, `right-${index}`));
   [-5.6, 0, 5.6].forEach((z, index) => addCase(-5.0, z, 4.2, 0, `island-left-${index}`));
   [-5.6, 0, 5.6].forEach((z, index) => addCase(5.0, z, 4.2, 0, `island-right-${index}`));
+  [-10.5, -3.5, 3.5, 10.5].forEach((z, index) => addCase(-14.5, z, 6.2, Math.PI / 2, `upper-west-${index}`, "first", 4.2));
+  [-10.5, -3.5, 3.5, 10.5].forEach((z, index) => addCase(14.5, z, 6.2, -Math.PI / 2, `upper-east-${index}`, "first", 4.2));
   BOOK_COUNT = bookSerial;
   window.dispatchEvent(new CustomEvent("library:catalog-ready", { detail: { count: BOOK_COUNT } }));
   return bookVisuals;
@@ -400,12 +401,15 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   let pitch = -0.08;
   let lastPointerX: number | null = null;
   let lastPointerY: number | null = null;
+  let gestureStartX: number | null = null;
+  let gestureStartY: number | null = null;
   let performanceMode: PerformanceMode = "cinematic";
   let audioEnabled = true;
   let velocityY = 0;
   let lastMoveEventAt = 0;
   let lastPlayerSaveAt = 0;
   let walkTime = 0;
+  let lastTargetId: string | null = null;
   let activeBook: BookInfo | null = null;
   let heldBookId: string | null = null;
   let activePageIndex = 0;
@@ -614,7 +618,14 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     lastPointerX = event.clientX;
     lastPointerY = event.clientY;
   };
-  const resetPointer = () => { lastPointerX = null; lastPointerY = null; };
+  const resetPointer = (event?: PointerEvent) => {
+    if (event && activeBook && physicalBookStates.get(activeBook.id) === "OPEN" && gestureStartX !== null && gestureStartY !== null) {
+      const dx = event.clientX - gestureStartX;
+      const dy = event.clientY - gestureStartY;
+      if (Math.abs(dx) > 42 && Math.abs(dx) > Math.abs(dy) * 1.2) turnActivePage(dx < 0 ? "rtl" : "ltr");
+    }
+    gestureStartX = null; gestureStartY = null; lastPointerX = null; lastPointerY = null;
+  };
   const interactAtClientPoint = (clientX: number, clientY: number) => {
     const rect = canvas.getBoundingClientRect();
     const picked = scene.pick((clientX - rect.left) * (scene.getEngine().getRenderWidth() / rect.width), (clientY - rect.top) * (scene.getEngine().getRenderHeight() / rect.height));
@@ -631,6 +642,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const onPointerDown = (event: PointerEvent) => {
     lastPointerX = event.clientX;
     lastPointerY = event.clientY;
+    gestureStartX = event.clientX;
+    gestureStartY = event.clientY;
     if (event.button === 0 && !(activeBook && physicalBookStates.get(activeBook.id) === "OPEN")) interactAtClientPoint(event.clientX, event.clientY);
   };
   window.addEventListener("keydown", onKeyDown);
@@ -641,7 +654,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   canvas.addEventListener("pointermove", onPointerMove as EventListener);
   canvas.addEventListener("pointerup", resetPointer);
   canvas.addEventListener("pointercancel", resetPointer);
-  canvas.addEventListener("mouseleave", resetPointer);
+  const onMouseLeave = () => resetPointer();
+  canvas.addEventListener("mouseleave", onMouseLeave);
 
   const setTouchLook = (x: number, y: number) => {
     if (activeBook && physicalBookStates.get(activeBook.id) === "OPEN") return;
@@ -668,6 +682,14 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         leaf.rotation.y = damp(leaf.rotation.y, index === activePageIndex % visual.pageLeaves.length ? page * side : 0, 22, dt);
       });
     });
+    const targetMesh = resolveBookRoot(scene.pick(scene.getEngine().getRenderWidth() * 0.5, scene.getEngine().getRenderHeight() * 0.5)?.pickedMesh);
+    const targetBook = targetMesh?.metadata?.book as BookInfo | undefined;
+    const targetDistance = targetMesh ? Vector3.Distance(targetMesh.getAbsolutePosition(), player.root.getAbsolutePosition()) : Infinity;
+    const nextTargetId = targetBook && targetDistance <= 1.5 ? targetBook.id : null;
+    if (nextTargetId !== lastTargetId) {
+      lastTargetId = nextTargetId;
+      window.dispatchEvent(new CustomEvent("library:book-target", { detail: nextTargetId && targetBook ? { bookId: targetBook.id, title: targetBook.title, distance: targetDistance, held: heldBookId === targetBook.id, open: activeBook?.id === targetBook.id } : null }));
+    }
     const interactionBusy = Boolean(physicalInteraction);
     if (physicalInteraction) {
       const active = physicalInteraction;
@@ -816,7 +838,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     canvas.removeEventListener("pointermove", onPointerMove as EventListener);
     canvas.removeEventListener("pointerup", resetPointer);
     canvas.removeEventListener("pointercancel", resetPointer);
-    canvas.removeEventListener("mouseleave", resetPointer);
+    canvas.removeEventListener("mouseleave", onMouseLeave);
     camera.detachControl();
     scene.dispose();
   };
