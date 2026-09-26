@@ -64,10 +64,13 @@ export default function GameCanvas() {
   const returnActiveBookRef = useRef<() => boolean>(() => false);
   const turnActivePageRef = useRef<(direction: "rtl" | "ltr") => boolean>(() => false);
   const setTouchMoveRef = useRef<(x: number, y: number) => void>(() => undefined);
+  const setTouchLookRef = useRef<(x: number, y: number) => void>(() => undefined);
   const setAudioEnabledRef = useRef<(enabled: boolean) => void>(() => undefined);
   const joystickRef = useRef<HTMLDivElement>(null);
   const joystickKnobRef = useRef<HTMLDivElement>(null);
   const joystickPointerRef = useRef<number | null>(null);
+  const lookPointerRef = useRef<number | null>(null);
+  const lookPointRef = useRef<{ x: number; y: number } | null>(null);
   const [audioEnabled, setAudioEnabledState] = useState(true);
   const [progress, setProgress] = useState<ProgressState>(() => loadProgress());
   const progressRef = useRef(progress);
@@ -180,6 +183,7 @@ export default function GameCanvas() {
       };
       turnActivePageRef.current = (direction) => nextHandle.turnActivePage(direction);
       setTouchMoveRef.current = nextHandle.setTouchMove;
+      setTouchLookRef.current = nextHandle.setTouchLook;
       setPerformanceModeRef.current = nextHandle.setPerformanceMode;
       setAudioEnabledRef.current = nextHandle.setAudioEnabled;
       setAudioEnabledState(nextHandle.getAudioEnabled());
@@ -218,6 +222,7 @@ export default function GameCanvas() {
       returnActiveBookRef.current = () => false;
       turnActivePageRef.current = () => false;
       setTouchMoveRef.current = () => undefined;
+      setTouchLookRef.current = () => undefined;
       setPerformanceModeRef.current = () => undefined;
       setAudioEnabledRef.current = () => undefined;
       window.removeEventListener("library:book-state", onBookState);
@@ -266,6 +271,24 @@ export default function GameCanvas() {
   const onJoystickPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (joystickPointerRef.current === event.pointerId) updateJoystick(event.clientX, event.clientY);
   };
+  const onLookPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    lookPointerRef.current = event.pointerId;
+    lookPointRef.current = { x: event.clientX, y: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onLookPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (lookPointerRef.current !== event.pointerId || !lookPointRef.current) return;
+    const dx = event.clientX - lookPointRef.current.x;
+    const dy = event.clientY - lookPointRef.current.y;
+    lookPointRef.current = { x: event.clientX, y: event.clientY };
+    setTouchLookRef.current(dx, dy);
+  };
+  const resetLook = (event?: ReactPointerEvent<HTMLDivElement>) => {
+    if (event && lookPointerRef.current !== event.pointerId) return;
+    lookPointerRef.current = null;
+    lookPointRef.current = null;
+  };
   const submitCommand = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const raw = commandInput.trim();
@@ -310,6 +333,8 @@ export default function GameCanvas() {
       <div className="hud-topline"><div className="brand-lockup"><img src="./library-mark.svg" alt="" /><span>قاعة الدراسة الهادئة</span></div><div className="status-pill"><i /> {started ? "مفتوحة للاستكشاف" : "يجري تجهيز القاعة"}</div></div>
       {started && <form className="command-console" onSubmit={submitCommand}><input value={commandInput} onChange={(event) => setCommandInput(event.target.value)} placeholder="اكتب أمراً: خذ الكتاب / رجّع الكتاب" aria-label="أمر نصي" /><button type="submit">تنفيذ</button><button type="button" onClick={startVoiceCommand} aria-label="أمر صوتي">{isListening ? "كيصنت..." : "ميكروفون"}</button>{commandMessage && <span role="status">{commandMessage}</span>}</form>}
       <div className="mobile-controls" aria-label="عناصر التحكم باللمس"><div ref={joystickRef} className="touch-joystick" onPointerDown={onJoystickPointerDown} onPointerMove={onJoystickPointerMove} onPointerUp={resetJoystick} onPointerCancel={resetJoystick}><div ref={joystickKnobRef} className="touch-joystick-knob" /></div></div>
+      <div className="touch-look-area" aria-label="تحريك الكاميرا" onPointerDown={onLookPointerDown} onPointerMove={onLookPointerMove} onPointerUp={resetLook} onPointerCancel={resetLook}><span>اسحب للنظر</span></div>
+      {started && <div className="mobile-interaction" aria-label="تفاعل الكتاب"><button onClick={() => takeNearestBookRef.current()}>خذ الكتاب</button><button onClick={() => openNearestBookRef.current()}>{hasActiveBook ? "فتح / إغلاق" : "افتح الكتاب"}</button><button onClick={() => returnNearestBookRef.current()}>رجّع</button></div>}
       <div className="hud-bottom"><div className="crosshair" aria-hidden="true">+</div><div className="controls"><span><b>W A S D</b> تحرّك</span><span><b>Shift</b> للجري</span><span><b>G</b> خذ الكتاب</span><span><b>F</b> أفلت</span><span><b>R</b> رجّع للرف</span><span><b>E</b> معاينة</span></div><div className="hud-actions"><button className="inspect-button" onClick={() => openNearestBookRef.current()}>فحص أقرب كتاب <span>↗</span></button><button className="help-button" onClick={() => takeNearestBookRef.current()}>خذ الكتاب</button><button className="help-button" onClick={() => releaseHeldBookRef.current()}>أفلت الكتاب</button><button className="help-button" onClick={() => returnNearestBookRef.current()}>رجّع للرف</button><div className="page-actions" aria-label="أزرار الكتاب"><button className="page-turn-button page-turn-left" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("ltr")}>اليسرى <span>→</span></button><button className="return-button" disabled={!hasActiveBook} onClick={() => returnActiveBookRef.current()}>إغلاق المعاينة <span>↩</span></button><button className="page-turn-button page-turn-right" hidden={!hasActiveBook} onClick={() => turnActivePageRef.current("rtl")}>اليمنى <span>←</span></button></div><button className="help-button" onClick={() => setShowHelp((value) => !value)}>{showHelp ? "إخفاء الدليل" : "إظهار الدليل"}</button><button className="help-button" onClick={() => setShowMap((value) => !value)}>{showMap ? "إخفاء الخريطة" : "خريطة القاعة"}</button><button className="help-button audio-button" onClick={() => { const next = !audioEnabled; setAudioEnabledState(next); setAudioEnabledRef.current(next); }} aria-label="تشغيل أو كتم الصوت">{audioEnabled ? "الصوت مفعّل" : "الصوت مكتوم"}</button><button className="help-button performance-button" onClick={() => { const nextMode = performanceMode === "light" ? "cinematic" : "light"; setPerformanceMode(nextMode); setPerformanceModeRef.current(nextMode); }} aria-label="تبديل جودة العرض">{performanceMode === "light" ? "أداء خفيف" : "جودة سينمائية"}</button></div></div>
       {started && <div className="book-hotspots" aria-label="كتب قابلة للتفاعل">{bookRects.map((rect) => <button key={rect.meshName} className="book-hotspot" style={{ left: rect.x - rect.width / 2, top: rect.y - rect.height / 2, width: rect.width, height: rect.height }} aria-label={`فتح ${rect.title}`} title={rect.title} onClick={() => { setShowHelp(false); openBookByMeshNameRef.current(rect.meshName); }}><span>{rect.title}</span></button>)}</div>}
       {bookPreview && <section className="book-preview-card" role="dialog" aria-label="معاينة الكتاب"><span className="eyebrow">كتاب مفتوح · صفحة {bookPage ? `${toArabicDigits(bookPage.pageIndex + 1)} / ${toArabicDigits(bookPage.pageCount)}` : "١"}</span><h2>{bookPreview.title}</h2><p className="book-preview-meta">{bookPreview.section ?? "الأرشيف"} · {bookPreview.callNumber ?? "REF-001"}</p><p className="book-page-text">{bookPage?.text ?? "افتح الكتاب لتبدأ القراءة."}</p><button className="return-button" onClick={() => returnActiveBookRef.current()}>إغلاق</button></section>}

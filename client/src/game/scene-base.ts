@@ -39,6 +39,7 @@ export type GameHandle = {
   hasActiveBook: () => boolean;
   getBookScreenRects: () => BookScreenRect[];
   setTouchMove: (x: number, y: number) => void;
+  setTouchLook: (x: number, y: number) => void;
   setPerformanceMode: (mode: PerformanceMode) => void;
   setAudioEnabled: (enabled: boolean) => void;
   getAudioEnabled: () => boolean;
@@ -56,6 +57,7 @@ const COLORS = {
   ivory: new Color3(0.88, 0.82, 0.68),
   brass: new Color3(0.79, 0.58, 0.29),
 };
+const PLAYER_STORAGE_KEY = "quiet-study-hall:player-transform-v1";
 
 function makeMaterial(scene: Scene, name: string, color: Color3) {
   const material = new StandardMaterial(name, scene);
@@ -138,7 +140,7 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     book.isPickable = true;
     book.checkCollisions = false;
     const [title, section, prefix] = catalog[bookSerial % catalog.length];
-    book.metadata = { book: { id: `reference-book-${bookSerial}`, title, section, callNumber: `${prefix}-${String(101 + (bookSerial % 899)).padStart(3, "0")}` } satisfies BookInfo };
+    book.metadata = { book: { id: `reference-book-${bookSerial}`, title, section, callNumber: `${prefix}-${String(101 + (bookSerial % 899)).padStart(3, "0")}` } satisfies BookInfo, bookRoot: true };
     const bookInfo = book.metadata.book as BookInfo;
     const leftCover = MeshBuilder.CreateBox(`${name}-left-cover`, { width: width * 0.5 + 0.025, height: height + 0.045, depth: 0.035 }, scene);
     const rightCover = MeshBuilder.CreateBox(`${name}-right-cover`, { width: width * 0.5 + 0.025, height: height + 0.045, depth: 0.035 }, scene);
@@ -148,6 +150,7 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     leftCover.position.set(-width * 0.25, 0, 0.15); rightCover.position.set(width * 0.25, 0, 0.15);
     leftPages.position.set(-width * 0.25, 0, 0); rightPages.position.set(width * 0.25, 0, 0);
     leftCover.material = coverArtMaterials[bookSerial % coverArtMaterials.length] ?? coverMaterial; rightCover.material = material; leftPages.material = pageMaterial; rightPages.material = pageMaterial;
+    [leftCover, rightCover, leftPages, rightPages].forEach((part) => { part.metadata = { book: bookInfo, bookRoot: false }; });
     leftCover.isPickable = false; rightCover.isPickable = false; leftPages.isPickable = false; rightPages.isPickable = false;
     const pageLeaves = [0, 1, 2, 3].map((index) => {
       const leaf = MeshBuilder.CreateBox(`${name}-leaf-${index}`, { width: Math.max(0.08, width * 0.5 - 0.08), height: height - 0.08, depth: 0.012 }, scene);
@@ -372,6 +375,14 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   });
 
   const player = createPlayer(scene, materials);
+  try {
+    const savedPlayer = JSON.parse(window.localStorage.getItem(PLAYER_STORAGE_KEY) ?? "null") as { position?: { x: number; y: number; z: number }; rotationY?: number } | null;
+    if (savedPlayer?.position && Number.isFinite(savedPlayer.position.x) && Number.isFinite(savedPlayer.position.z)) {
+      player.root.position.set(savedPlayer.position.x, Math.max(0, savedPlayer.position.y), savedPlayer.position.z);
+      const savedYaw = savedPlayer.rotationY;
+      player.root.rotation.y = typeof savedYaw === "number" && Number.isFinite(savedYaw) ? savedYaw : 0;
+    }
+  } catch { /* use the configured spawn */ }
   const camera = new UniversalCamera("first-person-camera", player.root.position.add(new Vector3(0, 1.72, 0)), scene);
   camera.parent = player.root;
   camera.position.set(0, 1.72, 0);
@@ -385,7 +396,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
 
   const pressed = new Set<string>();
   const touchMove = { x: 0, z: 0 };
-  let yaw = 0;
+  let yaw = player.root.rotation.y;
   let pitch = -0.08;
   let lastPointerX: number | null = null;
   let lastPointerY: number | null = null;
@@ -393,6 +404,8 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   let audioEnabled = true;
   let velocityY = 0;
   let lastMoveEventAt = 0;
+  let lastPlayerSaveAt = 0;
+  let walkTime = 0;
   let activeBook: BookInfo | null = null;
   let heldBookId: string | null = null;
   let activePageIndex = 0;
@@ -435,7 +448,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     return true;
   };
   const bookMeshes = () => {
-    const meshes = scene.meshes.filter((mesh) => Boolean(mesh.metadata?.book));
+    const meshes = scene.meshes.filter((mesh) => Boolean(mesh.metadata?.book && mesh.metadata?.bookRoot));
     meshes.forEach((mesh) => {
       const book = mesh.metadata.book as BookInfo;
       if (!physicalBookStates.has(book.id)) physicalBookStates.set(book.id, "ON_SHELF");
@@ -599,10 +612,18 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   };
   const resetPointer = () => { lastPointerX = null; lastPointerY = null; };
   const onPointerDown = (event: PointerEvent) => { lastPointerX = event.clientX; lastPointerY = event.clientY; };
-  const onCanvasClick = () => {
-    const picked = scene.pick(scene.getEngine().getRenderWidth() * 0.5, scene.getEngine().getRenderHeight() * 0.5);
+  const onCanvasClick = (event: MouseEvent) => {
+    const rect = canvas.getBoundingClientRect();
+    const picked = scene.pick((event.clientX - rect.left) * (scene.getEngine().getRenderWidth() / rect.width), (event.clientY - rect.top) * (scene.getEngine().getRenderHeight() / rect.height));
     const book = picked?.pickedMesh?.metadata?.book as BookInfo | undefined;
-    if (book && heldBookId === book.id) announceBook(book);
+    const mesh = picked?.pickedMesh;
+    if (!book || !mesh) return;
+    if (Vector3.Distance(mesh.getAbsolutePosition(), player.root.getAbsolutePosition()) > 1.5) {
+      window.dispatchEvent(new CustomEvent("library:command-failed", { detail: { message: "قرب من الكتاب حتى 1.5 متر باش تتفاعل معاه." } }));
+      return;
+    }
+    if (heldBookId === book.id) announceBook(book);
+    else beginTake(mesh);
   };
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
@@ -614,6 +635,12 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   canvas.addEventListener("pointercancel", resetPointer);
   canvas.addEventListener("mouseleave", resetPointer);
   canvas.addEventListener("click", onCanvasClick);
+
+  const setTouchLook = (x: number, y: number) => {
+    if (activeBook && physicalBookStates.get(activeBook.id) === "OPEN") return;
+    yaw += x * 0.003;
+    pitch = Math.max(-0.38, Math.min(0.22, pitch + y * 0.002));
+  };
 
   scene.onBeforeRenderObservable.add(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.05);
@@ -745,6 +772,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
       player.root.moveWithCollisions(input.scale(speed * dt));
       yaw = Math.atan2(input.x, input.z);
       player.root.rotation.y = yaw;
+      walkTime += dt * (pressed.has("shift") ? 11 : 8);
       const now = performance.now();
       if (now - lastMoveEventAt > 700) {
         lastMoveEventAt = now;
@@ -759,8 +787,17 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     player.root.position.x = Math.max(minX, Math.min(maxX, player.root.position.x));
     player.root.position.z = Math.max(minZ, Math.min(maxZ, player.root.position.z));
     player.root.rotation.y = yaw;
+    const walking = input.lengthSquared() > 0.001 && !interactionBusy;
+    const bob = walking ? Math.sin(walkTime) * 0.012 : 0;
+    camera.position.y = damp(camera.position.y, 1.72 + bob, 9, dt);
     camera.rotation.x = pitch;
     camera.rotation.y = 0;
+    const now = performance.now();
+    if (now - lastPlayerSaveAt > 900) {
+      lastPlayerSaveAt = now;
+      try { window.localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify({ position: player.root.position, rotationY: player.root.rotation.y })); } catch { /* session-only fallback */ }
+      window.dispatchEvent(new CustomEvent("library:player-moved", { detail: { x: player.root.position.x, z: player.root.position.z } }));
+    }
   });
 
   const dispose = () => {
@@ -792,6 +829,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     hasActiveBook: () => Boolean(activeBook),
     getBookScreenRects: () => [],
     setTouchMove: (x, z) => { touchMove.x = Math.max(-1, Math.min(1, x)); touchMove.z = Math.max(-1, Math.min(1, z)); },
+    setTouchLook,
     setPerformanceMode: (mode) => { performanceMode = mode; scene.getLightByName("ceiling-light")!.intensity = mode === "light" ? 2.8 : 3.8; },
     setAudioEnabled: (enabled) => { audioEnabled = enabled; },
     getAudioEnabled: () => audioEnabled,
