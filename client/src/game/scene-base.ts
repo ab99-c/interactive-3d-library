@@ -481,6 +481,10 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     return Vector3.Distance(mesh.getAbsolutePosition(), player.root.getAbsolutePosition()) <= 1.5 ? mesh : undefined;
   };
   const nearestBookMesh = () => bookMeshes().sort((a, b) => Vector3.DistanceSquared(a.getAbsolutePosition(), player.root.getAbsolutePosition()) - Vector3.DistanceSquared(b.getAbsolutePosition(), player.root.getAbsolutePosition()))[0];
+  const resolveBookRoot = (mesh: AbstractMesh | null | undefined) => {
+    const book = mesh?.metadata?.book as BookInfo | undefined;
+    return book ? bookMeshes().find((candidate) => candidate.metadata?.book?.id === book.id) : undefined;
+  };
   const beginTake = (candidate: AbstractMesh | undefined) => {
     if (heldBookId || physicalInteraction) return false;
     const book = candidate?.metadata?.book as BookInfo | undefined;
@@ -611,12 +615,11 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     lastPointerY = event.clientY;
   };
   const resetPointer = () => { lastPointerX = null; lastPointerY = null; };
-  const onPointerDown = (event: PointerEvent) => { lastPointerX = event.clientX; lastPointerY = event.clientY; };
-  const onCanvasClick = (event: MouseEvent) => {
+  const interactAtClientPoint = (clientX: number, clientY: number) => {
     const rect = canvas.getBoundingClientRect();
-    const picked = scene.pick((event.clientX - rect.left) * (scene.getEngine().getRenderWidth() / rect.width), (event.clientY - rect.top) * (scene.getEngine().getRenderHeight() / rect.height));
-    const book = picked?.pickedMesh?.metadata?.book as BookInfo | undefined;
-    const mesh = picked?.pickedMesh;
+    const picked = scene.pick((clientX - rect.left) * (scene.getEngine().getRenderWidth() / rect.width), (clientY - rect.top) * (scene.getEngine().getRenderHeight() / rect.height));
+    const mesh = resolveBookRoot(picked?.pickedMesh);
+    const book = mesh?.metadata?.book as BookInfo | undefined;
     if (!book || !mesh) return;
     if (Vector3.Distance(mesh.getAbsolutePosition(), player.root.getAbsolutePosition()) > 1.5) {
       window.dispatchEvent(new CustomEvent("library:command-failed", { detail: { message: "قرب من الكتاب حتى 1.5 متر باش تتفاعل معاه." } }));
@@ -624,6 +627,11 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     }
     if (heldBookId === book.id) announceBook(book);
     else beginTake(mesh);
+  };
+  const onPointerDown = (event: PointerEvent) => {
+    lastPointerX = event.clientX;
+    lastPointerY = event.clientY;
+    if (event.button === 0 && !(activeBook && physicalBookStates.get(activeBook.id) === "OPEN")) interactAtClientPoint(event.clientX, event.clientY);
   };
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
@@ -634,7 +642,6 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   canvas.addEventListener("pointerup", resetPointer);
   canvas.addEventListener("pointercancel", resetPointer);
   canvas.addEventListener("mouseleave", resetPointer);
-  canvas.addEventListener("click", onCanvasClick);
 
   const setTouchLook = (x: number, y: number) => {
     if (activeBook && physicalBookStates.get(activeBook.id) === "OPEN") return;
@@ -810,7 +817,6 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     canvas.removeEventListener("pointerup", resetPointer);
     canvas.removeEventListener("pointercancel", resetPointer);
     canvas.removeEventListener("mouseleave", resetPointer);
-    canvas.removeEventListener("click", onCanvasClick);
     camera.detachControl();
     scene.dispose();
   };
