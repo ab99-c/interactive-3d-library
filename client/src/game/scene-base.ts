@@ -19,6 +19,7 @@ import pageData from "./hayy-pages-data.json";
 import { LIBRARY_CONFIG } from "./architecture-config";
 
 export type PerformanceMode = "cinematic" | "light";
+export const BOOK_INTERACTION_ENABLED = false;
 type PhysicalBookState = "ON_SHELF" | "TAKING" | "HELD_RIGHT" | "OPENING" | "HELD_TWO_HANDS" | "OPEN" | "TURNING_PAGE" | "CLOSING" | "CLOSED" | "RELEASING" | "PLACED" | "RETURNING" | "RETURNED";
 export type BookInfo = {
   id: string;
@@ -506,16 +507,19 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     window.dispatchEvent(new CustomEvent("library:book-physical-state", { detail: { bookId: book.id, state: physicalBookStates.get(book.id), ...patch } }));
   };
   const openBookByMeshName = (meshName: string) => {
+    if (!BOOK_INTERACTION_ENABLED) return false;
     const mesh = scene.getMeshByName(meshName);
     const book = mesh?.metadata?.book as BookInfo | undefined;
     return book && heldBookId === book.id ? announceBook(book) : false;
   };
   const openNearestBook = () => {
+    if (!BOOK_INTERACTION_ENABLED) return false;
     const nearest = heldBookId ? bookMeshes().find((candidate) => candidate.metadata?.book?.id === heldBookId) : undefined;
     const book = nearest?.metadata?.book as BookInfo | undefined;
     return book ? announceBook(book) : false;
   };
   const openBookById = (bookId: string) => {
+    if (!BOOK_INTERACTION_ENABLED) return false;
     const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === bookId);
     const book = mesh?.metadata?.book as BookInfo | undefined;
     return book && heldBookId === book.id ? announceBook(book) : false;
@@ -532,6 +536,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     return book ? bookMeshes().find((candidate) => candidate.metadata?.book?.id === book.id) : undefined;
   };
   const beginTake = (candidate: AbstractMesh | undefined) => {
+    if (!BOOK_INTERACTION_ENABLED) return false;
     if (heldBookId || physicalInteraction) return false;
     const book = candidate?.metadata?.book as BookInfo | undefined;
     if (!candidate || !book || Vector3.Distance(candidate.getAbsolutePosition(), player.root.getAbsolutePosition()) > 1.5 || !["ON_SHELF", "PLACED", "RETURNED"].includes(physicalBookStates.get(book.id) ?? "ON_SHELF")) {
@@ -545,6 +550,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   };
   const takeNearestBook = () => beginTake(lookedAtBook());
   const releaseHeldBook = () => {
+    if (!BOOK_INTERACTION_ENABLED) return false;
     if (!heldBookId) return false;
     const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === heldBookId);
     const book = mesh?.metadata?.book as BookInfo | undefined;
@@ -561,6 +567,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     return true;
   };
   const returnNearestBook = () => {
+    if (!BOOK_INTERACTION_ENABLED) return false;
     const targetId = heldBookId;
     if (!targetId) return false;
     const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === targetId);
@@ -576,6 +583,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     return true;
   };
   const executeTextCommand = (raw: string) => {
+    if (!BOOK_INTERACTION_ENABLED) return false;
     const command = parseCommand(raw);
     if (!command) {
       window.dispatchEvent(new CustomEvent("library:command-failed", { detail: { message: "مافهمتش الأمر. جرّب: خذ الكتاب، أفلت الكتاب، أو رجّع الكتاب." } }));
@@ -593,6 +601,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     return result;
   };
   const closeBook = () => {
+    if (!BOOK_INTERACTION_ENABLED) return false;
     if (!activeBook) return false;
     const closingBook = activeBook;
     const visual = ensureBookVisual(closingBook);
@@ -608,6 +617,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     return true;
   };
   const turnActivePage = (direction: "rtl" | "ltr") => {
+    if (!BOOK_INTERACTION_ENABLED) return false;
     if (!activeBook) return false;
     const visual = ensureBookVisual(activeBook);
     if (!visual) return false;
@@ -626,17 +636,17 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
 
   const onKeyDown = (event: KeyboardEvent) => {
     const key = event.key.toLowerCase();
-    if ((key === "arrowleft" || key === "arrowright") && activeBook && physicalBookStates.get(activeBook.id) === "OPEN") {
+    if (BOOK_INTERACTION_ENABLED && (key === "arrowleft" || key === "arrowright") && activeBook && physicalBookStates.get(activeBook.id) === "OPEN") {
       handSpread = Math.max(0.28, Math.min(1.18, handSpread + (key === "arrowright" ? 0.12 : -0.12)));
       const visual = bookVisuals.get(activeBook.id);
       if (visual) visual.coverSpring.target = handSpread;
       if (handSpread <= 0.3) closeBook();
       return;
     }
-    if (key === "e") { if (heldBookId) openNearestBook(); else takeNearestBook(); return; }
-    if (key === "g") { takeNearestBook(); return; }
-    if (key === "f") { releaseHeldBook(); return; }
-    if (key === "r") { returnNearestBook(); return; }
+    if (BOOK_INTERACTION_ENABLED && key === "e") { if (heldBookId) openNearestBook(); else takeNearestBook(); return; }
+    if (BOOK_INTERACTION_ENABLED && key === "g") { takeNearestBook(); return; }
+    if (BOOK_INTERACTION_ENABLED && key === "f") { releaseHeldBook(); return; }
+    if (BOOK_INTERACTION_ENABLED && key === "r") { returnNearestBook(); return; }
     pressed.add(key);
   };
   const onKeyUp = (event: KeyboardEvent) => pressed.delete(event.key.toLowerCase());
@@ -669,6 +679,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     gestureStartX = null; gestureStartY = null; lastPointerX = null; lastPointerY = null;
   };
   const interactAtClientPoint = (clientX: number, clientY: number) => {
+    if (!BOOK_INTERACTION_ENABLED) return;
     const rect = canvas.getBoundingClientRect();
     const picked = scene.pick((clientX - rect.left) * (scene.getEngine().getRenderWidth() / rect.width), (clientY - rect.top) * (scene.getEngine().getRenderHeight() / rect.height));
     const mesh = resolveBookRoot(picked?.pickedMesh);
@@ -690,7 +701,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     lastPointerY = event.clientY;
     gestureStartX = event.clientX;
     gestureStartY = event.clientY;
-    if (event.button === 0 && !(activeBook && physicalBookStates.get(activeBook.id) === "OPEN")) interactAtClientPoint(event.clientX, event.clientY);
+    if (BOOK_INTERACTION_ENABLED && event.button === 0 && !(activeBook && physicalBookStates.get(activeBook.id) === "OPEN")) interactAtClientPoint(event.clientX, event.clientY);
   };
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
@@ -704,7 +715,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   canvas.addEventListener("mouseleave", onMouseLeave);
 
   const setTouchLook = (x: number, y: number) => {
-    if (activeBook && physicalBookStates.get(activeBook.id) === "OPEN") return;
+    if (BOOK_INTERACTION_ENABLED && activeBook && physicalBookStates.get(activeBook.id) === "OPEN") return;
     yaw += x * 0.003;
     pitch = Math.max(-0.38, Math.min(0.22, pitch + y * 0.002));
   };
@@ -728,15 +739,17 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
         leaf.rotation.y = damp(leaf.rotation.y, index === activePageIndex % visual.pageLeaves.length ? page * side : 0, 22, dt);
       });
     });
-    const centerMesh = resolveBookRoot(scene.pick(scene.getEngine().getRenderWidth() * 0.5, scene.getEngine().getRenderHeight() * 0.5)?.pickedMesh);
-    const selectedMesh = selectedBookId ? bookMeshes().find((candidate) => candidate.metadata?.book?.id === selectedBookId) : undefined;
-    const targetMesh = centerMesh && Vector3.Distance(centerMesh.getAbsolutePosition(), player.root.getAbsolutePosition()) <= 1.5 ? centerMesh : selectedMesh;
-    const targetBook = targetMesh?.metadata?.book as BookInfo | undefined;
-    const targetDistance = targetMesh ? Vector3.Distance(targetMesh.getAbsolutePosition(), player.root.getAbsolutePosition()) : Infinity;
-    const nextTargetId = targetBook && (targetDistance <= 1.5 || targetBook.id === selectedBookId) ? targetBook.id : null;
-    if (nextTargetId !== lastTargetId) {
-      lastTargetId = nextTargetId;
-      window.dispatchEvent(new CustomEvent("library:book-target", { detail: nextTargetId && targetBook ? { bookId: targetBook.id, title: targetBook.title, distance: targetDistance, held: heldBookId === targetBook.id, open: activeBook?.id === targetBook.id, nearby: targetDistance <= 1.5 } : null }));
+    if (BOOK_INTERACTION_ENABLED) {
+      const centerMesh = resolveBookRoot(scene.pick(scene.getEngine().getRenderWidth() * 0.5, scene.getEngine().getRenderHeight() * 0.5)?.pickedMesh);
+      const selectedMesh = selectedBookId ? bookMeshes().find((candidate) => candidate.metadata?.book?.id === selectedBookId) : undefined;
+      const targetMesh = centerMesh && Vector3.Distance(centerMesh.getAbsolutePosition(), player.root.getAbsolutePosition()) <= 1.5 ? centerMesh : selectedMesh;
+      const targetBook = targetMesh?.metadata?.book as BookInfo | undefined;
+      const targetDistance = targetMesh ? Vector3.Distance(targetMesh.getAbsolutePosition(), player.root.getAbsolutePosition()) : Infinity;
+      const nextTargetId = targetBook && (targetDistance <= 1.5 || targetBook.id === selectedBookId) ? targetBook.id : null;
+      if (nextTargetId !== lastTargetId) {
+        lastTargetId = nextTargetId;
+        window.dispatchEvent(new CustomEvent("library:book-target", { detail: nextTargetId && targetBook ? { bookId: targetBook.id, title: targetBook.title, distance: targetDistance, held: heldBookId === targetBook.id, open: activeBook?.id === targetBook.id, nearby: targetDistance <= 1.5 } : null }));
+      }
     }
     const interactionBusy = Boolean(physicalInteraction);
     if (physicalInteraction) {
