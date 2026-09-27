@@ -227,31 +227,43 @@ function vitePluginDualDist(): Plugin {
   };
 }
 
-export default defineConfig({
-  base: "./",
-  plugins: [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy(), vitePluginDualDist()],
-  resolve: {
+export default defineConfig(({ command, mode }) => {
+  const isProductionBuild = command === "build" && mode === "production";
+
+  return {
+    base: "./",
+    plugins: [
+      react(),
+      tailwindcss(),
+      jsxLocPlugin(),
+      ...(isProductionBuild ? [] : [vitePluginManusRuntime()]),
+      vitePluginManusDebugCollector(),
+      vitePluginStorageProxy(),
+      vitePluginDualDist(),
+    ],
+    resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
     },
-  },
-  envDir: path.resolve(import.meta.dirname),
-  root: path.resolve(import.meta.dirname, "client"),
-  build: {
-    outDir: path.resolve(import.meta.dirname, "dist"),
-    emptyOutDir: true,
-    chunkSizeWarningLimit: 2000,
-  },
-  server: {
-    port: 3000,
-    strictPort: true,
-    host: "0.0.0.0",
-    allowedHosts: true,
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
     },
-  },
+    envDir: path.resolve(import.meta.dirname),
+    root: path.resolve(import.meta.dirname, "client"),
+    build: {
+      outDir: path.resolve(import.meta.dirname, "dist"),
+      emptyOutDir: true,
+      chunkSizeWarningLimit: 2000,
+    },
+    server: {
+      port: 3000,
+      strictPort: true,
+      host: "0.0.0.0",
+      allowedHosts: true,
+      fs: {
+        strict: true,
+        deny: ["**/.*"],
+      },
+    },
+  };
 });
