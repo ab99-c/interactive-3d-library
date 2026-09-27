@@ -167,24 +167,27 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     interactionCollider.isPickable = true;
     interactionCollider.checkCollisions = false;
     interactionCollider.metadata = { book: bookInfo, bookRoot: false, interactionCollider: true };
-    const leftCover = MeshBuilder.CreateBox(`${name}-left-cover`, { width: width * 0.5 + 0.025, height: height + 0.045, depth: 0.035 }, scene);
-    const rightCover = MeshBuilder.CreateBox(`${name}-right-cover`, { width: width * 0.5 + 0.025, height: height + 0.045, depth: 0.035 }, scene);
-    const leftPages = MeshBuilder.CreateBox(`${name}-left-pages`, { width: Math.max(0.08, width * 0.5 - 0.035), height: height - 0.035, depth: 0.19 }, scene);
-    const rightPages = MeshBuilder.CreateBox(`${name}-right-pages`, { width: Math.max(0.08, width * 0.5 - 0.035), height: height - 0.035, depth: 0.19 }, scene);
-    leftCover.parent = book; rightCover.parent = book; leftPages.parent = book; rightPages.parent = book;
-    leftCover.position.set(-width * 0.25, 0, 0.15); rightCover.position.set(width * 0.25, 0, 0.15);
-    leftPages.position.set(-width * 0.25, 0, 0); rightPages.position.set(width * 0.25, 0, 0);
-    leftCover.material = coverArtMaterials[bookSerial % coverArtMaterials.length] ?? coverMaterial; rightCover.material = material; leftPages.material = pageMaterial; rightPages.material = pageMaterial;
-    [leftCover, rightCover, leftPages, rightPages].forEach((part) => { part.metadata = { book: bookInfo, bookRoot: false }; part.isPickable = true; });
-    const pageLeaves = [0, 1, 2, 3].map((index) => {
-      const leaf = MeshBuilder.CreateBox(`${name}-leaf-${index}`, { width: Math.max(0.08, width * 0.5 - 0.08), height: height - 0.08, depth: 0.012 }, scene);
-      leaf.parent = book;
-      leaf.position.set(index < 2 ? -width * 0.25 : width * 0.25, 0, 0.11 + (index % 2) * 0.006);
-      leaf.material = pageMaterial; leaf.metadata = { book: bookInfo, bookRoot: false }; leaf.isPickable = true; leaf.setEnabled(false); return leaf;
-    });
-    const visual: BookVisual = { leftCover, rightCover, leftPages, rightPages, spine: book, pageLeaves, coverSpring: createSpring(0, 120, 20), pageSpring: createSpring(0, 210, 26), pageIndex: 0, pages: contentAvailable ? pageData.pages : [""], width, height };
-    book.metadata.bookVisual = visual;
-    bookVisuals.set(bookInfo.id, visual);
+    const coverIndex = bookSerial;
+    book.metadata.bookVisualFactory = () => {
+      const leftCover = MeshBuilder.CreateBox(`${name}-left-cover`, { width: width * 0.5 + 0.025, height: height + 0.045, depth: 0.035 }, scene);
+      const rightCover = MeshBuilder.CreateBox(`${name}-right-cover`, { width: width * 0.5 + 0.025, height: height + 0.045, depth: 0.035 }, scene);
+      const leftPages = MeshBuilder.CreateBox(`${name}-left-pages`, { width: Math.max(0.08, width * 0.5 - 0.035), height: height - 0.035, depth: 0.19 }, scene);
+      const rightPages = MeshBuilder.CreateBox(`${name}-right-pages`, { width: Math.max(0.08, width * 0.5 - 0.035), height: height - 0.035, depth: 0.19 }, scene);
+      leftCover.parent = book; rightCover.parent = book; leftPages.parent = book; rightPages.parent = book;
+      leftCover.position.set(-width * 0.25, 0, 0.15); rightCover.position.set(width * 0.25, 0, 0.15);
+      leftPages.position.set(-width * 0.25, 0, 0); rightPages.position.set(width * 0.25, 0, 0);
+      leftCover.material = coverArtMaterials[coverIndex % coverArtMaterials.length] ?? coverMaterial; rightCover.material = material; leftPages.material = pageMaterial; rightPages.material = pageMaterial;
+      [leftCover, rightCover, leftPages, rightPages].forEach((part) => { part.metadata = { book: bookInfo, bookRoot: false }; part.isPickable = true; });
+      const pageLeaves = [0, 1, 2, 3].map((index) => {
+        const leaf = MeshBuilder.CreateBox(`${name}-leaf-${index}`, { width: Math.max(0.08, width * 0.5 - 0.08), height: height - 0.08, depth: 0.012 }, scene);
+        leaf.parent = book;
+        leaf.position.set(index < 2 ? -width * 0.25 : width * 0.25, 0, 0.11 + (index % 2) * 0.006);
+        leaf.material = pageMaterial; leaf.metadata = { book: bookInfo, bookRoot: false }; leaf.isPickable = true; leaf.setEnabled(false); return leaf;
+      });
+      const visual: BookVisual = { leftCover, rightCover, leftPages, rightPages, spine: book, pageLeaves, coverSpring: createSpring(0, 120, 20), pageSpring: createSpring(0, 210, 26), pageIndex: 0, pages: contentAvailable ? pageData.pages : [""], width, height };
+      book.metadata.bookVisual = visual;
+      return visual;
+    };
     const saved = worldState.register({ id: bookInfo.id, type: "book", name: bookInfo.title, model: "procedural-book", transform: book, metadata: bookInfo, onShelf: true });
     if (saved.currentTransform.position.x !== saved.originalTransform.position.x || saved.currentTransform.position.z !== saved.originalTransform.position.z) {
       book.position.set(saved.currentTransform.position.x, saved.currentTransform.position.y, saved.currentTransform.position.z);
@@ -443,12 +446,24 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const physicalBookStates = new Map<string, PhysicalBookState>();
   let physicalInteraction: { phase: "approach" | "reach" | "pull" | "open" | "close" | "return"; bookId: string; elapsed: number; start?: Vector3 } | null = null;
 
+  const ensureBookVisual = (book: BookInfo) => {
+    let visual = bookVisuals.get(book.id);
+    if (visual) return visual;
+    const root = scene.meshes.find((mesh) => mesh.metadata?.book?.id === book.id && mesh.metadata?.bookRoot);
+    const factory = root?.metadata?.bookVisualFactory as (() => BookVisual) | undefined;
+    if (factory) {
+      visual = factory();
+      bookVisuals.set(book.id, visual);
+    }
+    return visual;
+  };
+
   const publishPage = (book: BookInfo, visual: BookVisual) => {
     const text = visual.pages[visual.pageIndex % visual.pages.length] || "صفحة فارغة — هذا الكتاب جاهز لإضافة المحتوى.";
     window.dispatchEvent(new CustomEvent("library:book-page", { detail: { bookId: book.id, pageIndex: visual.pageIndex, pageCount: visual.pages.length, text } }));
   };
   const setBookOpen = (book: BookInfo, opened: boolean) => {
-    const visual = bookVisuals.get(book.id);
+    const visual = ensureBookVisual(book);
     if (!visual) return;
     if (opened) handSpread = 1.18;
     visual.coverSpring.target = opened ? 1.18 : 0;
@@ -459,7 +474,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
 
   const announceBook = (book: BookInfo) => {
     activeBook = book;
-    activePageIndex = bookVisuals.get(book.id)?.pageIndex ?? 0;
+    activePageIndex = ensureBookVisual(book)?.pageIndex ?? 0;
     if (heldBookId === book.id) {
       const mesh = bookMeshes().find((candidate) => candidate.metadata?.book?.id === book.id);
       if (mesh) {
@@ -580,7 +595,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   const closeBook = () => {
     if (!activeBook) return false;
     const closingBook = activeBook;
-    const visual = bookVisuals.get(closingBook.id);
+    const visual = ensureBookVisual(closingBook);
     if (visual) visual.coverSpring.target = 0;
     if (heldBookId === closingBook.id) {
       physicalBookStates.set(closingBook.id, "CLOSING");
@@ -594,7 +609,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   };
   const turnActivePage = (direction: "rtl" | "ltr") => {
     if (!activeBook) return false;
-    const visual = bookVisuals.get(activeBook.id);
+    const visual = ensureBookVisual(activeBook);
     if (!visual) return false;
     const nextIndex = direction === "rtl" ? Math.min(visual.pages.length - 1, visual.pageIndex + 1) : Math.max(0, visual.pageIndex - 1);
     if (nextIndex === visual.pageIndex) return false;
@@ -635,7 +650,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     const deltaX = event.clientX - lastPointerX;
     if (activeBook && physicalBookStates.get(activeBook.id) === "OPEN") {
       handSpread = Math.max(0.28, Math.min(1.18, handSpread + deltaX * 0.006));
-      const visual = bookVisuals.get(activeBook.id);
+      const visual = ensureBookVisual(activeBook);
       if (visual) visual.coverSpring.target = handSpread;
       if (handSpread <= 0.3) closeBook();
     } else {
