@@ -226,16 +226,32 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
       }
     });
   };
-  addCase(-5.1, -12.72, 9.7, 0, "back-left");
-  addCase(5.1, -12.72, 9.7, 0, "back-right");
-  [-8.7, -2.9, 2.9, 8.7].forEach((z, index) => addCase(-10.55, z, 4.6, Math.PI / 2, `left-${index}`));
-  [ -8.7, -2.9, 2.9, 8.7 ].forEach((z, index) => addCase(10.55, z, 4.6, -Math.PI / 2, `right-${index}`));
-  [-5.6, 0, 5.6].forEach((z, index) => addCase(-5.0, z, 4.2, 0, `island-left-${index}`));
-  [-5.6, 0, 5.6].forEach((z, index) => addCase(5.0, z, 4.2, 0, `island-right-${index}`));
-  [-10.5, -3.5, 3.5, 10.5].forEach((z, index) => addCase(-14.5, z, 6.2, Math.PI / 2, `upper-west-${index}`, "first", 4.2));
-  [-10.5, -3.5, 3.5, 10.5].forEach((z, index) => addCase(14.5, z, 6.2, -Math.PI / 2, `upper-east-${index}`, "first", 4.2));
-  BOOK_COUNT = bookSerial;
-  window.dispatchEvent(new CustomEvent("library:catalog-ready", { detail: { count: BOOK_COUNT } }));
+  const cases: Array<Parameters<typeof addCase>> = [
+    [-5.1, -12.72, 9.7, 0, "back-left"], [5.1, -12.72, 9.7, 0, "back-right"],
+    ...[-8.7, -2.9, 2.9, 8.7].map((z, index) => [-10.55, z, 4.6, Math.PI / 2, `left-${index}`] as Parameters<typeof addCase>),
+    ...[-8.7, -2.9, 2.9, 8.7].map((z, index) => [10.55, z, 4.6, -Math.PI / 2, `right-${index}`] as Parameters<typeof addCase>),
+    ...[-5.6, 0, 5.6].map((z, index) => [-5.0, z, 4.2, 0, `island-left-${index}`] as Parameters<typeof addCase>),
+    ...[-5.6, 0, 5.6].map((z, index) => [5.0, z, 4.2, 0, `island-right-${index}`] as Parameters<typeof addCase>),
+    ...[-10.5, -3.5, 3.5, 10.5].map((z, index) => [-14.5, z, 6.2, Math.PI / 2, `upper-west-${index}`, "first", 4.2] as Parameters<typeof addCase>),
+    ...[-10.5, -3.5, 3.5, 10.5].map((z, index) => [14.5, z, 6.2, -Math.PI / 2, `upper-east-${index}`, "first", 4.2] as Parameters<typeof addCase>),
+  ];
+  const yieldToFrame = () => new Promise<void>((resolve) => {
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(() => resolve());
+    else setTimeout(resolve, 0);
+  });
+  const buildProgressively = async () => {
+    window.dispatchEvent(new CustomEvent("library:world-progress", { detail: { phase: "bookcases", completed: 0, total: cases.length, percent: 0 } }));
+    for (let index = 0; index < cases.length; index += 1) {
+      await yieldToFrame();
+      addCase(...cases[index]);
+      const completed = index + 1;
+      window.dispatchEvent(new CustomEvent("library:world-progress", { detail: { phase: "bookcases", completed, total: cases.length, percent: Math.round((completed / cases.length) * 100) } }));
+    }
+    BOOK_COUNT = bookSerial;
+    window.dispatchEvent(new CustomEvent("library:catalog-ready", { detail: { count: BOOK_COUNT } }));
+    window.dispatchEvent(new CustomEvent("library:world-progress", { detail: { phase: "ready", completed: cases.length, total: cases.length, percent: 100 } }));
+  };
+  void buildProgressively();
   return bookVisuals;
 }
 

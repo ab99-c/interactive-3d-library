@@ -46,6 +46,7 @@ export default function GameCanvas() {
   const startedRef = useRef(false);
   const [showHelp, setShowHelp] = useState(false);
   const [started, setStarted] = useState(false);
+  const [worldProgress, setWorldProgress] = useState(0);
   const [bookRects, setBookRects] = useState<BookScreenRect[]>([]);
   const bookRectsRef = useRef<BookScreenRect[]>([]);
   const [hasActiveBook, setHasActiveBook] = useState(false);
@@ -154,10 +155,15 @@ export default function GameCanvas() {
       setBookCount(count);
       setProgress({ ...progressRef.current });
     };
+    const onWorldProgress = (event: Event) => {
+      const percent = (event as CustomEvent<{ percent?: number }>).detail?.percent;
+      if (typeof percent === "number" && Number.isFinite(percent)) setWorldProgress(Math.max(0, Math.min(100, percent)));
+    };
     window.addEventListener("library:book-state", onBookState);
     window.addEventListener("library:book-preview", onBookPreview);
     window.addEventListener("library:book-page", onBookPage);
     window.addEventListener("library:catalog-ready", onCatalogReady);
+    window.addEventListener("library:world-progress", onWorldProgress);
     Promise.all([
       import("@babylonjs/core/Engines/engine"),
       import("@/game/scene"),
@@ -236,6 +242,7 @@ export default function GameCanvas() {
       window.removeEventListener("library:book-preview", onBookPreview);
       window.removeEventListener("library:book-page", onBookPage);
       window.removeEventListener("library:catalog-ready", onCatalogReady);
+      window.removeEventListener("library:world-progress", onWorldProgress);
       bookRectsRef.current = [];
       setBookRects([]);
       setHasActiveBook(false);
@@ -243,6 +250,7 @@ export default function GameCanvas() {
       setBookPage(null);
       setInteractionTarget(null);
       setBookCount(0);
+      setWorldProgress(0);
       handle?.dispose();
       engine?.dispose();
       startedRef.current = false;
@@ -337,7 +345,8 @@ export default function GameCanvas() {
   return (
     <main className="library-game" dir="rtl" aria-label="مكتبة ثلاثية الأبعاد تفاعلية">
       <canvas ref={canvasRef} className="game-canvas" style={{ touchAction: "none" }} />
-      {!started && <div className="loading-overlay" role="status" aria-live="polite"><div className="loading-shelf-silhouette" aria-hidden="true" /><div className="loading-copy"><div className="loading-mark" aria-hidden="true">۞</div><div className="loading-kicker">قاعة الدراسة الهادئة</div><strong>يجري تجهيز القاعة</strong><span>لحظات، وتُضاء الرفوف أمامك</span></div></div>}
+      {!started && <div className="loading-overlay" role="status" aria-live="polite"><div className="loading-shelf-silhouette" aria-hidden="true" /><div className="loading-copy"><div className="loading-mark" aria-hidden="true">۞</div><div className="loading-kicker">قاعة الدراسة الهادئة</div><strong>يجري تجهيز القاعة</strong><span>لحظات، وتُضاء الرفوف أمامك</span><div className="world-progress" aria-label={`تقدم تجهيز القاعة ${worldProgress}%`}><i style={{ width: `${Math.max(4, worldProgress)}%` }} /></div><small>{worldProgress}%</small></div></div>}
+      {started && worldProgress < 100 && <div className="world-progress-toast" role="status" aria-live="polite"><span>يجري تجهيز الرفوف...</span><i><b style={{ width: `${Math.max(4, worldProgress)}%` }} /></i><strong>{worldProgress}%</strong></div>}
       <div className="hud-topline"><div className="brand-lockup"><img src="./library-mark.svg" alt="" /><span>قاعة الدراسة الهادئة</span></div><div className="status-pill"><i /> {started ? "مفتوحة للاستكشاف" : "يجري تجهيز القاعة"}</div></div>
       {started && BOOK_INTERACTION_ENABLED && <form className="command-console" onSubmit={submitCommand}><input value={commandInput} onChange={(event) => setCommandInput(event.target.value)} placeholder="اكتب أمراً: خذ الكتاب / رجّع الكتاب" aria-label="أمر نصي" /><button type="submit">تنفيذ</button><button type="button" onClick={startVoiceCommand} aria-label="أمر صوتي">{isListening ? "كيصنت..." : "ميكروفون"}</button>{commandMessage && <span role="status">{commandMessage}</span>}</form>}
       <div className="mobile-controls" aria-label="عناصر التحكم باللمس"><div ref={joystickRef} className="touch-joystick" onPointerDown={onJoystickPointerDown} onPointerMove={onJoystickPointerMove} onPointerUp={resetJoystick} onPointerCancel={resetJoystick}><div ref={joystickKnobRef} className="touch-joystick-knob" /></div></div>
