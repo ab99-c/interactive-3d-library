@@ -1,0 +1,7 @@
+{
+  "building": { "width": 48, "length": 72, "floorHeight": 4.2, "floorThickness": 0.3, "wallThickness": 0.3, "minX": -24, "maxX": 24, "minZ": -36, "maxZ": 36 },
+  "floors": { "basement": -4.2, "ground": 0.0, "first": 4.2, "second": 8.4 },
+  "corridors": { "main": 4.0, "secondary": 2.0, "access": 1.5 },
+  "shelves": { "height": 2.1, "levels": 5 },
+  "meshBudget": 2000
+}
