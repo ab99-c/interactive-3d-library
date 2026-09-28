@@ -38,7 +38,8 @@ export type BookInfo = {
   state: PhysicalBookState;
   contentAvailable: boolean;
 };
-type BookVisual = { leftCover: Mesh; rightCover: Mesh; leftPages: Mesh; rightPages: Mesh; spine: Mesh; pageLeaves: Mesh[]; coverSpring: Spring; pageSpring: Spring; pageIndex: number; pages: string[]; width: number; height: number };
+type BookVisual = { leftCover: Mesh; rightCover: Mesh; leftPages: Mesh; rightPages: Mesh; spine: AbstractMesh; pageLeaves: Mesh[]; coverSpring: Spring; pageSpring: Spring; pageIndex: number; pages: string[]; width: number; height: number };
+type FloorBucket = { built: boolean; building: boolean; meshes: AbstractMesh[] };
 export let BOOK_COUNT = 0;
 export type BookScreenRect = { meshName: string; bookId: string; title: string; x: number; y: number; width: number; height: number };
 export type GameHandle = {
@@ -149,9 +150,24 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
   ] as const;
   let bookSerial = 0;
   const bookVisuals = new Map<string, BookVisual>();
+  const bookBases = new Map<string, Mesh>();
+  const floorBuckets = new Map<string, FloorBucket>(["basement", "ground", "first", "second"].map((floor) => [floor, { built: false, building: false, meshes: [] }]));
+  const getBookBase = (material: StandardMaterial) => {
+    const key = material.name;
+    const existing = bookBases.get(key);
+    if (existing) return existing;
+    const base = MeshBuilder.CreateBox(`book-instance-base-${bookBases.size}`, { width: 1, height: 1, depth: 1 }, scene);
+    base.material = material;
+    base.isVisible = false;
+    base.isPickable = false;
+    base.freezeWorldMatrix();
+    bookBases.set(key, base);
+    return base;
+  };
   const makeBook = (name: string, position: Vector3, width: number, height: number, lean: number, material: StandardMaterial, location: { floor: string; shelf: string; row: number; slot: number }) => {
-    const book = MeshBuilder.CreateBox(name, { width: 0.045, height, depth: 0.25 }, scene);
+    const book = getBookBase(material).createInstance(name);
     book.position = position;
+    book.scaling.set(width / 0.045, height, 1);
     book.rotation.z = lean;
     book.material = material;
     book.isPickable = true;
@@ -161,13 +177,6 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     const contentAvailable = bookSerial % 7 !== 0;
     const bookInfo = { id: bookId, title, section, callNumber: `${prefix}-${String(101 + (bookSerial % 899)).padStart(3, "0")}`, ...location, shelfId: location.shelf, color: material.diffuseColor.toHexString(), width, height, thickness: 0.25, state: "ON_SHELF" as PhysicalBookState, contentAvailable } satisfies BookInfo;
     book.metadata = { book: bookInfo, bookRoot: true };
-    const interactionCollider = MeshBuilder.CreateBox(`${name}-interaction-collider`, { width: Math.max(width, 0.18), height: height + 0.10, depth: 0.32 }, scene);
-    interactionCollider.parent = book;
-    interactionCollider.position.set(0, 0, 0.02);
-    interactionCollider.isVisible = false;
-    interactionCollider.isPickable = true;
-    interactionCollider.checkCollisions = false;
-    interactionCollider.metadata = { book: bookInfo, bookRoot: false, interactionCollider: true };
     const coverIndex = bookSerial;
     book.metadata.bookVisualFactory = () => {
       const leftCover = MeshBuilder.CreateBox(`${name}-left-cover`, { width: width * 0.5 + 0.025, height: height + 0.045, depth: 0.035 }, scene);
@@ -197,12 +206,14 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
     }
     bookSerial += 1;
     book.freezeWorldMatrix();
+    floorBuckets.get(location.floor)?.meshes.push(book);
   };
   const world = (centerX: number, centerZ: number, rotation: number, x: number, z: number, y: number) => {
     const local = Vector3.TransformCoordinates(new Vector3(x, y, z), Matrix.RotationY(rotation));
     return new Vector3(centerX + local.x, local.y, centerZ + local.z);
   };
   const addCase = (centerX: number, centerZ: number, width: number, rotation: number, id: string, floor = "ground", floorY = 0) => {
+    const before = new Set(scene.meshes);
     const collider = makeBox(scene, `bookcase-${id}-collision`, { width: width + 0.56, height: 6.45, depth: 0.82 }, world(centerX, centerZ, rotation, 0, 0, floorY + 3.2), wood, true);
     collider.isVisible = false;
     collider.rotation.y = rotation;
@@ -225,34 +236,58 @@ function addReferenceBookcases(scene: Scene, worldState: WorldStateStore) {
         index += 1;
       }
     });
+    const bucket = floorBuckets.get(floor);
+    if (bucket) scene.meshes.forEach((mesh) => { if (!before.has(mesh)) bucket.meshes.push(mesh); });
   };
-  const cases: Array<Parameters<typeof addCase>> = [
+  const groundCases: Array<Parameters<typeof addCase>> = [
     [-5.1, -12.72, 9.7, 0, "back-left"], [5.1, -12.72, 9.7, 0, "back-right"],
     ...[-8.7, -2.9, 2.9, 8.7].map((z, index) => [-10.55, z, 4.6, Math.PI / 2, `left-${index}`] as Parameters<typeof addCase>),
     ...[-8.7, -2.9, 2.9, 8.7].map((z, index) => [10.55, z, 4.6, -Math.PI / 2, `right-${index}`] as Parameters<typeof addCase>),
     ...[-5.6, 0, 5.6].map((z, index) => [-5.0, z, 4.2, 0, `island-left-${index}`] as Parameters<typeof addCase>),
     ...[-5.6, 0, 5.6].map((z, index) => [5.0, z, 4.2, 0, `island-right-${index}`] as Parameters<typeof addCase>),
-    ...[-10.5, -3.5, 3.5, 10.5].map((z, index) => [-14.5, z, 6.2, Math.PI / 2, `upper-west-${index}`, "first", 4.2] as Parameters<typeof addCase>),
-    ...[-10.5, -3.5, 3.5, 10.5].map((z, index) => [14.5, z, 6.2, -Math.PI / 2, `upper-east-${index}`, "first", 4.2] as Parameters<typeof addCase>),
   ];
+  const floorCases: Record<string, Array<Parameters<typeof addCase>>> = {
+    basement: [
+      [-9.2, -8, 7.2, 0, "archive-west", "basement", -4.2], [0, -8, 7.2, 0, "archive-center", "basement", -4.2], [9.2, -8, 7.2, 0, "archive-east", "basement", -4.2],
+    ],
+    ground: groundCases,
+    first: [
+      ...[-10.5, -3.5, 3.5, 10.5].map((z, index) => [-14.5, z, 6.2, Math.PI / 2, `upper-west-${index}`, "first", 4.2] as Parameters<typeof addCase>),
+      ...[-10.5, -3.5, 3.5, 10.5].map((z, index) => [14.5, z, 6.2, -Math.PI / 2, `upper-east-${index}`, "first", 4.2] as Parameters<typeof addCase>),
+    ],
+    second: [
+      [-9.2, 8, 7.2, 0, "literature-west", "second", 8.4], [0, 8, 7.2, 0, "literature-center", "second", 8.4], [9.2, 8, 7.2, 0, "literature-east", "second", 8.4],
+    ],
+  };
   const yieldToFrame = () => new Promise<void>((resolve) => {
     if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") window.requestAnimationFrame(() => resolve());
     else setTimeout(resolve, 0);
   });
-  const buildProgressively = async () => {
-    window.dispatchEvent(new CustomEvent("library:world-progress", { detail: { phase: "bookcases", completed: 0, total: cases.length, percent: 0 } }));
+  const buildFloor = async (floor: string) => {
+    const bucket = floorBuckets.get(floor);
+    const cases = floorCases[floor] ?? [];
+    if (!bucket || bucket.built || bucket.building) return;
+    bucket.building = true;
+    if (floor !== "ground" && scene.meshes.length > 2000) {
+      bucket.building = false;
+      window.dispatchEvent(new CustomEvent("library:world-progress", { detail: { phase: `deferred-${floor}`, floor, completed: 0, total: cases.length, percent: 0, reason: "mesh-budget" } }));
+      return;
+    }
+    window.dispatchEvent(new CustomEvent("library:world-progress", { detail: { phase: `bookcases-${floor}`, floor, completed: 0, total: cases.length, percent: cases.length ? 0 : 100 } }));
     for (let index = 0; index < cases.length; index += 1) {
       await yieldToFrame();
       addCase(...cases[index]);
       const completed = index + 1;
-      window.dispatchEvent(new CustomEvent("library:world-progress", { detail: { phase: "bookcases", completed, total: cases.length, percent: Math.round((completed / cases.length) * 100) } }));
+      window.dispatchEvent(new CustomEvent("library:world-progress", { detail: { phase: `bookcases-${floor}`, floor, completed, total: cases.length, percent: Math.round((completed / cases.length) * 100) } }));
     }
+    bucket.built = true;
+    bucket.building = false;
     BOOK_COUNT = bookSerial;
     window.dispatchEvent(new CustomEvent("library:catalog-ready", { detail: { count: BOOK_COUNT } }));
-    window.dispatchEvent(new CustomEvent("library:world-progress", { detail: { phase: "ready", completed: cases.length, total: cases.length, percent: 100 } }));
+    window.dispatchEvent(new CustomEvent("library:world-progress", { detail: { phase: "ready", floor, completed: cases.length, total: cases.length, percent: 100 } }));
   };
-  void buildProgressively();
-  return bookVisuals;
+  void buildFloor("ground");
+  return { bookVisuals, floorBuckets, requestFloor: (floor: string) => { void buildFloor(floor); } };
 }
 
 function addUniversityShell(scene: Scene, materials: MaterialSet) {
@@ -397,7 +432,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   // University shell and entrance, then the existing reference-style bookcases.
   addUniversityShell(scene, materials);
   addCoreFacilities(scene, materials);
-  const bookVisuals = addReferenceBookcases(scene, worldState);
+  const { bookVisuals, requestFloor } = addReferenceBookcases(scene, worldState);
 
   const ambient = new HemisphericLight("ambient", new Vector3(0, 1, 0), scene);
   ambient.intensity = 0.86;
@@ -421,6 +456,14 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
   });
 
   const player = createPlayer(scene, materials);
+  const maybeLoadNearbyFloor = () => {
+    const position = player.root.position;
+    const nearVerticalAccess = Math.abs(position.x) > 17 || (position.z > 2 && position.z < 9);
+    if (!nearVerticalAccess) return;
+    if (position.y < -2.1) requestFloor("basement");
+    else if (position.y < 2.1) requestFloor("first");
+    else requestFloor("second");
+  };
   try {
     const savedPlayer = JSON.parse(window.localStorage.getItem(PLAYER_STORAGE_KEY) ?? "null") as { position?: { x: number; y: number; z: number }; rotationY?: number } | null;
     if (savedPlayer?.position && Number.isFinite(savedPlayer.position.x) && Number.isFinite(savedPlayer.position.z)) {
@@ -899,6 +942,7 @@ export async function createGameScene(engine: Engine, canvas: HTMLCanvasElement)
     camera.rotation.x = pitch;
     camera.rotation.y = 0;
     const now = performance.now();
+    maybeLoadNearbyFloor();
     if (now - lastPlayerSaveAt > 900) {
       lastPlayerSaveAt = now;
       try { window.localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify({ position: player.root.position, rotationY: player.root.rotation.y })); } catch { /* session-only fallback */ }
