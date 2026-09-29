@@ -1,50 +1,33 @@
-# Quiet Study Hall — Unity Migration
+# Quiet Study Hall — Unity starter
 
-This folder is a **Unity migration scaffold** for the current React + Babylon.js library. The existing web game remains unchanged in the repository root.
+This folder is a **Unity starter scaffold** for the React + Babylon.js university library. It now includes a runtime bootstrap that creates a playable greybox library automatically, so you can press Play after importing the folder.
 
-## Important
+## Open and run
 
-The current project cannot be opened directly as a Unity project because its gameplay is TypeScript/Babylon.js. Unity requires C# scripts, Unity scenes, prefabs, materials, and imported assets. This folder separates the Unity-ready structure and provides the first reusable gameplay scripts.
+1. Install Unity 2022.3 LTS or newer with the 3D Core or URP template.
+2. Create a new Unity project.
+3. Copy the complete `UnityMigration/Assets/` folder into the new project's `Assets/` folder.
+4. In Unity, create an empty scene and an empty GameObject named `LibrarySystems`.
+5. Add the `LibraryBootstrap` component to `LibrarySystems`.
+6. Press **Play**. The script creates the floor, three walls, simple shelves, books, player capsule, camera, gravity, collisions, and `E` interaction at runtime.
 
-## Unity setup
+The bootstrap has no external model or prefab dependency. This is intentional: it gives you a working test scene first. The visual models, Arabic UI, four-floor art direction, animations, and final book page animation are still production work to add in the Editor.
 
-1. Create a Unity **3D URP** project (Unity 2022.3 LTS or newer).
-2. Copy the contents of `UnityMigration/Assets/` into the new project's `Assets/` folder.
-3. Open `Assets/Scenes/UniversityLibrary.unity` after creating the scene, or create a new scene using the structure below.
-4. Add `LibraryBootstrap` to an empty `LibrarySystems` GameObject.
-5. Add `PlayerController` to the player capsule/character and assign the camera.
-6. Add `BookEntity` to each book prefab and `BookInteraction` to the player/camera.
+## What is included
 
-## Folder structure
-
-- `Assets/Scripts/Architecture/` — building, floors, sections, shelf coordinates.
-- `Assets/Scripts/World/` — scene bootstrap and lazy floor loading.
-- `Assets/Scripts/Player/` — first-person movement, gravity, collisions.
-- `Assets/Scripts/Books/` — individual book identity and pickup/open interaction.
-- `Assets/Scripts/UI/` — progress and interaction HUD integration points.
-- `Assets/Data/` — data copied/converted from `architecture-config.ts`.
-- `Assets/Scenes/` — Unity scenes.
-- `Assets/Prefabs/` — player, shelf, book, stairs, elevator prefabs.
-- `Assets/Materials/`, `Models/`, `Textures/` — Unity art assets.
-
-## Porting map
-
-| Babylon/Web | Unity replacement |
+| Web project | Unity starter replacement |
 |---|---|
-| `scene-base.ts` | `LibraryBootstrap`, `PlayerController`, `BookInteraction`, floor builders |
-| `architecture-config.ts` | `LibraryConfig.cs` + `library-config.json` |
-| `WorldStateStore` | `WorldStateStore.cs` using JSON in `Application.persistentDataPath` |
-| `MeshBuilder.CreateBox` | Unity primitive/prefab or optimized mesh prefab |
-| `createInstance()` | GPU instancing / prefab batching / `Graphics.DrawMeshInstanced` |
-| `moveWithCollisions` | `CharacterController.Move` |
-| Babylon raycast | `Physics.Raycast` |
-| `world-progress` events | C# event / Unity UI Slider |
-| React HUD | Canvas + TextMeshPro + Slider |
+| `scene-base.ts` | `LibraryBootstrap`, `PlayerController`, `BookInteraction` |
+| `architecture-config.ts` | `LibraryConfig.cs` and `library-config.json` |
+| Babylon collision movement | Unity `CharacterController.Move` |
+| Babylon raycast | Unity `Physics.Raycast` |
+| React HUD | Integration point for Canvas/TextMeshPro |
+| Book catalog/page data | `Assets/Data/hayy-pages-data.json` |
 
-## Performance rules
+## Important input note
 
-- Build only the ground floor on scene start.
-- Load basement/first/second through `LibraryBootstrap.LoadFloorAsync` when the player reaches stairs/elevator.
-- Use one book mesh per visual family and GPU instancing for shelf books.
-- Use shared materials; do not create a material per book.
-- Keep a mesh budget and delay floor loading if the budget is exceeded.
+The starter uses Unity's **legacy Input Manager** (`Horizontal`, `Vertical`, `Mouse X`, `Mouse Y`) because it works without installing an extra package. If your project is set to **Input System Package (New)** only, go to `Edit > Project Settings > Player > Active Input Handling` and select `Both`, then restart Unity.
+
+## Next production steps
+
+Replace the runtime primitives with shelf/book/player prefabs, add a third-person follow camera, connect TextMeshPro HUD and progress events, import the full 4-floor architecture, add the Arabic catalog importer, then optimize repeated books with shared materials and GPU instancing.

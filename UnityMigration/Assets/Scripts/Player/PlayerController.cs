@@ -14,7 +14,9 @@ namespace QuietStudyHall.Player
         private float pitch;
         private float verticalVelocity;
 
-        private void Awake() => controller = GetComponent<CharacterController>();
+        public void SetCamera(Camera cameraToUse) { playerCamera = cameraToUse; }
+
+        private void Awake() { controller = GetComponent<CharacterController>(); }
 
         private void Update()
         {
@@ -22,6 +24,7 @@ namespace QuietStudyHall.Player
             float z = Input.GetAxisRaw("Vertical");
             Vector3 direction = (transform.right * x + transform.forward * z).normalized;
             float speed = Input.GetKey(KeyCode.LeftShift) ? sprintSpeed : walkSpeed;
+
             if (controller.isGrounded && verticalVelocity < 0f) verticalVelocity = -1f;
             verticalVelocity += gravity * Time.deltaTime;
             controller.Move((direction * speed + Vector3.up * verticalVelocity) * Time.deltaTime);
