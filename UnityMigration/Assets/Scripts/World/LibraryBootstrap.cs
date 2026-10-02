@@ -14,7 +14,6 @@ namespace QuietStudyHall.World
     {
         [SerializeField] private LibraryConfig config;
         [SerializeField] private bool createPlayerAutomatically = true;
-        [SerializeField] private bool buildSimpleShelves = true;
         private readonly Dictionary<LibraryFloor, FloorBucket> floors = new Dictionary<LibraryFloor, FloorBucket>();
         private Transform libraryRoot;
         private Material wallMaterial, floorMaterial, ceilingMaterial, shelfMaterial, tableMaterial, labelMaterial;
@@ -50,28 +49,25 @@ namespace QuietStudyHall.World
             CreatePrimitive("BackWall", PrimitiveType.Cube, root, new Vector3(0f, h * .5f, d * .5f), new Vector3(w, h, .3f), wallMaterial, bucket);
             CreatePrimitive("LeftWall", PrimitiveType.Cube, root, new Vector3(-w * .5f, h * .5f, 0f), new Vector3(.3f, h, d), wallMaterial, bucket);
             CreatePrimitive("RightWall", PrimitiveType.Cube, root, new Vector3(w * .5f, h * .5f, 0f), new Vector3(.3f, h, d), wallMaterial, bucket);
-            CreatePrimitive("EntranceHeader", PrimitiveType.Cube, root, new Vector3(0f, h - 1f, -d * .5f + .15f), new Vector3(10f, 2f, .4f), wallMaterial, bucket);
-            BuildTransportAreas(root, floor, bucket); yield return null;
-            if (buildSimpleShelves)
-            {
-                Vector3[] starts = { new Vector3(-17f, 0f, 20f), new Vector3(5f, 0f, 20f), new Vector3(-17f, 0f, -12f), new Vector3(5f, 0f, -12f) }; int id = 0;
-                foreach (Vector3 start in starts) for (int i = 0; i < 4; i++) { CreateBookcase(root, start + new Vector3(i * 3.9f, 0f, 0f), "Bookcase_" + (++id), bucket, floor); yield return null; }
-            }
+            BuildTransportAreas(root, floor, bucket);
+            yield return null;
+
+            // Shelves are intentionally unconditional: every floor must contain visible bookcases.
+            Vector3[] starts = { new Vector3(-17f, 0f, 20f), new Vector3(5f, 0f, 20f), new Vector3(-17f, 0f, -12f), new Vector3(5f, 0f, -12f) };
+            int id = 0;
+            foreach (Vector3 start in starts)
+                for (int i = 0; i < 4; i++) { CreateBookcase(root, start + new Vector3(i * 3.9f, 0f, 0f), "Bookcase_" + (++id), bucket, floor); yield return null; }
             CreateReadingTable(root, new Vector3(0f, 0f, -22f), bucket); CreateReadingTable(root, new Vector3(0f, 0f, 26f), bucket); CreatePendantLights(root, h, bucket);
             bucket.Built = true; bucket.Building = false; ProgressChanged?.Invoke(floor, 1f);
+            Debug.Log("Built " + floor + " with " + bucket.Objects.Count + " library objects, including 16 bookcases and books.");
         }
 
         private void BuildTransportAreas(Transform root, LibraryFloor floor, FloorBucket bucket)
         {
-            float y = config.FloorY(floor);
             for (int step = 0; step < 8; step++) CreatePrimitive("StairStep_" + step, PrimitiveType.Cube, root, new Vector3(18f, step * .25f, -2f + step * .55f), new Vector3(3.2f, .25f, .7f), shelfMaterial, bucket);
             GameObject elevator = CreatePrimitive("Elevator", PrimitiveType.Cube, root, new Vector3(-19f, 1.1f, 0f), new Vector3(2.4f, 2.2f, 2.4f), tableMaterial, bucket);
-            FloorTransport lift = elevator.AddComponent<FloorTransport>();
-            LibraryFloor next = floor == LibraryFloor.Second ? LibraryFloor.Ground : (LibraryFloor)((int)floor + 1);
-            lift.Configure(new Vector3(-19f, config.FloorY(next) + 1.1f, 0f), "E — المصعد إلى الطابق التالي");
-            GameObject stairLanding = CreatePrimitive("StairLanding", PrimitiveType.Cube, root, new Vector3(18f, 2f, 3f), new Vector3(3.2f, .2f, 2.5f), shelfMaterial, bucket);
-            FloorTransport stairs = stairLanding.AddComponent<FloorTransport>();
-            stairs.Configure(new Vector3(18f, config.FloorY(next) + 1.1f, 3f), "E — صعود الدرج");
+            FloorTransport lift = elevator.AddComponent<FloorTransport>(); LibraryFloor next = floor == LibraryFloor.Second ? LibraryFloor.Ground : (LibraryFloor)((int)floor + 1); lift.Configure(new Vector3(-19f, config.FloorY(next) + 1.1f, 0f), "E — المصعد إلى الطابق التالي");
+            GameObject stairLanding = CreatePrimitive("StairLanding", PrimitiveType.Cube, root, new Vector3(18f, 2f, 3f), new Vector3(3.2f, .2f, 2.5f), shelfMaterial, bucket); FloorTransport stairs = stairLanding.AddComponent<FloorTransport>(); stairs.Configure(new Vector3(18f, config.FloorY(next) + 1.1f, 3f), "E — صعود الدرج");
         }
 
         private void CreateBookcase(Transform root, Vector3 position, string name, FloorBucket bucket, LibraryFloor floor)
