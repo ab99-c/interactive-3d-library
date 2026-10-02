@@ -5,6 +5,8 @@ using UnityEngine;
 using QuietStudyHall.Architecture;
 using QuietStudyHall.Books;
 using QuietStudyHall.Player;
+using QuietStudyHall.Interaction;
+using QuietStudyHall.Systems;
 
 namespace QuietStudyHall.World
 {
@@ -13,147 +15,128 @@ namespace QuietStudyHall.World
         [SerializeField] private LibraryConfig config;
         [SerializeField] private bool createPlayerAutomatically = true;
         [SerializeField] private bool buildSimpleShelves = true;
-        [SerializeField] private Material wallMaterial;
-        [SerializeField] private Material floorMaterial;
-        [SerializeField] private Material shelfMaterial;
-        [SerializeField] private Material bookMaterial;
-
         private readonly Dictionary<LibraryFloor, FloorBucket> floors = new Dictionary<LibraryFloor, FloorBucket>();
         private Transform libraryRoot;
+        private Material wallMaterial, floorMaterial, ceilingMaterial, shelfMaterial, tableMaterial;
+        private readonly List<Material> bookMaterials = new List<Material>();
         public event Action<LibraryFloor, float> ProgressChanged;
 
-        private sealed class FloorBucket
-        {
-            public bool Built;
-            public bool Building;
-            public readonly List<GameObject> Objects = new List<GameObject>();
-        }
+        private sealed class FloorBucket { public bool Built; public bool Building; public readonly List<GameObject> Objects = new List<GameObject>(); }
 
         private void Awake()
         {
             if (config == null)
             {
                 config = ScriptableObject.CreateInstance<LibraryConfig>();
-                config.name = "Runtime Library Config";
+                config.name = "Runtime University Library Config";
+                config.buildingSize = new Vector3(48f, 12f, 72f);
+                config.floorHeight = 4.2f;
             }
-
             libraryRoot = new GameObject("UniversityLibrary_Runtime").transform;
-            foreach (LibraryFloor floor in Enum.GetValues(typeof(LibraryFloor)))
-                floors[floor] = new FloorBucket();
-
+            foreach (LibraryFloor floor in Enum.GetValues(typeof(LibraryFloor))) floors[floor] = new FloorBucket();
+            CreateSystem<WorldStateManager>("WorldStateManager");
+            CreateSystem<ProgressionManager>("ProgressionManager");
             EnsureMaterials();
+            CreateWarmLighting();
             if (createPlayerAutomatically) CreatePlayer();
         }
 
-        private IEnumerator Start()
+        private static T CreateSystem<T>(string name) where T : Component
         {
-            yield return LoadFloorAsync(LibraryFloor.Ground);
+            GameObject system = new GameObject(name);
+            return system.AddComponent<T>();
         }
 
-        public Coroutine LoadFloorAsync(LibraryFloor floor)
-        {
-            return StartCoroutine(BuildFloor(floor));
-        }
+        private IEnumerator Start() { yield return LoadFloorAsync(LibraryFloor.Ground); }
+        public Coroutine LoadFloorAsync(LibraryFloor floor) { return StartCoroutine(BuildFloor(floor)); }
 
         private IEnumerator BuildFloor(LibraryFloor floor)
         {
             FloorBucket bucket = floors[floor];
             if (bucket.Built || bucket.Building) yield break;
-
             bucket.Building = true;
             Transform root = new GameObject(floor + "_Floor").transform;
             root.SetParent(libraryRoot, false);
             root.localPosition = new Vector3(0f, config.FloorY(floor), 0f);
-
-            CreatePrimitive("Floor", PrimitiveType.Cube, root, new Vector3(0f, -0.15f, 0f), new Vector3(config.buildingSize.x, config.floorThickness, config.buildingSize.z), floorMaterial, bucket);
+            float w = config.buildingSize.x, d = config.buildingSize.z, h = config.buildingSize.y;
+            CreatePrimitive("WoodFloor", PrimitiveType.Cube, root, new Vector3(0f, -.15f, 0f), new Vector3(w, .3f, d), floorMaterial, bucket);
+            CreatePrimitive("Ceiling", PrimitiveType.Cube, root, new Vector3(0f, h, 0f), new Vector3(w, .25f, d), ceilingMaterial, bucket);
+            CreatePrimitive("BackWall", PrimitiveType.Cube, root, new Vector3(0f, h * .5f, d * .5f), new Vector3(w, h, .3f), wallMaterial, bucket);
+            CreatePrimitive("LeftWall", PrimitiveType.Cube, root, new Vector3(-w * .5f, h * .5f, 0f), new Vector3(.3f, h, d), wallMaterial, bucket);
+            CreatePrimitive("RightWall", PrimitiveType.Cube, root, new Vector3(w * .5f, h * .5f, 0f), new Vector3(.3f, h, d), wallMaterial, bucket);
             yield return null;
-            CreatePrimitive("BackWall", PrimitiveType.Cube, root, new Vector3(0f, config.buildingSize.y * 0.5f, config.buildingSize.z * 0.5f), new Vector3(config.buildingSize.x, config.buildingSize.y, config.wallThickness), wallMaterial, bucket);
-            CreatePrimitive("LeftWall", PrimitiveType.Cube, root, new Vector3(-config.buildingSize.x * 0.5f, config.buildingSize.y * 0.5f, 0f), new Vector3(config.wallThickness, config.buildingSize.y, config.buildingSize.z), wallMaterial, bucket);
-            CreatePrimitive("RightWall", PrimitiveType.Cube, root, new Vector3(config.buildingSize.x * 0.5f, config.buildingSize.y * 0.5f, 0f), new Vector3(config.wallThickness, config.buildingSize.y, config.buildingSize.z), wallMaterial, bucket);
-            yield return null;
-
             if (buildSimpleShelves)
             {
-                CreateShelfRow(root, new Vector3(-8f, 0f, 6f), 6, bucket);
-                CreateShelfRow(root, new Vector3(8f, 0f, 6f), 6, bucket);
-                CreateShelfRow(root, new Vector3(-8f, 0f, -10f), 6, bucket);
-                CreateShelfRow(root, new Vector3(8f, 0f, -10f), 6, bucket);
+                Vector3[] starts = { new Vector3(-17f, 0f, 20f), new Vector3(5f, 0f, 20f), new Vector3(-17f, 0f, -12f), new Vector3(5f, 0f, -12f) };
+                int id = 0;
+                foreach (Vector3 start in starts)
+                    for (int i = 0; i < 4; i++) { CreateBookcase(root, start + new Vector3(i * 3.9f, 0f, 0f), "Bookcase_" + (++id), bucket); yield return null; }
             }
-
-            bucket.Built = true;
-            bucket.Building = false;
-            ProgressChanged?.Invoke(floor, 1f);
+            CreateReadingTable(root, new Vector3(0f, 0f, -22f), bucket);
+            CreateReadingTable(root, new Vector3(0f, 0f, 26f), bucket);
+            CreatePendantLights(root, h, bucket);
+            bucket.Built = true; bucket.Building = false; ProgressChanged?.Invoke(floor, 1f);
         }
 
-        private void CreateShelfRow(Transform root, Vector3 start, int count, FloorBucket bucket)
+        private void CreateBookcase(Transform root, Vector3 position, string name, FloorBucket bucket)
         {
-            for (int i = 0; i < count; i++)
+            CreatePrimitive(name, PrimitiveType.Cube, root, position + new Vector3(0f, 1.45f, 0f), new Vector3(3.35f, 2.9f, .55f), shelfMaterial, bucket);
+            for (int level = 0; level < 5; level++)
             {
-                Vector3 position = start + new Vector3(i * 2.5f, config.shelfHeight * 0.5f, 0f);
-                GameObject shelf = CreatePrimitive("Shelf", PrimitiveType.Cube, root, position, new Vector3(2f, config.shelfHeight, 0.45f), shelfMaterial, bucket);
-                shelf.transform.position += new Vector3(0f, config.FloorY(LibraryFloor.Ground), 0f);
-                for (int slot = 0; slot < 5; slot++)
+                CreatePrimitive(name + "_Shelf_" + level, PrimitiveType.Cube, root, position + new Vector3(0f, .28f + level * .58f, -.34f), new Vector3(3.5f, .10f, .72f), shelfMaterial, bucket);
+                for (int slot = 0; slot < 10; slot++)
                 {
-                    GameObject book = CreatePrimitive("Book_" + i + "_" + slot, PrimitiveType.Cube, root, position + new Vector3(-0.65f + slot * 0.3f, -0.65f + slot * 0.28f, -0.28f), new Vector3(0.22f, 0.72f, 0.12f), bookMaterial, bucket);
-                    book.AddComponent<BookEntity>().title = "كتاب المكتبة " + (i * 5 + slot + 1);
+                    GameObject book = CreatePrimitive(name + "_Book_" + level + "_" + slot, PrimitiveType.Cube, root, position + new Vector3(-1.38f + slot * .29f, .68f + level * .58f, -.49f), new Vector3(.22f, .48f + (slot % 3) * .08f, .18f), bookMaterials[(slot + level) % bookMaterials.Count], bucket);
+                    book.transform.localRotation = Quaternion.Euler(0f, (slot % 2 == 0 ? -3f : 4f), (slot % 3 - 1) * 2f);
+                    BookEntity entity = book.AddComponent<BookEntity>();
+                    entity.bookId = name + "_book_" + level + "_" + slot; entity.title = "كتاب الجامعة " + (level * 10 + slot + 1); entity.shelfId = name; entity.floor = "ground"; entity.section = "GENERAL";
                 }
+            }
+        }
+
+        private void CreateReadingTable(Transform root, Vector3 pos, FloorBucket bucket)
+        {
+            CreatePrimitive("ReadingTable", PrimitiveType.Cube, root, pos + new Vector3(0f, .85f, 0f), new Vector3(8f, .18f, 2.5f), tableMaterial, bucket);
+            for (int x = -1; x <= 1; x += 2) for (int z = -1; z <= 1; z += 2) CreatePrimitive("TableLeg", PrimitiveType.Cube, root, pos + new Vector3(x * 3f, .4f, z * .8f), new Vector3(.18f, .8f, .18f), tableMaterial, bucket);
+        }
+
+        private void CreatePendantLights(Transform root, float height, FloorBucket bucket)
+        {
+            for (int i = -1; i <= 1; i++)
+            {
+                GameObject lightObject = new GameObject("WarmPendantLight"); lightObject.transform.SetParent(root, false); lightObject.transform.localPosition = new Vector3(i * 12f, height - .5f, 0f);
+                Light light = lightObject.AddComponent<Light>(); light.type = LightType.Point; light.color = new Color(1f, .72f, .42f); light.intensity = 5f; light.range = 18f; bucket.Objects.Add(lightObject);
             }
         }
 
         private GameObject CreatePrimitive(string name, PrimitiveType type, Transform parent, Vector3 localPosition, Vector3 localScale, Material material, FloorBucket bucket)
         {
-            GameObject obj = GameObject.CreatePrimitive(type);
-            obj.name = name;
-            obj.transform.SetParent(parent, false);
-            obj.transform.localPosition = localPosition;
-            obj.transform.localScale = localScale;
-            if (material != null) obj.GetComponent<Renderer>().sharedMaterial = material;
-            bucket.Objects.Add(obj);
-            return obj;
+            GameObject obj = GameObject.CreatePrimitive(type); obj.name = name; obj.transform.SetParent(parent, false); obj.transform.localPosition = localPosition; obj.transform.localScale = localScale;
+            if (material != null) obj.GetComponent<Renderer>().sharedMaterial = material; bucket.Objects.Add(obj); return obj;
         }
 
         private void EnsureMaterials()
         {
-            if (wallMaterial == null) wallMaterial = MakeMaterial("Warm Walls", new Color(0.72f, 0.63f, 0.48f));
-            if (floorMaterial == null) floorMaterial = MakeMaterial("Wood Floor", new Color(0.28f, 0.16f, 0.09f));
-            if (shelfMaterial == null) shelfMaterial = MakeMaterial("Shelf Wood", new Color(0.20f, 0.10f, 0.05f));
-            if (bookMaterial == null) bookMaterial = MakeMaterial("Book Covers", new Color(0.08f, 0.22f, 0.38f));
+            wallMaterial = MakeMaterial("Warm Ivory Walls", new Color(.62f, .54f, .40f)); floorMaterial = MakeMaterial("Dark Wood Floor", new Color(.18f, .09f, .045f)); ceilingMaterial = MakeMaterial("Ceiling", new Color(.35f, .32f, .27f)); shelfMaterial = MakeMaterial("Walnut Shelves", new Color(.12f, .055f, .025f)); tableMaterial = MakeMaterial("Reading Tables", new Color(.24f, .12f, .055f));
+            Color[] colors = { new Color(.72f,.08f,.06f), new Color(.06f,.28f,.58f), new Color(.08f,.45f,.22f), new Color(.85f,.42f,.06f), new Color(.68f,.16f,.40f), new Color(.82f,.72f,.25f) };
+            foreach (Color color in colors) bookMaterials.Add(MakeMaterial("Book", color));
         }
 
         private static Material MakeMaterial(string materialName, Color color)
         {
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
-            if (shader == null) shader = Shader.Find("Standard");
-            Material material = new Material(shader) { name = materialName };
-            material.color = color;
-            return material;
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit"); if (shader == null) shader = Shader.Find("Standard"); Material material = new Material(shader) { name = materialName }; material.color = color; return material;
+        }
+
+        private void CreateWarmLighting()
+        {
+            GameObject lightObject = new GameObject("Library_Ambient_Light"); Light light = lightObject.AddComponent<Light>(); light.type = LightType.Directional; light.color = new Color(1f, .82f, .62f); light.intensity = .65f; light.transform.rotation = Quaternion.Euler(45f, -30f, 0f);
         }
 
         private void CreatePlayer()
         {
-            GameObject player = new GameObject("Player");
-            player.transform.position = new Vector3(0f, 1.1f, -22f);
-            CharacterController controller = player.AddComponent<CharacterController>();
-            controller.height = 1.8f;
-            controller.radius = 0.35f;
-            PlayerController movement = player.AddComponent<PlayerController>();
-
-            GameObject cameraObject = new GameObject("PlayerCamera");
-            cameraObject.transform.SetParent(player.transform, false);
-            cameraObject.transform.localPosition = new Vector3(0f, 0.7f, 0f);
-            Camera camera = cameraObject.AddComponent<Camera>();
-            camera.tag = "MainCamera";
-            movement.SetCamera(camera);
-
-            BookInteraction interaction = player.AddComponent<BookInteraction>();
-            interaction.SetCamera(camera);
-        }
-
-        private Transform RootFor(LibraryFloor floor)
-        {
-            foreach (Transform child in libraryRoot)
-                if (child.name == floor + "_Floor") return child;
-            return libraryRoot;
+            GameObject player = new GameObject("Player"); player.transform.position = new Vector3(0f, 1.1f, -28f); CharacterController controller = player.AddComponent<CharacterController>(); controller.height = 1.8f; controller.radius = .35f;
+            PlayerController movement = player.AddComponent<PlayerController>(); GameObject cameraObject = new GameObject("PlayerCamera"); cameraObject.transform.SetParent(player.transform, false); cameraObject.transform.localPosition = new Vector3(0f, .7f, 0f); Camera camera = cameraObject.AddComponent<Camera>(); camera.tag = "MainCamera"; movement.SetCamera(camera);
+            PlayerInteractor interactor = player.AddComponent<PlayerInteractor>(); interactor.SetCamera(camera);
         }
     }
 }

@@ -1,26 +1,33 @@
 # Unity migration checklist
 
-## Ready in this scaffold
+## Completed in the current Unity 6 scaffold
 
-- Four-floor coordinates copied from `architecture-config.ts`.
-- Ground-first lazy-loading pattern.
-- Floor progress event and mesh-budget guard.
-- CharacterController movement, gravity, and collision baseline.
-- 1.5m forward raycast book pickup.
-- Book identity fields: ID, title, section, call number, floor, shelf, row, slot.
+| Area | Status | Native Unity implementation |
+|---|---|---|
+| Unity project | Done | Unity 6000.6.3f1 project folders, Packages, ProjectSettings |
+| Main scene | Done | `Assets/Scenes/UniversityLibrary.unity` with `LibrarySystems` |
+| Library greybox | Done | Runtime-generated hall, ceiling, walls, tables, warm lights, 16 bookcases |
+| Books | Done | Colored book meshes, unique IDs, shelf metadata, `BookEntity` |
+| Interaction contract | Done | `IInteractable` and `PlayerInteractor` with `E` raycast interaction |
+| Player | Done | CharacterController, gravity, WASD, mouse look, sprint baseline |
+| Event system | Done | `LibraryEventBus` |
+| World state | Done | `WorldStateManager`, discovered books, visited areas, PlayerPrefs save |
+| Progression | Done | `ProgressionManager`, XP, ranks, books opened, pages turned |
+| Source data | Done | `hayy-pages-data.json` copied without rewriting the dataset |
+| Architecture data | Done | `library-config.json` and `LibraryConfig.cs` |
 
-## Still required inside Unity Editor
+## Next implementation phase
 
-- Create the URP project and copy `Assets/`.
-- Build the `UniversityLibrary` scene shell: floor, walls, ceiling, entrance, stairs, elevator, reading zones.
-- Create shared shelf and book prefabs.
-- Enable GPU instancing on shared book materials.
-- Import/create player body, hands, camera, and animations.
-- Connect TextMeshPro HUD to `LibraryBootstrap.ProgressChanged`.
-- Add the Arabic book catalog as a ScriptableObject or JSON importer.
-- Add save/restore using `Application.persistentDataPath`.
-- Test Android build with touch joystick and look area.
+- Replace runtime primitives with reusable shelf, book, furniture, and architecture prefabs.
+- Add TextMeshPro interaction HUD and book information panel.
+- Parse the Arabic page dataset into a runtime book-content provider.
+- Add four-floor stairs/elevator navigation and real lazy loading triggers.
+- Add map UI with player position and library sections.
+- Move desktop input to Unity Input System while keeping mobile-ready input interfaces.
+- Add third-person or polished first-person presentation according to the approved final direction.
+- Add static batching/GPU instancing and profile the Windows build.
+- Add final audio architecture and safe placeholder ambience if no licensed audio is supplied.
 
-## Do not copy
+## Source-of-truth rule
 
-Do not copy `node_modules`, `dist`, React components, Vite config, or Babylon bundles into Unity. They are web-only build artifacts.
+The web React/Babylon application remains intact. Unity is an additional native implementation; it does not copy TypeScript into the Unity project.
