@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace QuietStudyHall.Player
 {
@@ -21,19 +20,17 @@ namespace QuietStudyHall.Player
 
         private void Update()
         {
-            Vector2 input = ModernInput.Move();
-            float x = input.x;
-            float z = input.y;
+            float x = Input.GetAxisRaw("Horizontal");
+            float z = Input.GetAxisRaw("Vertical");
             Vector3 direction = (transform.right * x + transform.forward * z).normalized;
-            float speed = ModernInput.Held(Key.LeftShift) ? sprintSpeed : walkSpeed;
+            float speed = Input.GetKey(KeyCode.LeftShift) ? sprintSpeed : walkSpeed;
 
             if (controller.isGrounded && verticalVelocity < 0f) verticalVelocity = -1f;
             verticalVelocity += gravity * Time.deltaTime;
             controller.Move((direction * speed + Vector3.up * verticalVelocity) * Time.deltaTime);
 
-            Vector2 mouse = ModernInput.MouseDelta() * lookSensitivity * 0.02f;
-            float mouseX = mouse.x;
-            float mouseY = mouse.y;
+            float mouseX = Input.GetAxis("Mouse X") * lookSensitivity;
+            float mouseY = Input.GetAxis("Mouse Y") * lookSensitivity;
             transform.Rotate(Vector3.up * mouseX);
             pitch = Mathf.Clamp(pitch - mouseY, -80f, 80f);
             if (playerCamera != null) playerCamera.transform.localRotation = Quaternion.Euler(pitch, 0f, 0f);

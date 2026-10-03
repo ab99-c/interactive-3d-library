@@ -1,7 +1,5 @@
 using UnityEngine;
 using QuietStudyHall.Books;
-using UnityEngine.InputSystem;
-using QuietStudyHall.Player;
 
 namespace QuietStudyHall.Interaction
 {
@@ -22,8 +20,8 @@ namespace QuietStudyHall.Interaction
         {
             if (HeldBook != null)
             {
-                if (ModernInput.Down(Key.R)) HeldBook.ReturnToShelf(this);
-                else if (ModernInput.Down(Key.E)) HeldBook.Interact(this);
+                if (Input.GetKeyDown(KeyCode.R)) HeldBook.ReturnToShelf(this);
+                else if (Input.GetKeyDown(KeyCode.E)) HeldBook.Interact(this);
                 return;
             }
 
@@ -35,7 +33,7 @@ namespace QuietStudyHall.Interaction
                 if (book != null && book.state == BookState.OnShelf) Current = book;
                 else Current = hit.collider.GetComponentInParent<FloorTransport>();
             }
-            if (Current != null && ModernInput.Down(Key.E)) Current.Interact(this);
+            if (Current != null && Input.GetKeyDown(KeyCode.E)) Current.Interact(this);
         }
     }
 }

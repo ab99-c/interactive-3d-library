@@ -1,7 +1,6 @@
 using System;
 using UnityEngine;
 using QuietStudyHall.Player;
-using UnityEngine.InputSystem;
 
 namespace QuietStudyHall.Systems
 {
@@ -22,8 +21,8 @@ namespace QuietStudyHall.Systems
 
         private void Update()
         {
-            if (ModernInput.Down(Key.F5)) Save();
-            if (ModernInput.Down(Key.F9)) Load();
+            if (Input.GetKeyDown(KeyCode.F5)) Save();
+            if (Input.GetKeyDown(KeyCode.F9)) Load();
         }
 
         public void Save()

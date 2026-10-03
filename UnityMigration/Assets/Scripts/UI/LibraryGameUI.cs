@@ -5,8 +5,6 @@ using UnityEngine.UI;
 using QuietStudyHall.Books;
 using QuietStudyHall.Interaction;
 using QuietStudyHall.Systems;
-using QuietStudyHall.Player;
-using UnityEngine.InputSystem;
 
 namespace QuietStudyHall.UI
 {
@@ -38,9 +36,9 @@ namespace QuietStudyHall.UI
         private void Update()
         {
             if (interactor == null) return;
-            if (ModernInput.Down(Key.M)) { mapPanel.SetActive(!mapPanel.activeSelf); UpdateMap(); }
-            if (ModernInput.Down(Key.F)) searchPanel.SetActive(!searchPanel.activeSelf);
-            if (ModernInput.Down(Key.Escape)) { readerPanel.SetActive(false); mapPanel.SetActive(false); searchPanel.SetActive(false); }
+            if (Input.GetKeyDown(KeyCode.M)) { mapPanel.SetActive(!mapPanel.activeSelf); UpdateMap(); }
+            if (Input.GetKeyDown(KeyCode.F)) searchPanel.SetActive(!searchPanel.activeSelf);
+            if (Input.GetKeyDown(KeyCode.Escape)) { readerPanel.SetActive(false); mapPanel.SetActive(false); searchPanel.SetActive(false); }
             activeBook = interactor.HeldBook;
             if (content == null) content = GetComponent<BookContentProvider>();
             if (activeBook != null && activeBook.state == BookState.Open) { readerPanel.SetActive(true); UpdateReader(); }

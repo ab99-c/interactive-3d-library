@@ -1,6 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
-using QuietStudyHall.Player;
 
 namespace QuietStudyHall.Books
 {
@@ -9,14 +7,14 @@ namespace QuietStudyHall.Books
         [SerializeField] private Camera playerCamera;
         [SerializeField] private float interactionRange = 2.2f;
         [SerializeField] private Transform rightHand;
-        [SerializeField] private Key interactKey = Key.E;
+        [SerializeField] private KeyCode interactKey = KeyCode.E;
         private BookEntity heldBook;
 
         public void SetCamera(Camera cameraToUse) { playerCamera = cameraToUse; }
 
         private void Update()
         {
-            if (!ModernInput.Down(interactKey) || playerCamera == null) return;
+            if (!Input.GetKeyDown(interactKey) || playerCamera == null) return;
             if (heldBook != null) { ToggleOpen(heldBook); return; }
             if (!Physics.Raycast(playerCamera.transform.position, playerCamera.transform.forward, out RaycastHit hit, interactionRange)) return;
 
