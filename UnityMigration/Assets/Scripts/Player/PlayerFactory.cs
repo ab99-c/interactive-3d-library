@@ -1,5 +1,8 @@
 using UnityEngine;
 using QuietStudyHall.Interaction;
+using QuietStudyHall.UI;
+using QuietStudyHall.Systems;
+using QuietStudyHall.Books;
 
 namespace QuietStudyHall.Player
 {
@@ -16,6 +19,9 @@ namespace QuietStudyHall.Player
             Camera camera = cameraObject.AddComponent<Camera>(); camera.tag = "MainCamera"; movement.SetCamera(camera);
             GameObject hand = new GameObject("BookHand"); hand.transform.SetParent(cameraObject.transform, false); hand.transform.localPosition = new Vector3(.42f, -.35f, .65f);
             PlayerInteractor interactor = player.AddComponent<PlayerInteractor>(); interactor.SetCamera(camera); interactor.SetBookHand(hand.transform);
+            LibraryGameUI ui = player.AddComponent<LibraryGameUI>(); ui.Bind(interactor);
+            player.AddComponent<BookContentProvider>();
+            LibrarySaveManager save = player.AddComponent<LibrarySaveManager>(); save.Bind(player.transform);
             return player;
         }
     }

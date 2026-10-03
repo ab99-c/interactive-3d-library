@@ -17,6 +17,7 @@ namespace QuietStudyHall.Books
 
         public bool Load()
         {
+            if (hayyPagesJson == null) hayyPagesJson = Resources.Load<TextAsset>("hayy-pages-data");
             if (hayyPagesJson == null || string.IsNullOrEmpty(hayyPagesJson.text)) return false;
             try
             {
