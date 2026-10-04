@@ -10,7 +10,8 @@
     "preview": "vite preview --host 0.0.0.0 --port 3000",
     "check": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "agent": "node scripts/agent-orchestrator.mjs"
   },
   "dependencies": {
     "@babylonjs/core": "^9.22.2",

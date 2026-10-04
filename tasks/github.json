@@ -1,0 +1,14 @@
+{
+  "repository": "ab99-c/interactive-3d-library",
+  "defaultBranch": "main",
+  "projectNumber": null,
+  "labels": {
+    "ready": "agent:ready",
+    "inProgress": "agent:in-progress",
+    "blocked": "agent:blocked",
+    "done": "agent:done"
+  },
+  "defaultCommand": "pnpm check && pnpm test && pnpm build",
+  "defaultFixCommand": null,
+  "publishByDefault": false
+}
