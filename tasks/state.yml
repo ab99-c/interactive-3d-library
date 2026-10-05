@@ -1,5 +1,20 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-04T14:42:31.440Z",
-  "tasks": []
+  "updatedAt": "2026-10-05T11:16:14.167Z",
+  "tasks": [
+    {
+      "id": "issue-1",
+      "attempts": 1,
+      "dependsOn": [],
+      "lastError": null,
+      "title": "اختبار GitHub Agents",
+      "issueNumber": 1,
+      "issueUrl": "https://github.com/ab99-c/interactive-3d-library/issues/1",
+      "command": "node --check scripts/agent-orchestrator.mjs && node --check scripts/agents/github-client.mjs",
+      "fixCommand": null,
+      "branchName": "agent/issue-1",
+      "status": "passed",
+      "updatedAt": "2026-10-05T11:16:14.167Z"
+    }
+  ]
 }
