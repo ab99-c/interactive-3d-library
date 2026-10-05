@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Check, test, and build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: جلب الكود
+        uses: actions/checkout@v4
+
+      - name: إعداد pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: إعداد Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: تثبيت dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: فحص TypeScript
+        run: pnpm check
+
+      - name: فحص جودة الكود
+        run: pnpm lint
+
+      - name: فحص الثغرات الأمنية
+        run: pnpm audit --audit-level=high
+
+      - name: تشغيل الاختبارات
+        run: pnpm test
+
+      - name: بناء production
+        run: pnpm build
