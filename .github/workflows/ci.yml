@@ -36,6 +36,12 @@ jobs:
       - name: فحص TypeScript
         run: pnpm check
 
+      - name: فحص جودة الكود
+        run: pnpm lint
+
+      - name: فحص الثغرات الأمنية
+        run: pnpm audit --audit-level=high
+
       - name: تشغيل الاختبارات
         run: pnpm test
 
