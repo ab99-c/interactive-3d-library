@@ -11,7 +11,8 @@
     "check": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "agent": "node scripts/agent-orchestrator.mjs"
+    "agent": "node scripts/agent-orchestrator.mjs",
+    "agent:local": "node scripts/local-github-agent.mjs"
   },
   "dependencies": {
     "@babylonjs/core": "^9.22.2",
