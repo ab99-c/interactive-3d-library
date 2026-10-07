@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-05T11:16:14.167Z",
+  "updatedAt": "2026-10-07T15:53:27.529Z",
   "tasks": [
     {
       "id": "issue-1",
@@ -15,6 +15,34 @@
       "branchName": "agent/issue-1",
       "status": "passed",
       "updatedAt": "2026-10-05T11:16:14.167Z"
+    },
+    {
+      "id": "issue-6",
+      "attempts": 1,
+      "dependsOn": [],
+      "lastError": null,
+      "title": "اختبار الوكيل المحلي",
+      "issueNumber": 6,
+      "issueUrl": "https://github.com/ab99-c/interactive-3d-library/issues/6",
+      "command": "pnpm check",
+      "fixCommand": null,
+      "branchName": "agent/issue-6",
+      "status": "passed",
+      "updatedAt": "2026-10-07T15:53:27.529Z"
+    },
+    {
+      "id": "issue-3",
+      "attempts": 0,
+      "dependsOn": [],
+      "lastError": null,
+      "title": "اختبار التشغيل الآلي للوكيل",
+      "issueNumber": 3,
+      "issueUrl": "https://github.com/ab99-c/interactive-3d-library/issues/3",
+      "command": "node --check scripts/agent-orchestrator.mjs && node --check scripts/agents/github-client.mjs",
+      "fixCommand": null,
+      "branchName": "agent/issue-3",
+      "status": "ready",
+      "updatedAt": "2026-10-07T15:53:17.803Z"
     }
   ]
 }
