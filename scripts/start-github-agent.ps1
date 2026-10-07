@@ -6,11 +6,11 @@ param(
 $ErrorActionPreference = "Stop"
 
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
-  throw "GitHub CLI (gh) غير مثبت. ثبته ثم شغّل gh auth login."
+  throw "GitHub CLI (gh) is not installed. Install it, then run gh auth login."
 }
 
 if (-not $env:OPENAI_API_KEY) {
-  throw "OPENAI_API_KEY غير مضبوط. استعمل: `$env:OPENAI_API_KEY = 'المفتاح'"
+  throw "OPENAI_API_KEY is not set. Set it in this PowerShell window before starting the agent."
 }
 
 if ($AutoApprove) {
